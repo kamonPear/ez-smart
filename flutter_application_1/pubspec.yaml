@@ -34,9 +34,10 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  google_fonts: ^6.3.3
   fl_chart: ^0.70.0 # สำหรับทำกราฟเส้น
   percent_indicator: ^4.2.3 # สำหรับทำวงกลมค่าสถิติ
+  google_fonts: ^8.1.0
+  table_calendar: ^3.2.0
 
 
 dev_dependencies:

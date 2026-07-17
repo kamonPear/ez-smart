@@ -1,4 +1,7 @@
+import 'dart:convert'; // 🌟 เพิ่มสำหรับการแปลงข้อมูลเป็น JSON
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http; // 🌟 เพิ่มสำหรับเรียก API
+
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Notifications_.dart';
@@ -9,7 +12,6 @@ import '../bottombar.dart';
 import '../close_open_Door.dart';       
 
 class MainEditdataShowfood1 extends StatefulWidget {
-  // 🌟 รับค่าข้อมูลเดิมเข้ามาเพื่อทำการแก้ไข
   final Map<String, String> initialData;
 
   const MainEditdataShowfood1({super.key, required this.initialData});
@@ -19,10 +21,9 @@ class MainEditdataShowfood1 extends StatefulWidget {
 }
 
 class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
-  // ตั้งค่าเป็น 4 เพื่อให้ Bar ไฮไลท์ที่รูป "อาหาร" (เพราะหน้านี้เกี่ยวกับอาหาร)
   int selectedIndex = 4;
+  bool _isLoading = false; // 🌟 ตัวแปรสำหรับแสดงสถานะ Loading
 
-  // 🌟 1. สร้าง Controller สำหรับช่องกรอกข้อมูล
   late TextEditingController _dateReceivedController;
   late TextEditingController _amountController;
   late TextEditingController _expireDateController;
@@ -31,11 +32,9 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
   @override
   void initState() {
     super.initState();
-    // 🌟 2. นำข้อมูลเดิมที่รับมา ยัดใส่ Controller เพื่อแสดงในช่องกรอก
     _dateReceivedController = TextEditingController(text: widget.initialData['receiveDate']);
     _expireDateController = TextEditingController(text: widget.initialData['expireDate']);
     
-    // ตัดคำว่า " กิโลกรัม" ออกเวลาแสดงผล เพื่อให้พิมพ์แก้ไขแค่ตัวเลขได้ง่ายๆ
     String amountText = widget.initialData['amount']?.replaceAll(' กิโลกรัม', '') ?? '';
     String thresholdText = widget.initialData['threshold']?.replaceAll(' กิโลกรัม', '') ?? '';
     
@@ -45,7 +44,6 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
 
   @override
   void dispose() {
-    // 🌟 คืนหน่วยความจำเมื่อปิดหน้า
     _dateReceivedController.dispose();
     _amountController.dispose();
     _expireDateController.dispose();
@@ -53,45 +51,175 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
     super.dispose();
   }
 
-  // --- ฟังก์ชันจัดการการเปลี่ยนหน้าผ่าน BottomBar ---
   void onTabSelected(int index) {
     if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainScreen()),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
     } else if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
-      );
-    } else if(index == 3){
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const Mainchicken()),
-      );
-    } 
-    else if (index == 4) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
-      );
-    } else if(index == 2){
-       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const ShowChart()),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CloseOpenDoor()));
+    } else if (index == 3) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Mainchicken()));
+    } else if (index == 4) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainShowDataFood()));
+    } else if (index == 2) {
+       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ShowChart()));
+    } else {
+      setState(() { selectedIndex = index; });
     }
-    else {
-      // Index อื่นๆ -> เปลี่ยนสีปุ่มเฉยๆ
+  }
+
+  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+    DateTime initialDate = DateTime.now();
+    if (controller.text.isNotEmpty) {
+      try {
+        List<String> parts = controller.text.split('/');
+        if (parts.length == 3) {
+          int day = int.parse(parts[0].trim());
+          int month = int.parse(parts[1].trim());
+          int year = int.parse(parts[2].trim()) - 543; 
+          initialDate = DateTime(year, month, day);
+        }
+      } catch (e) {
+        initialDate = DateTime.now();
+      }
+    }
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF6FE975),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFF6FE975)),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
       setState(() {
-        selectedIndex = index;
+        int thaiYear = picked.year + 543;
+        String day = picked.day.toString().padLeft(2, '0');
+        String month = picked.month.toString().padLeft(2, '0');
+        controller.text = "$day / $month / $thaiYear";
       });
     }
   }
 
-  // 🌟 ปรับฟังก์ชันให้รับ TextEditingController แทน
-  Widget _buildTextFieldGroup(String label, TextEditingController controller) {
+  // 🌟 ฟังก์ชันช่วยแปลงวันที่จาก "DD / MM / YYYY" (พ.ศ.) เป็น "YYYY-MM-DDT00:00:00Z" (ค.ศ. สากลสำหรับ Go Backend)
+  String _formatDateForGo(String thaiDateStr) {
+    if (thaiDateStr.isEmpty) return "";
+    try {
+      List<String> parts = thaiDateStr.split('/');
+      if (parts.length == 3) {
+        int day = int.parse(parts[0].trim());
+        int month = int.parse(parts[1].trim());
+        int year = int.parse(parts[2].trim()) - 543;
+        
+        String d = day.toString().padLeft(2, '0');
+        String m = month.toString().padLeft(2, '0');
+        
+        return "$year-$m-${d}T00:00:00Z";
+      }
+    } catch (e) {
+      print("แปลงวันที่ผิดพลาด: $e");
+    }
+    return DateTime.now().toUtc().toIso8601String();
+  }
+
+  // 🌟 ฟังก์ชันหลักสำหรับบันทึกการแก้ไขไปยัง Go Backend API
+  Future<void> _updateDataToAPI() async {
+    // ดักจับ Error: เช็คว่ามี ID ส่งมาให้หน้านี้จริงหรือไม่
+    String foodIdStr = widget.initialData['id'] ?? '';
+    if (foodIdStr.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ไม่พบ ID ของรายการนี้ ไม่สามารถแก้ไขได้'), backgroundColor: Colors.red),
+      );
+      print("🚨 ข้อมูล widget.initialData ไม่มี Key 'id' หรือค่าเป็น null");
+      return; 
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      var url = Uri.parse('http://10.0.2.2:8080/api/foods?id=$foodIdStr'); 
+
+      String amountVal = _amountController.text.replaceAll(' กิโลกรัม', '').trim();
+      String thresholdVal = _thresholdController.text.replaceAll(' กิโลกรัม', '').trim();
+
+      // แปลงเป็นทศนิยมเพื่อให้ตรงกับ float64 ของ Go
+      double quantity = double.tryParse(amountVal) ?? 0.0;
+      double minQuantity = double.tryParse(thresholdVal) ?? 0.0;
+
+      String isoImportDate = _formatDateForGo(_dateReceivedController.text);
+      String isoExpireDate = _formatDateForGo(_expireDateController.text);
+
+      var requestBody = {
+        "quantity_current": quantity,
+        "min_quantity": minQuantity,
+        "import_date": isoImportDate, 
+        "expiry_date": isoExpireDate,
+        "date_up": DateTime.now().toUtc().toIso8601String(), 
+      };
+
+      print("📦 ข้อมูลที่จะส่งไป Go: ${jsonEncode(requestBody)}"); 
+
+      var response = await http.put(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(requestBody), 
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('บันทึกการแก้ไขสำเร็จ!'), backgroundColor: Colors.green),
+          );
+          
+          Map<String, String> updatedDataForUI = {
+            "id": foodIdStr,
+            "receiveDate": _dateReceivedController.text, 
+            "amount": "$amountVal กิโลกรัม",
+            "expireDate": _expireDateController.text,
+            "threshold": "$thresholdVal กิโลกรัม",
+          };
+          Navigator.pop(context, updatedDataForUI);
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${response.statusCode}'), backgroundColor: Colors.red),
+          );
+          print("🚨 Go Error Response: ${response.body}"); 
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false; 
+        });
+      }
+    }
+  }
+
+  Widget _buildTextFieldGroup(String label, TextEditingController controller, {bool readOnly = false, VoidCallback? onTap}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -99,21 +227,19 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
           padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
           child: Text(
             label,
-            style: GoogleFonts.kanit(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
+            style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
           ),
         ),
         Container(
           height: 45,
           decoration: BoxDecoration(
-            color: const Color(0xFFF5F0F0), // สีพื้นหลังช่องกรอก (ขาวครีม)
+            color: const Color(0xFFF5F0F0),
             borderRadius: BorderRadius.circular(15),
           ),
           child: TextField(
-            controller: controller, // 🌟 ผูก Controller ตรงนี้
+            controller: controller, 
+            readOnly: readOnly,     
+            onTap: onTap,           
             style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
             decoration: const InputDecoration(
               border: InputBorder.none,
@@ -126,15 +252,14 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
     );
   }
 
-  // ฟังก์ชันสร้างปุ่มกด (บันทึก / ยกเลิก)
   Widget _buildActionButton(String text, Color color, VoidCallback onTap) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: _isLoading ? null : onTap, 
       child: Container(
         width: 120,
         height: 50,
         decoration: BoxDecoration(
-          color: color,
+          color: _isLoading ? Colors.grey : color, 
           borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
@@ -147,11 +272,7 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
         child: Center(
           child: Text(
             text,
-            style: GoogleFonts.kanit(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+            style: GoogleFonts.kanit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
           ),
         ),
       ),
@@ -166,7 +287,7 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
       extendBody: true,
       body: Stack(
         children: [
-          // --- ส่วนที่ 1: ภาพพื้นหลัง ---
+          // พื้นหลัง
           Container(
             height: screenHeight,
             width: double.infinity,
@@ -179,158 +300,97 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
             ),
           ),
 
-          // --- ส่วนที่ 2: เนื้อหา (ฟอร์มแก้ไขข้อมูล) ---
+          // ฟอร์มเนื้อหา
           Positioned(
-            top: 280, // เว้นระยะจาก Header ลงมา
+            top: 280,
             left: 0,
             right: 0,
-            bottom: 80, // เว้นระยะให้ BottomBar
+            bottom: 80,
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
               child: Column(
                 children: [
-                  // --- การ์ดสีฟ้า (ฟอร์ม) ---
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFBDDDE9), // สีฟ้าอ่อนตามรูป
+                      color: const Color(0xFFBDDDE9),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 6,
-                          offset: const Offset(0, 3),
-                        ),
+                        BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 3)),
                       ],
                     ),
                     child: Column(
                       children: [
-                        Text(
-                          "แก้ไขข้อมูลคลังอาหาร",
-                          style: GoogleFonts.kanit(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900, // ตัวหนาพิเศษ
-                            color: Colors.black,
-                          ),
-                        ),
+                        Text("แก้ไขข้อมูลคลังอาหาร", style: GoogleFonts.kanit(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.black)),
                         const SizedBox(height: 20),
-
-                        // 🌟 เรียกใช้ฟังก์ชันสร้างช่องกรอก พร้อมแนบ Controller
-                        _buildTextFieldGroup("วัน / เดือน / ปี ที่รับอาหารเข้า", _dateReceivedController),
-                        _buildTextFieldGroup("จำนวนอาหารที่รับเข้า", _amountController),
-                        _buildTextFieldGroup("วันอาหารจะหมดอายุ", _expireDateController),
-                        _buildTextFieldGroup("กำหนดค่าปริมาณใกล้จะหมด", _thresholdController),
+                        _buildTextFieldGroup("วัน / เดือน / ปี ที่รับอาหารเข้า", _dateReceivedController, readOnly: true, onTap: () => _selectDate(context, _dateReceivedController)),
+                        _buildTextFieldGroup("จำนวนอาหารที่รับเข้า (กิโลกรัม)", _amountController),
+                        _buildTextFieldGroup("วันอาหารจะหมดอายุ", _expireDateController, readOnly: true, onTap: () => _selectDate(context, _expireDateController)),
+                        _buildTextFieldGroup("กำหนดค่าปริมาณใกล้จะหมด (กิโลกรัม)", _thresholdController),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 30),
 
-                  // --- ปุ่มกด (บันทึก / ยกเลิก) ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // ปุ่มบันทึก (สีเขียว)
                       _buildActionButton("บันทึก", const Color(0xFF66E675), () {
-                        // 🌟 3. ดึงข้อมูลที่แก้เสร็จแล้ว แพ็คส่งกลับไปหน้าหลัก
-                        String amountVal = _amountController.text;
-                        if (amountVal.isNotEmpty && !amountVal.contains("กิโลกรัม")) {
-                          amountVal = "$amountVal กิโลกรัม";
-                        }
-
-                        String thresholdVal = _thresholdController.text;
-                        if (thresholdVal.isNotEmpty && !thresholdVal.contains("กิโลกรัม")) {
-                          thresholdVal = "$thresholdVal กิโลกรัม";
-                        }
-
-                        Map<String, String> updatedData = {
-                          "receiveDate": _dateReceivedController.text,
-                          "amount": amountVal.isNotEmpty ? amountVal : "0 กิโลกรัม",
-                          "expireDate": _expireDateController.text,
-                          "threshold": thresholdVal.isNotEmpty ? thresholdVal : "-",
-                        };
-                        
-                        Navigator.pop(context, updatedData);
+                        _updateDataToAPI(); 
                       }),
-                      
-                      // ปุ่มยกเลิก (สีส้มแดง)
                       _buildActionButton("ยกเลิก", const Color(0xFFEB856D), () {
-                        // กดยกเลิก กลับหน้าเดิมโดยไม่ส่งค่ากลับ
                         Navigator.pop(context);
                       }),
                     ],
                   ),
-                  
-                  const SizedBox(height: 50), // พื้นที่ว่างด้านล่าง
+                  const SizedBox(height: 50), 
                 ],
               ),
             ),
           ),
 
-          // --- ส่วนที่ 3: Header ---
+          // Header
           Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Container(
-                    height: 160,
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            width: 120,
-                            height: 120,
-                          ),
-                        ),
-                        // 👇 ปรับข้อความและขนาดฟอนต์ให้เหมือนในรูป
-                        Positioned(
-                          left: 135,
-                          top: 25,
-                          child: Text(
-                            'EZ -\nSMART\nFARM',
-                            style: GoogleFonts.kanit(
-                              fontSize: 28,
-                              height: 1.1,
-                              fontWeight: FontWeight.bold,
-                              color: const Color.fromARGB(255, 252, 250, 250),
-                            ),
-                          ),
-                        ),
-                        // 👇 ปรับไอคอนกระดิ่งเป็นสีดำและนำไอคอนขีดๆ ออก
-                        Positioned(
-                          right: 0,
-                          bottom: 20,
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const Notifications()),
-                              );
-                            },
-                            child: const Icon(
-                              Icons.notifications_active,
-                              color: Colors.black87,
-                              size: 32,
-                            ),
-                          ),
-                        ),
-                      ],
+            top: 0, left: 0, right: 0,
+            child: SafeArea(
+              child: Container(
+                height: 160,
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                child: Stack(
+                  children: [
+                    Positioned(left: 0, top: 0, child: Image.asset('assets/images/logo.png', width: 120, height: 120)),
+                    Positioned(
+                      left: 135, top: 25,
+                      child: Text('EZ -\nSMART\nFARM', style: GoogleFonts.kanit(fontSize: 28, height: 1.1, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
-                  ),
+                    Positioned(
+                      right: 0, bottom: 20,
+                      child: GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const Notifications())),
+                        child: const Icon(Icons.notifications_active, color: Colors.black87, size: 32),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
+          ),
+
+          // แสดง Loading ซ้อนทับบนสุดเมื่อกำลังโหลด
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6FE975)),
+                ),
+              ),
+            ),
         ],
       ),
 
-      bottomNavigationBar: CustomBottomBar(
-        selectedIndex: selectedIndex,
-        onTabSelected: onTabSelected,
-      ),
+      bottomNavigationBar: CustomBottomBar(selectedIndex: selectedIndex, onTabSelected: onTabSelected),
     );
   }
 }

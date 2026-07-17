@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_application_1/pages/close_open_Door.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart'; 
 import 'bottombar.dart'; 
+import '../../services/backend_config.dart';
 
 class Notifications extends StatefulWidget {
   const Notifications({super.key});
@@ -15,43 +18,206 @@ class Notifications extends StatefulWidget {
 
 class _NotificationsState extends State<Notifications> {
   int selectedIndex = 0;
+  bool isLoading = true;
+
+  // 🌟 1. เปลี่ยนเป็น Map<String, dynamic> เพื่อให้เก็บ ID (int) และแยกประเภทได้
+  List<Map<String, dynamic>> notificationsList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAndCheckNotifications();
+  }
+
+  Future<void> _fetchAndCheckNotifications() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    List<Map<String, dynamic>> newNotifications = [];
+    DateTime today = DateTime.now();
+    
+    String timeNow = "${today.hour.toString().padLeft(2, '0')}:${today.minute.toString().padLeft(2, '0')}";
+    String dateNow = "${today.day.toString().padLeft(2, '0')}/${today.month.toString().padLeft(2, '0')}/${today.year + 543}";
+
+    // ---------------------------------------------------------
+    // 1. แจ้งเตือนปริมาณอาหาร (ใกล้หมด / หมดแล้ว)
+    // ---------------------------------------------------------
+    try {
+      final response = await http.get(Uri.parse('$backendBaseUrl/api/foods?id=1'));
+      
+      if (response.statusCode == 200 && response.body.isNotEmpty && response.body != 'null') {
+        final decoded = jsonDecode(response.body);
+        
+        if (decoded != null && decoded is Map<String, dynamic>) {
+          double currentQuantity = (decoded['quantity_current'] as num?)?.toDouble() ?? 0.0;
+          double minQuantity = (decoded['min_quantity'] as num?)?.toDouble() ?? 0.0;
+          int foodId = decoded['id'] ?? 1; // ดึง ID อาหาร
+          
+          if (currentQuantity <= 0.0) {
+            newNotifications.add({
+              "id": foodId,
+              "type": "food",
+              "title": "🚨 อาหารหมดแล้ว! กรุณาเติมอาหารด่วน",
+              "time": timeNow,
+              "date": dateNow,
+            });
+          } 
+          else if (currentQuantity <= minQuantity) {
+            newNotifications.add({
+              "id": foodId,
+              "type": "food",
+              "title": "⚠️ อาหารใกล้หมด! (เหลือ ${currentQuantity.toStringAsFixed(2)} กก.)",
+              "time": timeNow,
+              "date": dateNow,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching food notifications: $e");
+    }
+
+    // ---------------------------------------------------------
+    // 2. แจ้งเตือนวัคซีน 
+    // ---------------------------------------------------------
+    try {
+      final responseVaccine = await http.get(Uri.parse('$backendBaseUrl/api/notifications/vaccines'));
+      
+      if (responseVaccine.statusCode == 200 && responseVaccine.body.isNotEmpty && responseVaccine.body != 'null') {
+        final decoded = jsonDecode(responseVaccine.body);
+        
+        if (decoded is List) {
+          for (var v in decoded) {
+            if (v is Map<String, dynamic>) {
+              // 🌟 สำคัญ: ดึง ID ของวัคซีนมาด้วย เพื่อใช้ตอนอัปเดตสถานะ
+              int id = v['id'] ?? v['vaccine_id'] ?? 0; 
+              String vaccineName = v['name'] ?? 'วัคซีน';
+              String coopName = v['coop_name'] ?? 'ไม่ระบุคอก';
+              bool isToday = v['is_today'] ?? false; 
+
+              String notiTitle = isToday 
+                  ? "‼️ วันนี้ถึงกำหนดให้ $vaccineName ที่ $coopName"
+                  : "💉 พรุ่งนี้มีคิวให้ $vaccineName ที่ $coopName";
+
+              newNotifications.add({
+                "id": id,
+                "type": "vaccine", // ระบุประเภท
+                "title": notiTitle,
+                "time": timeNow, 
+                "date": dateNow,
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching vaccine notifications: $e");
+    }
+
+    // ---------------------------------------------------------
+    // 3. แจ้งเตือนตรวจสุขภาพ 
+    // ---------------------------------------------------------
+    try {
+      final responseHealth = await http.get(Uri.parse('$backendBaseUrl/api/notifications/health_checks'));
+      
+      if (responseHealth.statusCode == 200 && responseHealth.body.isNotEmpty && responseHealth.body != 'null') {
+        final decoded = jsonDecode(responseHealth.body);
+        
+        if (decoded is List) {
+          for (var h in decoded) {
+            if (h is Map<String, dynamic>) {
+              int id = h['id'] ?? h['check_id'] ?? 0;
+              String coopName = h['coop_name'] ?? 'ไม่ระบุคอก';
+              bool isToday = h['is_today'] ?? false; 
+
+              String notiTitle = isToday 
+                  ? "🩺 วันนี้คอกไก่ที่ $coopName ต้องตรวจสุขภาพ"
+                  : "🩺 พรุ่งนี้ถึงคอกไก่ที่ $coopName ต้องตรวจสุขภาพแล้ว";
+
+              newNotifications.add({
+                "id": id,
+                "type": "health", // ระบุประเภท
+                "title": notiTitle,
+                "time": timeNow, 
+                "date": dateNow,
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching health check notifications: $e");
+    }
+
+    setState(() {
+      notificationsList = newNotifications;
+      isLoading = false;
+    });
+  }
+
+  // 🌟 2. ฟังก์ชันจัดการเมื่อกดปุ่ม "เสร็จสิ้น" หรือ "ลบ"
+  Future<void> _handleNotificationAction(int index, Map<String, dynamic> data) async {
+    String type = data['type'];
+    int id = data['id'];
+
+    if (type == 'vaccine') {
+      // 💡 ส่งข้อมูลไปบอก Backend ว่าทำรายการนี้เสร็จแล้ว (ปรับ URL ให้ตรงกับ Backend ของคุณ)
+      try {
+        await http.put(Uri.parse('$backendBaseUrl/api/vaccines/complete/$id')); 
+      } catch (e) {
+        debugPrint("Error updating vaccine status: $e");
+      }
+    } else if (type == 'health') {
+      // 💡 ส่งข้อมูลไปบอก Backend ว่าตรวจสุขภาพเสร็จแล้ว (ปรับ URL ให้ตรงกับ Backend ของคุณ)
+      try {
+        await http.put(Uri.parse('$backendBaseUrl/api/health_checks/complete/$id'));
+      } catch (e) {
+        debugPrint("Error updating health check status: $e");
+      }
+    }
+
+    // ลบออกจากหน้าจอ
+    setState(() {
+      notificationsList.removeAt(index);
+    });
+  }
 
   void onTabSelected(int index) {
-
     if(index == 0){
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainScreen()),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
     } else if(index == 1){
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CloseOpenDoor()));
     } else if(index == 3){
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const Mainchicken()),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Mainchicken()));
     } else if (index == 4) {
-       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
-      );
+       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainShowDataFood()));
     }
     setState(() {
       selectedIndex = index;
     });
   }
 
-  // ฟังก์ชันสำหรับสร้างการ์ดแจ้งเตือนแต่ละอัน
-  Widget _buildNotificationCard(String title, String time, String date) {
+  // 🌟 3. ปรับ UI ของการ์ดให้รับ Parameter แบบ Map
+  Widget _buildNotificationCard(Map<String, dynamic> data, int index) {
+    String title = data["title"];
+    String time = data["time"];
+    String date = data["date"];
+    String type = data["type"];
+    
+    bool isUrgent = title.contains("อาหารหมดแล้ว");
+
+    // กำหนดข้อความและสีของปุ่มตามประเภท
+    String buttonText = type == "food" ? "รับทราบ" : "เสร็จสิ้น";
+    Color buttonColor = type == "food" ? Colors.blueAccent : const Color(0xFF4CAF50); // สีเขียวสำหรับปุ่มเสร็จสิ้น
+
     return Container(
       margin: const EdgeInsets.only(bottom: 15), 
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFE0E0E0), 
+        color: isUrgent ? const Color(0xFFFFEBEE) : const Color(0xFFE0E0E0),
         borderRadius: BorderRadius.circular(20), 
+        border: isUrgent ? Border.all(color: Colors.redAccent.withOpacity(0.5), width: 1.5) : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -63,7 +229,6 @@ class _NotificationsState extends State<Notifications> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // บรรทัดบน: ข้อความแจ้งเตือน + เวลา
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,7 +239,7 @@ class _NotificationsState extends State<Notifications> {
                   style: GoogleFonts.kanit(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: isUrgent ? Colors.red[800] : Colors.black87, 
                   ),
                 ),
               ),
@@ -88,9 +253,7 @@ class _NotificationsState extends State<Notifications> {
               ),
             ],
           ),
-          const SizedBox(height: 20), // เว้นระยะห่างกลางกล่อง
-          
-          // บรรทัดล่าง: วันที่ + ปุ่มลบ
+          const SizedBox(height: 20), 
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -102,19 +265,21 @@ class _NotificationsState extends State<Notifications> {
                   color: Colors.black87,
                 ),
               ),
-              // ปุ่มลบ
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF5350), // สีแดงอมชมพู
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Text(
-                  'ลบ',
-                  style: GoogleFonts.kanit(
-                    fontSize: 12,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+              GestureDetector(
+                onTap: () => _handleNotificationAction(index, data),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: buttonColor, 
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Text(
+                    buttonText,
+                    style: GoogleFonts.kanit(
+                      fontSize: 13,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -131,31 +296,23 @@ class _NotificationsState extends State<Notifications> {
 
     return Scaffold(
       extendBody: true, 
-      backgroundColor: Colors.white, // เผื่อเลื่อนจนสุดรูปจะได้เห็นพื้นหลังสีขาว
-
-      // 1. ครอบเนื้อหาทั้งหมดด้วย SingleChildScrollView
+      backgroundColor: Colors.white, 
       body: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(), // บังคับให้เลื่อนได้เสมอ
+        physics: const AlwaysScrollableScrollPhysics(), 
         child: Container(
-          // 2. ล็อคความสูงขั้นต่ำให้เท่ากับหน้าจอ และย้ายรูปมาไว้ตรงนี้
           constraints: BoxConstraints(minHeight: screenHeight),
           decoration: const BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/back1.png'),
-              fit: BoxFit.fitWidth, // ให้ภาพขยายพอดีความกว้าง
+              image: AssetImage('assets/images/noc.png'),
+              fit: BoxFit.fitWidth, 
               alignment: Alignment.topCenter,
             ),
           ),
           child: Stack(
             children: [
-              // --- ส่วนที่ 2: เนื้อหา (รายการแจ้งเตือน) ---
-              // เปลี่ยนจาก Positioned + ListView เป็น Column ธรรมดา
               Column(
                 children: [
-                  // ดันเนื้อหาลงมาให้อยู่ใต้ Header พอดี (ปรับเป็น 240 เพื่อหลบส่วนโค้ง)
                   const SizedBox(height: 270), 
-
-                  // หัวข้อ "การแจ้งเตือน" ตรงกลาง
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
                     margin: const EdgeInsets.only(bottom: 20),
@@ -175,87 +332,38 @@ class _NotificationsState extends State<Notifications> {
                       ),
                     ),
                   ),
-
-                  // รายการ List แจ้งเตือน
+                  
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        _buildNotificationCard("อาหารในคลังใกล้หมดแล้ว", "15:35", "28/06/68"),
-                        _buildNotificationCard("มีการเคลื่อนไหวอยู่หน้าคอกไก ที่ 1", "18:44", "30/06/68"),
-                        _buildNotificationCard("ประตูปิดไม่สนิท", "19:15", "30/06/68"),
-                        _buildNotificationCard("ใกล้ค่ำแล้วถึงเวลาปิดไฟ", "17:30", "31/06/68"),
-                        
-                        // เว้นระยะด้านล่างสุดไม่ให้ BottomBar ทับเนื้อหา
-                        const SizedBox(height: 100), 
-                      ],
-                    ),
+                    child: isLoading 
+                      ? const Center(child: CircularProgressIndicator())
+                      : notificationsList.isEmpty 
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 30),
+                              child: Text(
+                                "ไม่มีการแจ้งเตือน",
+                                style: GoogleFonts.kanit(fontSize: 16, color: Colors.grey),
+                              ),
+                            ),
+                          )
+                        : Column(
+                            children: [
+                              ...notificationsList.asMap().entries.map((entry) {
+                                int idx = entry.key;
+                                Map<String, dynamic> data = entry.value;
+                                return _buildNotificationCard(data, idx);
+                              }),
+                              const SizedBox(height: 100), 
+                            ],
+                          ),
                   ),
                 ],
-              ),
-
-              // --- ส่วนที่ 3: Header (Logo + ข้อความ) ---
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Container(
-                    height: 160,
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            width: 120,
-                            height: 120,
-                          ),
-                        ),
-                        // 👇 ปรับข้อความและขนาดฟอนต์ให้เหมือนในรูป
-                        Positioned(
-                          left: 135,
-                          top: 25,
-                          child: Text(
-                            'EZ -\nSMART\nFARM',
-                            style: GoogleFonts.kanit(
-                              fontSize: 28,
-                              height: 1.1,
-                              fontWeight: FontWeight.bold,
-                              color: const Color.fromARGB(255, 252, 250, 250),
-                            ),
-                          ),
-                        ),
-                        // 👇 ปรับไอคอนกระดิ่งเป็นสีดำและนำไอคอนขีดๆ ออก
-                        Positioned(
-                          right: 0,
-                          bottom: 20,
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const Notifications()),
-                              );
-                            },
-                            child: const Icon(
-                              Icons.notifications_active,
-                              color: Colors.black87,
-                              size: 32,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ),
             ],
           ),
         ),
       ),
-
       bottomNavigationBar: CustomBottomBar(
         selectedIndex: selectedIndex,
         onTabSelected: onTabSelected,

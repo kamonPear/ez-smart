@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'pages/main_dash.dart';
+import 'package:flutter_application_1/pages/Login.dart';
+import 'pages/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-
   runApp(const MyApp());
 }
 
@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.green,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const MainScreen(),
+      home: const LoginPage(),
     );
   }
 }

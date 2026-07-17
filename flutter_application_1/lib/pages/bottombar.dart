@@ -42,11 +42,11 @@ class _CustomBottomBarState extends State<CustomBottomBar> {
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.bar_chart),
-          label: 'แผนภูมิ',
+          label: 'เก็บไข่',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.pets),
-          label: 'ข้อมูลไก่',
+          label: 'ข้อมูลคอก',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.restaurant),
@@ -58,9 +58,9 @@ class _CustomBottomBarState extends State<CustomBottomBar> {
       currentIndex: widget.selectedIndex,
       
       // กำหนดสีตามที่คุณต้องการ
-      selectedItemColor: const Color(0xFF4C8CD2), 
-      unselectedItemColor: const Color(0xFF4C8CD2), 
-      backgroundColor: const Color(0xFFF4DADA), 
+      selectedItemColor: const Color.fromARGB(255, 199, 14, 8), 
+      unselectedItemColor: const Color(0xFFFFFFFF), 
+      backgroundColor: const Color(0xFF1E3C4E), 
       type: BottomNavigationBarType.fixed, 
       selectedLabelStyle: const TextStyle(
         fontSize: 12,

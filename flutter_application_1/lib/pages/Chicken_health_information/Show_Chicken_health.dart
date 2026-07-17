@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/pages/calendar.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
-import 'package:flutter_application_1/pages/Notifications_.dart';
+// import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/close_open_Door.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart'; 
 import '../bottombar.dart'; 
-import 'Edit_Datachicken_health.dart'; // ตรวจสอบชื่อไฟล์ import ให้ตรงกับของคุณ
+import 'Edit_Datachicken_health.dart'; 
 import 'Add_Datachicken_health.dart';
+
+// 🌟🌟🌟 อย่าลืมเปลี่ยน Path นี้ให้ตรงกับที่อยู่ไฟล์ CustomCalendar ของคุณนะครับ 🌟🌟🌟
+const String backendBaseUrl = 'http://10.0.2.2:8080'; 
 
 class Chickenhealth extends StatefulWidget {
   const Chickenhealth({super.key});
@@ -18,65 +24,427 @@ class Chickenhealth extends StatefulWidget {
 }
 
 class _ChickenhealthState extends State<Chickenhealth> {
-  int selectedIndex = 0; // สมมติว่าหน้านี้คือ index 0 หรือปรับตามที่คุณตั้งไว้
+  int selectedIndex = 0; 
+  
+  List<dynamic> allHealthDataList = [];
+  List<dynamic> displayedHealthDataList = [];
+  bool isLoading = true;
 
-  // 🌟 1. สร้าง List เก็บข้อมูลการตรวจสุขภาพ
-  List<Map<String, String>> healthDataList = [
-    {
-      "recordId": "REC001",
-      "healthyCount": "98",
-      "sickCount": "2",
-      "inspectionDate": "27 / 04 / 2569",
-    },
-    {
-      "recordId": "REC002",
-      "healthyCount": "95",
-      "sickCount": "5",
-      "inspectionDate": "27 / 04 / 2569",
+  DateTime _selectedDate = DateTime.now();
+  bool isFilteringByDate = false; // ✅ เพิ่มตัวแปรสำหรับเช็คว่ากำลังกรองด้วยวันที่อยู่หรือไม่
+
+  @override
+  void initState() {
+    super.initState();
+    fetchHealthData(); 
+  }
+
+  List<DateTime> _getMarkedDates() {
+    List<DateTime> dates = [];
+    for (var data in allHealthDataList) {
+      if (data['record_date'] != null) {
+        try {
+          DateTime parsedDate = DateTime.parse(data['record_date']).toLocal();
+          dates.add(DateTime(parsedDate.year, parsedDate.month, parsedDate.day));
+        } catch (e) {
+          print('Error parsing date for marker: $e');
+        }
+      }
     }
-  ];
+    return dates;
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    List<DateTime> markedDates = _getMarkedDates();
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent, 
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16), 
+          child: CustomCalendar(
+            initialDate: _selectedDate,
+            markedDates: markedDates, 
+            onDateSelected: (DateTime newSelected) {
+              setState(() {
+                _selectedDate = newSelected;
+                isFilteringByDate = true; // ✅ เมื่อเลือกวัน ให้เปิดโหมดกรอง
+                _filterDataByDate(); 
+              });
+              Navigator.pop(context); 
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  // ✅ ฟังก์ชันกรองข้อมูลที่ถูกปรับแก้
+  void _filterDataByDate() {
+    setState(() {
+      if (!isFilteringByDate) {
+        // ถ้าไม่ได้อยู่ในโหมดกรอง ให้แสดงข้อมูลทั้งหมด
+        displayedHealthDataList = List.from(allHealthDataList);
+      } else {
+        // ถ้าอยู่ในโหมดกรอง ให้ดึงเฉพาะข้อมูลของวันที่เลือก
+        displayedHealthDataList = allHealthDataList.where((data) {
+          if (data['record_date'] == null) return false;
+          try {
+            DateTime recordDate = DateTime.parse(data['record_date']).toLocal();
+            return recordDate.year == _selectedDate.year &&
+                   recordDate.month == _selectedDate.month &&
+                   recordDate.day == _selectedDate.day;
+          } catch (e) {
+            return false;
+          }
+        }).toList();
+      }
+    });
+  }
+
+  Map<String, String> _formatDateForCard(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return {'day': '-', 'monthYear': '-'};
+    try {
+      final dateTime = DateTime.parse(dateStr).toLocal();
+      final day = dateTime.day.toString().padLeft(2, '0');
+      const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      final month = months[dateTime.month - 1];
+      return {'day': day, 'monthYear': '$month ${dateTime.year}'};
+    } catch (e) {
+      return {'day': '??', 'monthYear': '??'};
+    }
+  }
+
+  Future<void> fetchHealthData() async {
+    setState(() {
+      isLoading = true; 
+    });
+
+    try {
+      final url = Uri.parse('$backendBaseUrl/api/healths'); 
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        setState(() {
+          allHealthDataList = json.decode(response.body); 
+          _filterDataByDate(); // จะแสดงข้อมูลทั้งหมดในครั้งแรก เพราะ isFilteringByDate เป็น false
+          isLoading = false; 
+        });
+      } else {
+        print('โหลดข้อมูลไม่สำเร็จ: ${response.statusCode}');
+        setState(() { isLoading = false; });
+      }
+    } catch (e) {
+      print('เกิดข้อผิดพลาดในการดึงข้อมูล: $e');
+      setState(() { isLoading = false; });
+    }
+  }
+
+  Future<bool> _executeDeleteAPI(String id) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Colors.red),
+      ),
+    );
+
+    try {
+      final url = Uri.parse('$backendBaseUrl/api/healths?id=$id');
+      print('==== URL ที่ส่งไป: $url ====');
+
+      final response = await http.delete(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (!context.mounted) return false;
+      Navigator.of(context, rootNavigator: true).pop();
+
+      print('==== Status Code จาก Backend: ${response.statusCode} ====');
+      print('==== ข้อความจาก Backend: ${response.body} ====');
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ลบข้อมูลสำเร็จ', style: GoogleFonts.kanit()), backgroundColor: Colors.green),
+        );
+        return true; 
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เกิดข้อผิดพลาดในการลบ: ${response.statusCode}', style: GoogleFonts.kanit()), backgroundColor: Colors.red),
+        );
+        return false;
+      }
+    } catch (e) {
+      if (!context.mounted) return false;
+      Navigator.of(context, rootNavigator: true).pop(); 
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: $e', style: GoogleFonts.kanit()), backgroundColor: Colors.red),
+      );
+      return false;
+    }
+  }
 
   void onTabSelected(int index) {
     if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainScreen()),
-      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
     } else if(index == 1){
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const CloseOpenDoor()));
     } else if(index == 3){
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const Mainchicken()),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const Mainchicken()));
     } else if(index == 4){
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
-      );
-    }else if(index == 2){
-       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const ShowChart()),
-      );
-    }
-     else {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const MainShowDataFood()));
+    } else if(index == 2){
+       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ShowChart()));
+    } else {
       setState(() {
         selectedIndex = index;
       });
     }
   }
 
+  void _showHealthDataBottomSheet(BuildContext context, {Map<String, dynamic>? existingData}) {
+    String healthy = '0';
+    String sick = '0';
+    String total = '0';
+    String coopNumber = '-'; 
+    DateTime targetDate = DateTime.now(); 
+    
+    if (existingData != null) {
+      healthy = existingData['healthy']?.toString() ?? '0';
+      sick = existingData['poor_health']?.toString() ?? '0';
+      
+      coopNumber = existingData['coop_id']?.toString() ?? existingData['coop_number']?.toString() ?? '-';
+      
+      int h = int.tryParse(healthy) ?? 0;
+      int s = int.tryParse(sick) ?? 0;
+      total = (h + s).toString();
+
+      if (existingData['record_date'] != null) {
+        try {
+          targetDate = DateTime.parse(existingData['record_date']).toLocal();
+        } catch (e) {
+          print('Error parsing date: $e');
+        }
+      }
+    }
+
+    final dayStr = targetDate.day.toString().padLeft(2, '0');
+    final yearStr = targetDate.year.toString();
+    
+    const monthsEN = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+    const monthsTH = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    
+    String displayDateEN = '$dayStr ${monthsEN[targetDate.month - 1]} $yearStr';
+    String displayDateTH = '$dayStr ${monthsTH[targetDate.month - 1]} $yearStr';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, 
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          decoration: const BoxDecoration(
+            color: Color(0xFF1B242D), 
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A3644),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.monitor_heart, color: Colors.white70, size: 28),
+              ),
+              const SizedBox(height: 16),
+              
+              Text(
+                'ตรวจสุขภาพประจำวัน',
+                style: GoogleFonts.kanit(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              if (existingData != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text(
+                    'คอกที่: $coopNumber',
+                    style: GoogleFonts.kanit(color: const Color(0xFFFF6E5C), fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              const SizedBox(height: 16),
+
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white24),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today_outlined, color: Colors.white70, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          displayDateEN, 
+                          style: GoogleFonts.kanit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.greenAccent, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'ข้อมูลประจำวันที่',
+                    style: GoogleFonts.kanit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              Text(
+                displayDateTH,
+                style: GoogleFonts.kanit(color: Colors.greenAccent, fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              
+              const Divider(color: Colors.white10, thickness: 1),
+              const SizedBox(height: 16),
+
+              Row(
+                children: [
+                  _buildSummaryCard('จำนวนทั้งหมด', total, 'ตัว', const Color(0xFF26323D), Colors.white),
+                  const SizedBox(width: 10),
+                  _buildSummaryCard('สุขภาพดี', healthy, 'ตัว', const Color(0xFF1E3A2F), Colors.greenAccent),
+                  const SizedBox(width: 10),
+                  _buildSummaryCard('สุขภาพไม่ดี', sick, 'ตัว', const Color(0xFF402528), const Color(0xFFFF6E5C)),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF6E5C),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(context); 
+                    
+                    dynamic result;
+                    if (existingData != null) {
+                      result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => Editckickenhealth(initialData: existingData)),
+                      );
+                    } else {
+                      result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AddDatachickenHealth()), 
+                      );
+                    }
+                    
+                    if (result == true || result != null) {
+                      fetchHealthData();
+                    }
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        existingData != null ? 'แก้ไขข้อมูล' : 'บันทึกข้อมูล', 
+                        style: GoogleFonts.kanit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryCard(String title, String count, String unit, Color bgColor, Color textColor) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Text(title, style: GoogleFonts.kanit(color: Colors.white70, fontSize: 11)),
+            const SizedBox(height: 8),
+            Text(
+              count,
+              style: GoogleFonts.kanit(color: textColor, fontSize: 26, fontWeight: FontWeight.bold),
+            ),
+            Text(unit, style: GoogleFonts.kanit(color: Colors.white70, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     double screenHeight = MediaQuery.of(context).size.height;
+    
+    const Color highlightColor = Color(0xFFFF6E5C); 
+    const Color cardColor = Color(0xFF1B242D);      
+    const Color greenTextColor = Color(0xFF4ADE80); 
+    const Color bgDarkColor = Color(0xFF0F171E);    
+
+    const monthsEN = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+    String displayMonth = monthsEN[_selectedDate.month - 1];
+    String displayYear = _selectedDate.year.toString();
 
     return Scaffold(
       extendBody: true, 
-      backgroundColor: Colors.white, 
+      backgroundColor: bgDarkColor,
+
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 40.0), 
+        child: FloatingActionButton.extended(
+          onPressed: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AddDatachickenHealth()),
+            );
+
+            if (result == true || result != null) {
+              fetchHealthData();
+            }
+          },
+          backgroundColor: highlightColor,
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          icon: const Icon(Icons.add, color: Colors.white, size: 28),
+          label: Text(
+            'ตรวจสุขภาพ',
+            style: GoogleFonts.kanit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
 
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(), 
@@ -84,166 +452,321 @@ class _ChickenhealthState extends State<Chickenhealth> {
           constraints: BoxConstraints(minHeight: screenHeight),
           decoration: const BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/back1.png'),
+              image: AssetImage('assets/images/heal.png'),
               fit: BoxFit.fitWidth, 
               alignment: Alignment.topCenter,
             ),
           ),
-          child: Stack(
-            children: [
-              // --- ส่วนที่ 2: เนื้อหาหลัก (Column) ---
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 270), 
-                    
-                    // 🌟 2. ใช้ .map() ดึงข้อมูลจาก List มาสร้างการ์ด
-                    ...healthDataList.asMap().entries.map((entry) {
-                      int index = entry.key;
-                      Map<String, String> data = entry.value;
-                      
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 15.0),
-                        child: CoopDataCard(
-                          recordNumber: '${index + 1}',
-                          recordId: data['recordId']!,
-                          healthyCount: data['healthyCount']!,
-                          sickCount: data['sickCount']!,
-                          inspectionDate: data['inspectionDate']!,
-                          // ฟังก์ชันเมื่อกดแก้ไข
-                          onEdit: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => Editckickenhealth(
-                                  initialData: data, // ส่งข้อมูลเดิมไป
-                                ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 200), 
+
+                InkWell(
+                  onTap: () => _selectDate(context),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF151D24), 
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white10, width: 1),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              displayMonth, 
+                              style: GoogleFonts.kanit(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 1.0,
                               ),
-                            );
-
-                            // ถ้ารับค่าใหม่กลับมา ให้แทนที่ข้อมูลเดิม
-                            if (result != null && result is Map<String, String>) {
-                              setState(() {
-                                healthDataList[index] = result;
-                              });
-                            }
-                          },
-                          // ฟังก์ชันเมื่อกดลบ
-                          onDelete: () {
-                            setState(() {
-                              healthDataList.removeAt(index);
-                            });
-                          },
-                        ),
-                      );
-                    }).toList(),
-                    
-                    const SizedBox(height: 15), 
-
-                    // 👇 ปุ่ม "เพิ่มข้อมูล"
-                    GestureDetector(
-                      onTap: () async {
-                        // 🌟 3. รอรับค่าจากหน้า Add
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const AddDatachickenHealth()), 
-                        );
-
-                        // ถ้ามีข้อมูลส่งกลับมา ให้เพิ่มลง List
-                        if (result != null && result is Map<String, String>) {
-                          setState(() {
-                            healthDataList.add(result);
-                          });
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 40),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF9DE088), 
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 3),
                             ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.keyboard_arrow_down, color: Colors.white54, size: 20),
                           ],
                         ),
-                        child: Text(
-                          'เพิ่มข้อมูล',
-                          style: GoogleFonts.kanit(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 120), // เผื่อระยะด้านล่างไม่ให้ปุ่มบัง BottomBar
-                  ],
-                ),
-              ),
-
-              // --- ส่วนที่ 3: Header (Logo + Icons) ---
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Container(
-                    height: 160,
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            width: 120,
-                            height: 120,
-                          ),
-                        ),
-                        // 👇 ปรับข้อความและขนาดฟอนต์ให้เหมือนในรูป
-                        Positioned(
-                          left: 135,
-                          top: 25,
-                          child: Text(
-                            'EZ -\nSMART\nFARM',
-                            style: GoogleFonts.kanit(
-                              fontSize: 28,
-                              height: 1.1,
-                              fontWeight: FontWeight.bold,
-                              color: const Color.fromARGB(255, 252, 250, 250),
+                        Row(
+                          children: [
+                            Text(
+                              displayYear, 
+                              style: GoogleFonts.kanit(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                        ),
-                        // 👇 ปรับไอคอนกระดิ่งเป็นสีดำและนำไอคอนขีดๆ ออก
-                        Positioned(
-                          right: 0,
-                          bottom: 20,
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const Notifications()),
-                              );
-                            },
-                            child: const Icon(
-                              Icons.notifications_active,
-                              color: Colors.black87,
-                              size: 32,
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: highlightColor), 
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(Icons.calendar_today_outlined, color: highlightColor, size: 16),
                             ),
-                          ),
-                        ),
+                          ],
+                        )
                       ],
                     ),
                   ),
                 ),
-              ),
-            ],
+                
+                const SizedBox(height: 24),
+                
+                // ✅ เปลี่ยนข้อความหัวข้อตามโหมด (ดูทั้งหมด / ดูกรองวัน)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isFilteringByDate
+                          ? 'ประวัติวันที่ ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'
+                          : 'ประวัติการตรวจสุขภาพทั้งหมด',
+                      style: GoogleFonts.kanit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    
+                    // ✅ ถ้ากำลังกรองวันอยู่ ให้มีปุ่มกดเพื่อกลับไป "ดูทั้งหมด"
+                    if (isFilteringByDate)
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            isFilteringByDate = false;
+                            _filterDataByDate(); // เคลียร์ฟิลเตอร์
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.clear, color: Color(0xFFFF6E5C), size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                'ดูทั้งหมด',
+                                style: GoogleFonts.kanit(color: const Color(0xFFFF6E5C), fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                isLoading 
+                    ? const Center(child: Padding(padding: EdgeInsets.all(40.0), child: CircularProgressIndicator(color: Colors.green)))
+                    : displayedHealthDataList.isEmpty 
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(40.0),
+                              child: Text(
+                                isFilteringByDate ? 'ไม่พบข้อมูลการตรวจสุขภาพในวันนี้' : 'ยังไม่มีประวัติการตรวจสุขภาพเลย', 
+                                style: GoogleFonts.kanit(fontSize: 16, color: Colors.grey.shade400),
+                              ),
+                            ),
+                          )
+                        : Column(
+                            children: displayedHealthDataList.asMap().entries.map((entry) {
+                              int index = entry.key;
+                              var data = entry.value;
+                              
+                              bool isLatest = (index == 0 && !isFilteringByDate); 
+                              var dateInfo = _formatDateForCard(data['record_date']?.toString());
+                              String healthy = data['healthy']?.toString() ?? '0';
+                              String sick = data['poor_health']?.toString() ?? '0';
+                              
+                              String coopNumber = data['coop_id']?.toString() ?? data['coop_number']?.toString() ?? '-'; 
+                              String noteRaw = data['note']?.toString() ?? '';
+                              String note = noteRaw.trim().isEmpty ? 'ปกติ' : noteRaw;
+
+                              String uniqueKey = data['id']?.toString() ?? data['ID']?.toString() ?? data['health_id']?.toString() ?? UniqueKey().toString();
+
+                              return Dismissible(
+                                key: Key(uniqueKey), 
+                                direction: DismissDirection.endToStart, 
+                                background: Container(
+                                  margin: const EdgeInsets.only(bottom: 12.0),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade700,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 20),
+                                  child: const Icon(Icons.delete, color: Colors.white, size: 32),
+                                ),
+                                confirmDismiss: (direction) async {
+                                  bool? confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (BuildContext dialogContext) {
+                                      return AlertDialog(
+                                        backgroundColor: const Color(0xFF2A3644),
+                                        title: Text('ยืนยันการลบ', style: GoogleFonts.kanit(color: Colors.white)),
+                                        content: Text('คุณต้องการลบข้อมูลการตรวจสุขภาพนี้ใช่หรือไม่?', style: GoogleFonts.kanit(color: Colors.white70)),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(dialogContext).pop(false),
+                                            child: Text('ยกเลิก', style: GoogleFonts.kanit(color: Colors.white54)),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.of(dialogContext).pop(true),
+                                            child: Text('ลบ', style: GoogleFonts.kanit(color: Colors.red, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+
+                                  if (confirm == true) {
+                                    var rawId = data['id'] ?? data['ID'] ?? data['health_id'];
+                                    
+                                    if (rawId == null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('เกิดข้อผิดพลาด: ไม่พบ ID ของข้อมูล', style: GoogleFonts.kanit()), backgroundColor: Colors.red),
+                                      );
+                                      return false;
+                                    }
+
+                                    String idToDelete = rawId.toString();
+                                    bool isDeleted = await _executeDeleteAPI(idToDelete);
+                                    return isDeleted; 
+                                  }
+                                  return false;
+                                },
+                                onDismissed: (direction) {
+                                  setState(() {
+                                    allHealthDataList.removeWhere((item) => (item['id']?.toString() ?? item['ID']?.toString()) == uniqueKey);
+                                    displayedHealthDataList.removeAt(index);
+                                  });
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 12.0),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: () {
+                                      _showHealthDataBottomSheet(context, existingData: data);
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: cardColor, 
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: isLatest 
+                                            ? Border.all(color: highlightColor, width: 1.5) 
+                                            : null,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          SizedBox(
+                                            width: 75,
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  dateInfo['day']!,
+                                                  style: GoogleFonts.kanit(
+                                                    fontSize: 32,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                    height: 1.1,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  dateInfo['monthYear']!,
+                                                  style: GoogleFonts.kanit(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white70,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          
+                                          Expanded(
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(left: 12.0),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      SizedBox(
+                                                        width: 85,
+                                                        child: Text('คอกที่', style: GoogleFonts.kanit(fontSize: 14, color: Colors.white70)),
+                                                      ),
+                                                      Text(
+                                                        coopNumber, 
+                                                        style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: highlightColor),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Row(
+                                                    children: [
+                                                      SizedBox(
+                                                        width: 85,
+                                                        child: Text('สุขภาพดี', style: GoogleFonts.kanit(fontSize: 14, color: Colors.white70)),
+                                                      ),
+                                                      Text(
+                                                        '$healthy ตัว', 
+                                                        style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: greenTextColor),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Row(
+                                                    children: [
+                                                      SizedBox(
+                                                        width: 85,
+                                                        child: Text('สุขภาพไม่ดี', style: GoogleFonts.kanit(fontSize: 14, color: Colors.white70)),
+                                                      ),
+                                                      Text(
+                                                        '$sick ตัว', 
+                                                        style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFFFF6E5C)),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Text(
+                                                    'หมายเหตุ: $note',
+                                                    style: GoogleFonts.kanit(fontSize: 13, color: Colors.white70),
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          
+                                          const Padding(
+                                            padding: EdgeInsets.only(left: 8.0),
+                                            child: Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 18),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                const SizedBox(height: 120), 
+              ],
+            ),
           ),
         ),
       ),
@@ -251,174 +774,6 @@ class _ChickenhealthState extends State<Chickenhealth> {
       bottomNavigationBar: CustomBottomBar(
         selectedIndex: selectedIndex,
         onTabSelected: onTabSelected,
-      ),
-    );
-  }
-}
-
-// --- การ์ดข้อมูลคอกไก่ ---
-class CoopDataCard extends StatelessWidget {
-  final String recordNumber;
-  final String recordId;
-  final String healthyCount;
-  final String sickCount;
-  final String inspectionDate;
-  final VoidCallback onEdit; // 🌟 เพิ่ม Callback สำหรับแก้ไข
-  final VoidCallback onDelete; // 🌟 เพิ่ม Callback สำหรับลบ
-
-  const CoopDataCard({
-    super.key,
-    required this.recordNumber,
-    required this.recordId,
-    required this.healthyCount,
-    required this.sickCount,
-    required this.inspectionDate,
-    required this.onEdit,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: const Color(0xFFC0D6E4), 
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.grey.shade400, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'ข้อมูลการตรวจสุขภาพ ที่ $recordNumber',
-            style: GoogleFonts.kanit(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          _buildInfoRow('รหัสบันทึก :', recordId),
-          _buildInfoRow('ไก่ที่สุขภาพดี :', healthyCount, suffixText: 'ตัว'),
-          _buildInfoRow('ไก่ที่สุขภาพไม่ดี :', sickCount, suffixText: 'ตัว'),
-          _buildInfoRow('วันที่ตรวจไก่ :', inspectionDate),
-
-          const SizedBox(height: 10),
-
-          // ปุ่ม Action ด้านล่างขวา
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              _buildActionButton(
-                title: 'แก้ไขข้อมูล', 
-                bgColor: const Color(0xFFF1C40F),
-                onTap: onEdit, // 🌟 เรียก Callback onEdit
-              ),
-              const SizedBox(width: 8),
-              _buildActionButton(
-                title: 'ลบข้อมูล', 
-                bgColor: const Color(0xFFFF0000),
-                onTap: () {
-                  // 🌟 เพิ่ม Popup ยืนยันการลบ
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: Text('ยืนยันการลบ', style: GoogleFonts.kanit()),
-                        content: Text('คุณต้องการลบข้อมูลนี้ใช่หรือไม่?', style: GoogleFonts.kanit()),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: Text('ยกเลิก', style: GoogleFonts.kanit()),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              onDelete(); // เรียก Callback onDelete หลังจากกดยืนยัน
-                            },
-                            child: Text('ลบ', style: GoogleFonts.kanit(color: Colors.red)),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),    
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value, {String? suffixText}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.kanit(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              value,
-              style: GoogleFonts.kanit(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-          ),
-          if (suffixText != null) ...[
-            const SizedBox(width: 8),
-            Text(
-              suffixText,
-              style: GoogleFonts.kanit(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-          ]
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required String title, 
-    required Color bgColor, 
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          title,
-          style: GoogleFonts.kanit(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
       ),
     );
   }

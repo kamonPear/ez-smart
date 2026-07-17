@@ -17,15 +17,15 @@ class CloseOpenDoor extends StatefulWidget {
 class _CloseOpenDoorState extends State<CloseOpenDoor> {
   int selectedIndex = 1;
 
-  // 1. เปลี่ยนมาใช้ List of Maps เพื่อให้จำ ID ของประตูได้ และมีสถานะติ๊กเลือก (selected)
+  // 1. List of Maps เพื่อจำ ID ของประตู และสถานะ
   List<Map<String, dynamic>> doors = List.generate(5, (index) => {
     "id": index + 1,
     "isOn": false,
     "selected": false,
   });
   
-  int nextDoorId = 6; // ตัวแปรจำหมายเลขประตูบานถัดไปที่จะเพิ่ม
-  bool isDeleteMode = false; // สถานะเช็คว่ากำลังอยู่ในโหมดลบหรือไม่
+  int nextDoorId = 6; 
+  bool isDeleteMode = false; 
 
   void onTabSelected(int index) {
     if (index == 0) {
@@ -43,13 +43,12 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
         context,
         MaterialPageRoute(builder: (context) => const MainShowDataFood()),
       );
-    }else if(index == 2){
+    } else if(index == 2){
        Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const ShowChart()),
       );
-    }
-    else {
+    } else {
       setState(() {
         selectedIndex = index;
       });
@@ -65,14 +64,26 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
         "selected": false,
       });
     });
+    print("เพิ่มประตูคอกไก่ที่ ${nextDoorId - 1}");
   }
 
-  // 2. ฟังก์ชันลบประตูที่ถูกติ๊กเลือก
-  void _deleteSelectedDoors() {
+  // ฟังก์ชันลบประตู หรือจัดการโหมดลบ
+  void _handleDelete() {
     setState(() {
-      // ลบข้อมูลที่ selected == true ออกจาก List
-      doors.removeWhere((door) => door["selected"] == true);
-      isDeleteMode = false; // ปิดโหมดลบเมื่อทำเสร็จ
+      if (!isDeleteMode) {
+        // เปิดโหมดลบ
+        isDeleteMode = true;
+      } else {
+        // ถ้าอยู่ในโหมดลบ ตรวจสอบว่ามีการเลือกประตูหรือไม่
+        bool hasSelection = doors.any((door) => door["selected"] == true);
+        if (hasSelection) {
+          doors.removeWhere((door) => door["selected"] == true);
+          isDeleteMode = false; // ลบเสร็จออกจากโหมดลบ
+        } else {
+          // ถ้าไม่ได้เลือกอะไรเลย ให้ยกเลิกโหมดลบ
+          isDeleteMode = false;
+        }
+      }
     });
   }
 
@@ -82,198 +93,81 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFF131A21), 
       
-      body: SingleChildScrollView(
-        child: Stack(
-          children: [
-            // --- ส่วนที่ 1: ภาพพื้นหลัง ---
-            Container(
-              height: screenHeight, 
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/images/back1.png'), 
-                  fit: BoxFit.cover,
-                  alignment: Alignment.topCenter,
-                ),
+      body: Stack(
+        children: [
+          // --- Layer 1: ภาพพื้นหลัง ---
+          Container(
+            height: screenHeight, 
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/Door.png'), 
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
               ),
             ),
+          ),
+          
+          // ตัวคลุมสีดำโปร่งแสง (ลบออกได้ถ้าไม่ต้องการให้ภาพมืดลง)
+          Container(color: Colors.black.withOpacity(0.3)),
 
-            // --- ส่วนที่ 2: เนื้อหา (Header + Search + รายการ) ---
-            Column(
+          // --- Layer 2: เนื้อหา ( SafeArea + Column ) ---
+          SafeArea(
+            child: Column(
               children: [
-                const SizedBox(height: 270), 
+                // 🌟 เพิ่ม SizedBox ตรงนี้เพื่อดันเนื้อหาลงมา ไม่ให้ทับภาพพื้นหลังส่วนบน
+                const SizedBox(height: 180), 
 
-                // 2.2: ช่อง Search และปุ่มโหมดลบ
+                // Header Icons (ลบซ้าย - เพิ่มขวา)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10.0),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // ช่อง Search
-                      Expanded(
-                        child: Container(
-                          height: 45,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE0E0E0),
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              )
-                            ],
-                          ),
-                          child: TextField(
-                            style: GoogleFonts.kanit(color: Colors.black),
-                            decoration: InputDecoration(
-                              hintText: 'SEARCH',
-                              hintStyle: GoogleFonts.kanit(color: Colors.grey[600]),
-                              prefixIcon: const Icon(Icons.search, color: Colors.black54),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                          ),
+                      GestureDetector(
+                        onTap: _handleDelete,
+                        child: Icon(
+                          isDeleteMode ? Icons.delete : Icons.delete_outline,
+                          color: Colors.red,
+                          size: 30,
                         ),
                       ),
-                      const SizedBox(width: 15),
-                      
-                      // 3. ปุ่มเปิด-ปิด โหมดลบ
                       GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            isDeleteMode = !isDeleteMode;
-                            // ถ้าออกจากโหมดลบ ให้เคลียร์การติ๊กเลือกทั้งหมด
-                            if (!isDeleteMode) {
-                              for (var door in doors) {
-                                door["selected"] = false;
-                              }
-                            }
-                          });
-                        },
-                        child: Container(
-                          height: 45,
-                          width: 45,
-                          decoration: BoxDecoration(
-                            color: isDeleteMode ? Colors.grey : const Color.fromARGB(255, 172, 24, 24),
-                            borderRadius: BorderRadius.circular(15),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              )
-                            ],
-                          ),
-                          child: Icon(
-                            isDeleteMode ? Icons.close : Icons.delete_outline,
-                            color: Colors.white,
-                          ),
+                        onTap: _addNewDoor,
+                        child: const Icon(
+                          Icons.add_circle_outline,
+                          color: Colors.white,
+                          size: 30,
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                // 2.3: รายการสวิตช์
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    children: [
-                      // วนลูปสร้างรายการประตูจาก List of Maps
-                      for (int i = 0; i < doors.length; i++)
-                        _buildDoorControlTile(doors[i], i),
-                      
-                      const SizedBox(height: 100), 
-                    ],
+                // รายการประตู
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: [
+                          for (int i = 0; i < doors.length; i++)
+                            _buildDoorControlTile(doors[i], i),
+                          
+                          const SizedBox(height: 100), // ระยะห่างเผื่อ BottomBar
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-
-            // --- ส่วนที่ 3: Header (Logo & Text) ---
-            Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Container(
-                    height: 160,
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            width: 120,
-                            height: 120,
-                          ),
-                        ),
-                        // 👇 ปรับข้อความและขนาดฟอนต์ให้เหมือนในรูป
-                        Positioned(
-                          left: 135,
-                          top: 25,
-                          child: Text(
-                            'EZ -\nSMART\nFARM',
-                            style: GoogleFonts.kanit(
-                              fontSize: 28,
-                              height: 1.1,
-                              fontWeight: FontWeight.bold,
-                              color: const Color.fromARGB(255, 252, 250, 250),
-                            ),
-                          ),
-                        ),
-                        // 👇 ปรับไอคอนกระดิ่งเป็นสีดำและนำไอคอนขีดๆ ออก
-                        Positioned(
-                          right: 0,
-                          bottom: 20,
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const Notifications()),
-                              );
-                            },
-                            child: const Icon(
-                              Icons.notifications_active,
-                              color: Colors.black87,
-                              size: 32,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
-
-      // 4. สลับปุ่ม FAB ตามโหมดที่กำลังใช้งาน (โหมดปกติ = เพิ่มประตู / โหมดลบ = ยืนยันลบ)
-      floatingActionButton: isDeleteMode
-          ? FloatingActionButton.extended(
-              onPressed: _deleteSelectedDoors,
-              backgroundColor: Colors.red,
-              icon: const Icon(Icons.delete, color: Colors.white),
-              label: Text(
-                "ลบที่เลือก",
-                style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            )
-          : FloatingActionButton(
-              onPressed: () {
-                _addNewDoor();
-                print("กดปุ่มเพิ่มประตู: จำนวนปัจจุบัน ${doors.length}");
-              },
-              backgroundColor: const Color.fromARGB(255, 172, 24, 24), 
-              elevation: 4,
-              child: const Icon(Icons.add, color: Colors.white, size: 30),
-            ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
 
       bottomNavigationBar: CustomBottomBar(
         selectedIndex: selectedIndex,
@@ -288,13 +182,12 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
-        color: const Color(0xFFE6E6E6),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 3,
+            blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
@@ -304,7 +197,6 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
         children: [
           Row(
             children: [
-              // 5. แสดง Checkbox เมื่ออยู่ในโหมดลบ
               if (isDeleteMode)
                 Checkbox(
                   value: door["selected"],
@@ -318,7 +210,7 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
               Text(
                 'ประตูคอกไก่ที่ ${door["id"]}',
                 style: GoogleFonts.kanit(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
@@ -326,6 +218,8 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
             ],
           ),
           Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Row(
                 children: [
@@ -333,22 +227,25 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
                   Text("ON", style: GoogleFonts.kanit(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
                 ],
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               SizedBox(
                 height: 30,
-                child: Switch(
-                  value: door["isOn"],
-                  activeColor: Colors.white,
-                  activeTrackColor: Colors.black,
-                  inactiveThumbColor: Colors.white,
-                  inactiveTrackColor: Colors.black,
-                  trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
-                  onChanged: (bool value) {
-                    setState(() {
-                      door["isOn"] = value;
-                      print("ประตูที่ ${door["id"]} สถานะ: ${value ? 'เปิด' : 'ปิด'}");
-                    });
-                  },
+                child: Transform.scale(
+                  scale: 0.9,
+                  child: Switch(
+                    value: door["isOn"],
+                    activeColor: Colors.white,
+                    activeTrackColor: Colors.black,
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: Colors.black,
+                    trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+                    onChanged: (bool value) {
+                      setState(() {
+                        door["isOn"] = value;
+                        print("ประตูที่ ${door["id"]} สถานะ: ${value ? 'เปิด' : 'ปิด'}");
+                      });
+                    },
+                  ),
                 ),
               ),
             ],

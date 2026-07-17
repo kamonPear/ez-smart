@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
-import 'package:flutter_application_1/pages/Main_SenSor/Add_Data_sensor.dart';
-import 'package:flutter_application_1/pages/Main_SenSor/Edit_Data_sensor.dart';
+
 import 'package:flutter_application_1/pages/Notifications_.dart';
+import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/close_open_Door.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart'; 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'dart:async'; // 🔥 เพิ่มเข้ามาเพื่อรองรับการทำระบบ Real-time
 import '../bottombar.dart'; 
-
 
 class DataSystem extends StatefulWidget {
   const DataSystem({super.key});
@@ -19,6 +21,110 @@ class DataSystem extends StatefulWidget {
 
 class _DataSystemState extends State<DataSystem> {
   int selectedIndex = 0;
+  List<dynamic> devices = [];
+  List<dynamic> coops = [];
+  bool isLoading = true;
+  
+  String? selectedCoopId = "1"; // กำหนดค่า Default ไว้
+  String? selectedDeviceId;
+  Timer? _timer; // 🔥 ตัวแปรสำหรับควบคุมการดึงข้อมูลแบบ Real-time
+
+  @override
+  void initState() {
+    super.initState();
+    fetchCoops().then((_) {
+      fetchDevices();
+      
+      // 🔥 ตั้งเวลาให้แอบดึงข้อมูลใหม่มาอัปเดตหน้าจอทุกๆ 3 วินาทีแบบเนียนๆ
+      _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+        fetchDevices(isBackground: true); 
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel(); // 🔥 สำคัญมาก! ต้องเคลียร์ Timer ทิ้งเมื่อออกจากหน้านี้ แอปจะได้ไม่ค้าง
+    super.dispose();
+  }
+
+  Future<void> fetchCoops() async {
+    try {
+      final response = await http.get(Uri.parse('http://10.0.2.2:8080/api/coops'));
+      if (response.statusCode == 200) {
+        setState(() {
+          coops = json.decode(response.body);
+        });
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  // 🔥 ปรับปรุงฟังก์ชันให้รองรับการโหลดแบบเบื้องหลัง (isBackground)
+  Future<void> fetchDevices({bool isBackground = false}) async {
+    if (!isBackground) {
+      setState(() {
+        isLoading = true;
+      });
+    }
+    try {
+      String url = 'http://10.0.2.2:8080/api/devices';
+      if (selectedCoopId != null && selectedCoopId!.isNotEmpty) {
+        url = 'http://10.0.2.2:8080/api/devices?coop_id=$selectedCoopId';
+      }
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        
+        // 🔥 เพิ่มบรรทัดนี้เข้าไปชั่วคราวเพื่อดูข้อมูลที่ส่งมาจากหลังบ้าน
+        print("📡 ข้อมูลจาก API: ${response.body}"); 
+        
+        setState(() {
+          devices = json.decode(response.body);
+          isLoading = false;
+          
+          
+          // เลือกอุปกรณ์ตัวแรกเป็น Default ถ้ามีข้อมูล และยังไม่มีการเลือกอุปกรณ์ค้างไว้
+          if (devices.isNotEmpty) {
+            if (selectedDeviceId == null) {
+              final firstId = (devices[0]['device_id'] ?? devices[0]['id'])?.toString();
+              selectedDeviceId = firstId;
+            }
+          } else {
+            selectedDeviceId = null;
+          }
+        });
+      } else {
+        if (!isBackground) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (!isBackground) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+    
+  }
+
+  String formatDateTime(String rawDate) {
+    if (rawDate == '-' || rawDate.isEmpty) return '-';
+    try {
+      DateTime parsedDate = DateTime.parse(rawDate).toLocal();
+      String day = parsedDate.day.toString().padLeft(2, '0');
+      String month = parsedDate.month.toString().padLeft(2, '0');
+      String year = parsedDate.year.toString(); 
+      String hour = parsedDate.hour.toString().padLeft(2, '0');
+      String minute = parsedDate.minute.toString().padLeft(2, '0');
+      return '$day/$month/$year เวลา $hour:$minute น.';
+    } catch (e) {
+      return rawDate; 
+    }
+  }
 
   void onTabSelected(int index) {
     if ( selectedIndex == index ) {
@@ -41,8 +147,12 @@ class _DataSystemState extends State<DataSystem> {
         context,
         MaterialPageRoute(builder: (context) => const MainShowDataFood()),
       );
-    }
-    else {
+    } else if(index == 2){
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
+      );
+    } else {
       setState(() {
         selectedIndex = index;
       });
@@ -55,7 +165,7 @@ class _DataSystemState extends State<DataSystem> {
 
     return Scaffold(
       extendBody: true, 
-      backgroundColor: Colors.white, 
+      backgroundColor: const Color(0xFF0F172A), 
 
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(), 
@@ -63,134 +173,130 @@ class _DataSystemState extends State<DataSystem> {
           constraints: BoxConstraints(minHeight: screenHeight),
           decoration: const BoxDecoration(
             image: DecorationImage(
-              image: AssetImage('assets/images/back1.png'),
+              image: AssetImage('assets/images/device.png'), 
               fit: BoxFit.fitWidth, 
               alignment: Alignment.topCenter,
             ),
           ),
           child: Stack(
             children: [
-              // --- ส่วนที่ 2: เนื้อหาหลัก (Column) ---
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
-                    const SizedBox(height: 270), 
-                    
-                    // --- การ์ดข้อมูลอุปกรณ์ ---
-                    // 🌟 ปรับข้อมูลให้ตรงกับโครงสร้างใหม่ (ข้อมูลอุปกรณ์)
-                    const DeviceDataCard(
-                      deviceNumber: '1',
-                      deviceId: 'DEV-001',
-                      deviceName: 'เซนเซอร์วัดอุณหภูมิ',
-                      deviceType: 'เซนเซอร์',
-                      deviceStatus: 'ทำงานปกติ',
-                      lastUpdateTime: '27 / 04 / 2569 10:30',
-                    ),
-                    const SizedBox(height: 15),
-                    const DeviceDataCard(
-                      deviceNumber: '2',
-                      deviceId: 'DEV-002',
-                      deviceName: 'พัดลมระบายอากาศ',
-                      deviceType: 'มอเตอร์',
-                      deviceStatus: 'ปิดการทำงาน',
-                      lastUpdateTime: '27 / 04 / 2569 10:35',
-                    ),
-                    
-                    const SizedBox(height: 30), // ระยะห่างก่อนถึงปุ่มเพิ่มข้อมูล
+                    const SizedBox(height: 240), 
 
-                    // 👇 ปุ่ม "เพิ่มข้อมูล"
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const Adddatasensor()), 
-                      );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 40),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF9DE088), 
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          'เพิ่มข้อมูล',
-                          style: GoogleFonts.kanit(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 120), // เผื่อระยะด้านล่างไม่ให้ปุ่มบัง BottomBar
-                  ],
-                ),
-              ),
-
-              // --- ส่วนที่ 3: Header (Logo + Icons) ---
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Container(
-                    height: 160,
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                    child: Stack(
+                    // 1. ส่วนหัว เลือกคอก
+                    Column(
                       children: [
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            width: 120,
-                            height: 120,
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+  // 🔥 1. เช็ค Value ให้ดึง ID ออกมาให้ถูกต้อง (รองรับทั้ง coop_id และ id)
+  value: coops.any((c) => (c['coop_id'] ?? c['id'])?.toString() == selectedCoopId) ? selectedCoopId : null,
+  hint: Text(
+    "เลือกคอก",
+    style: GoogleFonts.kanit(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black),
+  ),
+  icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black, size: 20),
+  dropdownColor: Colors.white,
+  style: GoogleFonts.kanit(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black),
+  
+  // 🔥 2. สร้างรายการตัวเลือก โดยดึงข้อมูลจาก Database
+  items: coops.map<DropdownMenuItem<String>>((dynamic coop) {
+    
+    // ดึงเลขคอก (ID) จากฐานข้อมูล
+    String id = (coop['coop_id'] ?? coop['id'])?.toString() ?? '?';
+    
+    // จัดรูปแบบข้อความตั้งต้นที่จะให้โชว์
+    String displayName = "คอกที่ $id";
+    
+    // ดึงชื่อคอก (ถ้ามี) มาแสดงต่อท้าย เช่น "คอกที่ 1 (ไก่เล็ก)"
+    String coopName = (coop['coop_name'] ?? coop['name'])?.toString() ?? '';
+    if (coopName.isNotEmpty && coopName != id) {
+      displayName = "คอกที่ $id ($coopName)";
+    }
+
+    return DropdownMenuItem<String>(
+      value: id,
+      child: Text(displayName),
+    );
+  }).toList(),
+  onChanged: (String? newValue) {
+    if (newValue != null) {
+      setState(() {
+        selectedCoopId = newValue;
+        selectedDeviceId = null; // เคลียร์ค่าอุปกรณ์เดิมออกเมื่อสลับคอกใหม่
+      });
+      fetchDevices(); 
+    }
+  },
+),
                           ),
                         ),
-                        // 👇 ปรับข้อความและขนาดฟอนต์ให้เหมือนในรูป
-                        Positioned(
-                          left: 135,
-                          top: 25,
-                          child: Text(
-                            'EZ -\nSMART\nFARM',
-                            style: GoogleFonts.kanit(
-                              fontSize: 28,
-                              height: 1.1,
-                              fontWeight: FontWeight.bold,
-                              color: const Color.fromARGB(255, 252, 250, 250),
-                            ),
-                          ),
-                        ),
-                        // 👇 ปรับไอคอนกระดิ่งเป็นสีดำและนำไอคอนขีดๆ ออก
-                        Positioned(
-                          right: 0,
-                          bottom: 20,
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const Notifications()),
-                              );
-                            },
-                            child: const Icon(
-                              Icons.notifications_active,
-                              color: Colors.black87,
-                              size: 32,
-                            ),
-                          ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "สถานะ (บอร์ดคอกที่ ${selectedCoopId ?? '-'} )",
+                          style: GoogleFonts.kanit(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 20),
+
+                    // 2. Grid สถานะเซนเซอร์แบบ Dynamic (ดึงข้อมูลจาก API จริง)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B), 
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          )
+                        ]
+                      ),
+                      child: isLoading
+                          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                          : devices.isEmpty
+                              ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(20.0),
+                                    child: Text(
+                                      "ไม่พบอุปกรณ์ในคอกนี้",
+                                      style: GoogleFonts.kanit(color: Colors.white70, fontSize: 16),
+                                    ),
+                                  ),
+                                )
+                              : GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    mainAxisSpacing: 12,
+                                    crossAxisSpacing: 12,
+                                    childAspectRatio: 0.85,
+                                  ),
+                                  itemCount: devices.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildSensorCard(devices[index]);
+                                  },
+                                ),
+                    ),
+                    
+                    const SizedBox(height: 20),
+
+                    // 3. ฟอร์มรายละเอียดข้อมูลเซนเซอร์
+                    _buildDetailsForm(),
+
+                    const SizedBox(height: 120), 
+                  ],
                 ),
               ),
             ],
@@ -204,158 +310,205 @@ class _DataSystemState extends State<DataSystem> {
       ),
     );
   }
-}
 
-// --- สร้าง Widget การ์ดแยกออกมาและเปลี่ยนชื่อเป็น DeviceDataCard ---
-class DeviceDataCard extends StatelessWidget {
-  final String deviceNumber;
-  final String deviceId;
-  final String deviceName;
-  final String deviceType;
-  final String deviceStatus;
-  final String lastUpdateTime;
+  // ====================== WIDGET COMPONENTS ======================
 
-  // 🌟 ปรับรับค่า Parameters ให้ตรงกับโครงสร้างข้อมูลอุปกรณ์
-  const DeviceDataCard({
-    super.key,
-    required this.deviceNumber,
-    required this.deviceId,
-    required this.deviceName,
-    required this.deviceType,
-    required this.deviceStatus,
-    required this.lastUpdateTime,
-  });
+  // ฟังก์ชันวาดการ์ดเซนเซอร์แบบดึงข้อมูลจาก Map วัตถุจริง
+  Widget _buildSensorCard(dynamic device) {
+    String name = device['name']?.toString() ?? "-";
+    String value = device['value']?.toString() ?? "-";
+    String status = device['current_status']?.toString() ?? device['status']?.toString() ?? "Offline";
+    bool isOnline = status.toLowerCase() == "online";
+    
+    String deviceId = (device['device_id'] ?? device['id'])?.toString() ?? "";
+    bool isSelected = selectedDeviceId == deviceId;
 
-  @override
-  Widget build(BuildContext context) {
+    // เลือก Icon อัตโนมัติตามชื่อเซนเซอร์
+    IconData icon = Icons.device_thermostat; // ค่าเริ่มต้นเป็น อุณหภูมิ
+    if (name.toLowerCase().contains('mq') || name.contains('แอมโมเนีย')) {
+      icon = Icons.shower_outlined;
+    } else if (name.contains('พัดลม')) {
+      icon = Icons.toys_outlined;
+    } else if (name.contains('หลอดไฟ')) {
+      icon = Icons.lightbulb_outline;
+    }
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedDeviceId = deviceId;
+        });
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF334155) : const Color(0xFF2A3A4C), 
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected ? Border.all(color: Colors.blueAccent, width: 2) : null,
+        ),
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: Colors.white, size: 32),
+                  const SizedBox(height: 6),
+                  Text(
+                    name,
+                    style: GoogleFonts.kanit(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value != "-" ? "$value" : "-",
+                    style: GoogleFonts.kanit(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.greenAccent),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: isOnline ? Colors.greenAccent : Colors.redAccent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailsForm() {
+    dynamic selectedDeviceData;
+    try {
+      selectedDeviceData = devices.firstWhere(
+        (device) {
+          String id = (device['device_id'] ?? device['id'])?.toString() ?? '';
+          return id == selectedDeviceId;
+        },
+      );
+    } catch (_) {
+      selectedDeviceData = null;
+    }
+
+    String sensorName = selectedDeviceData?['name']?.toString() ?? "-";
+    String sensorValue = selectedDeviceData?['value']?.toString() ?? "-";
+    String sensorStatus = selectedDeviceData?['current_status']?.toString() ?? selectedDeviceData?['status']?.toString() ?? "-";
+    
+    // ดึงเวลาอัปเดตล่าสุดจาก API
+    String rawDate = selectedDeviceData?['timestamp']?.toString() ?? selectedDeviceData?['last_update']?.toString() ?? "";
+    String sensorTime = rawDate.isNotEmpty ? formatDateTime(rawDate) : "-";
+
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFC0D6E4), 
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.grey.shade400, width: 1),
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          )
+        ]
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'ข้อมูลอุปกรณ์ ที่ $deviceNumber',
-            style: GoogleFonts.kanit(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // 🌟 ปรับ Label ข้อความให้ตรงตามลำดับในรูปภาพ
-          _buildInfoRow('รหัสอุปกรณ์ :', deviceId),
-          _buildInfoRow('ชื่ออุปกรณ์ :', deviceName),
-          _buildInfoRow('ประเภทอุปกรณ์ :', deviceType),
-          _buildInfoRow('สถานะอุปกรณ์ :', deviceStatus),
-          _buildInfoRow('เวลาที่อัพเดตสถานะล่าสุด :', lastUpdateTime),
-
-          const SizedBox(height: 10),
-
-          // ปุ่ม Action ด้านล่างขวา
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildActionButton(
-                title: 'แก้ไขข้อมูล', 
-                bgColor: const Color(0xFFF1C40F),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const Editsensor(), // หากมีหน้า Edit ใหม่สามารถเปลี่ยนเชื่อมไปหน้านั้นได้
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: devices.any((d) => (d['device_id'] ?? d['id'])?.toString() == selectedDeviceId) ? selectedDeviceId : null,
+                    hint: Text(
+                      "เลือกอุปกรณ์",
+                      style: GoogleFonts.kanit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
                     ),
-                  );
-                },
+                    icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black, size: 16),
+                    dropdownColor: Colors.white,
+                    style: GoogleFonts.kanit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
+                    items: devices.map<DropdownMenuItem<String>>((dynamic device) {
+                      String id = (device['device_id'] ?? device['id'])?.toString() ?? '';
+                      return DropdownMenuItem<String>(
+                        value: id,
+                        child: Text(
+                          device['name']?.toString() ?? "อุปกรณ์ $id",
+                          style: GoogleFonts.kanit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        selectedDeviceId = newValue;
+                      });
+                    },
+                  ),
+                ),
               ),
-              const SizedBox(width: 8),
-              _buildActionButton(
-                title: 'ลบข้อมูล', 
-                bgColor: const Color(0xFFFF0000),
-                onTap: () {
-                  // ใส่คำสั่งลบข้อมูล หรือ Popup Confirm การลบที่นี่
-                },
-              ),    
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 18),
+                  const SizedBox(width: 6),
+                  Text(
+                    sensorTime,
+                    style: GoogleFonts.kanit(fontSize: 12, color: Colors.white70),
+                  ),
+                ],
+              ),
             ],
-          )
+          ),
+          const SizedBox(height: 20),
+
+          _buildInputRow("ชื่อเซนเซอร์", sensorName),
+          const SizedBox(height: 12),
+          _buildInputRow("ค่าที่วัดได้", sensorValue),
+          const SizedBox(height: 12),
+          _buildInputRow("สถานะ", sensorStatus),
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {String? suffixText}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text(
+  Widget _buildInputRow(String label, String value) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 90,
+          child: Text(
             label,
-            style: GoogleFonts.kanit(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
+            style: GoogleFonts.kanit(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        ),
+        Expanded(
+          child: Container(
+            height: 40,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              color: const Color(0xFF131D2A), 
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF2B3A4A), width: 1.5),
             ),
             child: Text(
               value,
-              style: GoogleFonts.kanit(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
+              style: GoogleFonts.kanit(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
             ),
           ),
-          if (suffixText != null) ...[
-            const SizedBox(width: 8),
-            Text(
-              suffixText,
-              style: GoogleFonts.kanit(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-          ]
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required String title, 
-    required Color bgColor, 
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(20),
         ),
-        child: Text(
-          title,
-          style: GoogleFonts.kanit(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ),
+      ],
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert'; // เพิ่มสำหรับแปลง JSON
+import 'package:http/http.dart' as http; // เพิ่มสำหรับยิง API
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_Datadopt_chicken_2.dart';
-import 'package:flutter_application_1/pages/Main_SenSor/Data_Sensor.dart';
 import 'package:flutter_application_1/pages/Main_SenSor/Data_System.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Notifications_.dart';
@@ -11,8 +12,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../Chicken_health_information/Show_Chicken_health.dart';
 import '../bottombar.dart';
 import '../main_dash.dart'; 
-import '../number_for_Egg/Main_Data_numegg_3.dart'; 
-
 
 
 class Mainchicken extends StatefulWidget {
@@ -23,76 +22,142 @@ class Mainchicken extends StatefulWidget {
 }
 
 class _MainchickenState extends State<Mainchicken> {
-  // ควบคุมว่าตอนนี้อยู่แท็บไหน (สมมติให้หน้านี้คือหน้าหลักที่ไม่ได้ผูกกับ index หรือเป็นหน้าย่อย)
   int selectedIndex = 0; 
+  
+  // --- เพิ่มตัวแปรสำหรับเก็บข้อมูลและเช็คสถานะโหลด ---
+  List<Map<String, dynamic>> coopData = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // เรียกใช้ฟังก์ชันดึงข้อมูลเมื่อเปิดหน้านี้
+    fetchCoopData();
+  }
+
+  // --- ฟังก์ชันสำหรับดึงข้อมูลจาก API ---
+  Future<void> fetchCoopData() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // 🔴 เปลี่ยน URL เป็น API ของคุณ (เช่น http://192.168.x.x/api/get_coops)
+      final String apiUrl = "http://10.0.2.2:8080/api/coops"; 
+      final response = await http.get(Uri.parse(apiUrl));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = json.decode(response.body);
+
+        final List<Map<String, dynamic>> fetchedData = jsonData.map((data) {
+
+          String rawDate = data["date_adopt_animals"]?.toString() ?? "-";
+          String displayDate = rawDate != "-" ? rawDate.split('T')[0] : "-";
+
+          return {
+            // 🔴 เปลี่ยนชื่อ Key ในกรอบสี่เหลี่ยมให้ตรงกับ Database/API ของคุณ
+            "coop_id": data["coop_id"] ?? "-", 
+            "chicken_count": data["amount"] ?? "0",
+            "adopt_date": displayDate,
+          };
+        }).toList();
+
+        setState(() {
+          coopData = fetchedData;
+          isLoading = false; 
+        });
+      } else {
+        print("ดึงข้อมูลไม่สำเร็จ Status code: ${response.statusCode}");
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print("เกิดข้อผิดพลาดในการเชื่อมต่อ API: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   void onTabSelected(int index) {
     if (index == 0) {
-      // Logic: กลับหน้า Home (MainScreen)
-      // ใช้ pushReplacement เพื่อไม่ให้หน้าซ้อนกัน
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainScreen()),
       );
     } else if (index == 4) {
-      // Logic: ไปหน้า Main_DataFood_chicken1 (แท็บอาหาร)
-      // ใช้ pushReplacement แทน push ปกติ 
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const MainShowDataFood()),
       );
     } else if(index == 1){
-      // Logic: ไปหน้า CloseOpenDoor (แท็บประตู)
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
       );
-    }else if(index == 2){
+    } else if(index == 2){
        Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const ShowChart()),
       );
-    }
-     else {
+    } else {
       setState(() {
         selectedIndex = index;
       });
     }
   }
 
-  // --- ฟังก์ชันสร้างปุ่มเมนู ---
-  Widget _buildMenuItem(String title, VoidCallback onTap) {
+  // --- ฟังก์ชันสร้างแถวข้อมูลในตาราง ---
+  Widget _buildTableRow(String col1, String col2, String col3) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Colors.white24, width: 1),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: Text(col1, textAlign: TextAlign.center, style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
+          Expanded(child: Text(col2, textAlign: TextAlign.center, style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
+          Expanded(flex: 2, child: Text(col3, textAlign: TextAlign.center, style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
+        ],
+      ),
+    );
+  }
+
+  // --- ฟังก์ชันสร้างปุ่มเมนูสี่เหลี่ยม ---
+  Widget _buildSquareMenu(IconData icon, String title, VoidCallback onTap, {double? width}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 20),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        width: width,
+        height: 110,
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F0F0),
-          borderRadius: BorderRadius.circular(30),
+          color: const Color(0xFF1E2730), // สีพื้นหลังปุ่มแบบในรูป
+          borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.2),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Icon(icon, color: Colors.white, size: 45),
+            const SizedBox(height: 10),
             Text(
               title,
               style: GoogleFonts.kanit(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
               ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: Colors.black,
-              size: 24,
             ),
           ],
         ),
@@ -106,6 +171,7 @@ class _MainchickenState extends State<Mainchicken> {
 
     return Scaffold(
       extendBody: true,
+      backgroundColor: const Color(0xFF131A21),
       body: Stack(
         children: [
           // --- ส่วนที่ 1: ภาพพื้นหลัง ---
@@ -114,7 +180,7 @@ class _MainchickenState extends State<Mainchicken> {
             width: double.infinity,
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/images/back1.png'),
+                image: AssetImage('assets/images/Datacoop.png'),
                 fit: BoxFit.cover,
                 alignment: Alignment.topCenter,
               ),
@@ -123,157 +189,146 @@ class _MainchickenState extends State<Mainchicken> {
 
           // --- ส่วนที่ 2: เนื้อหา ---
           Positioned(
-            top: 280,
+            top: 250, // ปรับระดับความสูงลงมาให้พอดี
             left: 0,
             right: 0,
             bottom: 80,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
+              padding: const EdgeInsets.symmetric(horizontal: 25),
+              physics: const BouncingScrollPhysics(),
               child: Column(
                 children: [
-                  const SizedBox(height: 20),
-
-                  // 2.1 Search Bar
+                  // 1. ตารางข้อมูลคอกรวม
                   Container(
-                    height: 50,
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAE5E5),
-                      borderRadius: BorderRadius.circular(30),
+                      color: const Color(0xFF1E2730), // สีพื้นหลังกล่องข้อมูล
+                      borderRadius: BorderRadius.circular(15),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withOpacity(0.2),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: TextField(
-                      textAlignVertical: TextAlignVertical.center,
-                      decoration: InputDecoration(
-                        hintText: "SEARCH",
-                        hintStyle: GoogleFonts.kanit(
-                          color: const Color(0xFF8A7E7E),
-                          fontWeight: FontWeight.bold,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "คอกรวม",
+                          style: GoogleFonts.kanit(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-                        suffixIcon: const Icon(Icons.search, color: Colors.black87, size: 28),
-                      ),
+                        const SizedBox(height: 10),
+                        // Header ตาราง
+                        Container(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(color: Colors.white54, width: 1.5),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(child: Text("คอกที่", textAlign: TextAlign.center, style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold))),
+                              Expanded(child: Text("จำนวนไก่", textAlign: TextAlign.center, style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold))),
+                              Expanded(flex: 2, child: Text("วันที่รับมาเลี้ยง", textAlign: TextAlign.center, style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold))),
+                            ],
+                          ),
+                        ),
+                        
+                        // --- ส่วนที่แสดงผลข้อมูลที่ได้จาก API ---
+                        isLoading 
+                            ? const Padding(
+                                padding: EdgeInsets.all(20.0),
+                                child: Center(child: CircularProgressIndicator(color: Colors.green)),
+                              )
+                            : coopData.isEmpty
+                                ? Padding(
+                                    padding: const EdgeInsets.all(20.0),
+                                    child: Center(
+                                      child: Text(
+                                        "ไม่มีข้อมูล",
+                                        style: GoogleFonts.kanit(color: Colors.white70),
+                                      ),
+                                    ),
+                                  )
+                                : Column(
+                                    children: coopData.map((data) {
+                                      return _buildTableRow(
+                                        data["coop_id"].toString(), 
+                                        data["chicken_count"].toString(), 
+                                        data["adopt_date"].toString()
+                                      );
+                                    }).toList(),
+                                  ),
+                      ],
                     ),
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 25),
 
+                  // 2. เมนูปุ่มด้านล่าง
+                  Row(
+                    children: [
+                      // ปุ่มตรวจสุขภาพ
+                      Expanded(
+                        child: _buildSquareMenu(
+                          Icons.medical_information_outlined, 
+                          "ตรวจสุขภาพ", 
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const Chickenhealth()),
+                            );
+                          }
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      // ปุ่มการให้วัคซีน
+                      Expanded(
+                        child: _buildSquareMenu(
+                          Icons.vaccines_outlined, 
+                          "การให้วัคซีน", 
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const MainVaccine()),
+                            );
+                          }
+                        ),
+                      ),
+                    ],
+                  ),
 
-                  _buildMenuItem("แฟ้มข้อมูลคอก", () {
-                     Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const Adoptchicken()),
-                    );
-                  }),
+                  const SizedBox(height: 15),
 
-                  // 2.2 รายการปุ่มเมนู
-                  _buildMenuItem("แฟ้มข้อมูลการเก็บไข่", () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const Datanumegg()),
-                    );
-                  }),
-
-                  _buildMenuItem("แฟ้มข้อมูลการบันทึกสุขภาพ", () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const Chickenhealth()),
-                    );
-                  }),
-
-                  _buildMenuItem("แฟ้มข้อมูลการบันทึกอุปกรณ์", () {
-                     Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const DataSystem()),
-                    );
-                  }),
-
-                   _buildMenuItem("แฟ้มข้อมูลเซนเซอร์", () {
-                     Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const Datasensor()),
-                    );
-                  }),
-
-                  _buildMenuItem("แฟ้มข้อมูลการให้วัคซีน", () {
-                     Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MainVaccine()),
-                    );
-                  }),
+                  // ปุ่มอุปกรณ์และเซนเซอร์
+                  _buildSquareMenu(
+                    Icons.cell_tower, 
+                    "อุปกรณ์ และ เซนเซอร์", 
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const DataSystem()),
+                      );
+                    },
+                    width: MediaQuery.of(context).size.width * 0.65, 
+                  ),
 
                   const SizedBox(height: 50),
                 ],
               ),
             ),
           ),
-
-          // --- ส่วนที่ 3: Header ---
-          Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Container(
-                    height: 160,
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            width: 120,
-                            height: 120,
-                          ),
-                        ),
-                        // 👇 ปรับข้อความและขนาดฟอนต์ให้เหมือนในรูป
-                        Positioned(
-                          left: 135,
-                          top: 25,
-                          child: Text(
-                            'EZ -\nSMART\nFARM',
-                            style: GoogleFonts.kanit(
-                              fontSize: 28,
-                              height: 1.1,
-                              fontWeight: FontWeight.bold,
-                              color: const Color.fromARGB(255, 252, 250, 250),
-                            ),
-                          ),
-                        ),
-                        // 👇 ปรับไอคอนกระดิ่งเป็นสีดำและนำไอคอนขีดๆ ออก
-                        Positioned(
-                          right: 0,
-                          bottom: 20,
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const Notifications()),
-                              );
-                            },
-                            child: const Icon(
-                              Icons.notifications_active,
-                              color: Colors.black87,
-                              size: 32,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
         ],
       ),
-
       bottomNavigationBar: CustomBottomBar(
         selectedIndex: selectedIndex,
         onTabSelected: onTabSelected,

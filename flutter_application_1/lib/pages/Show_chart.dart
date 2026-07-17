@@ -1,12 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart'; 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/close_open_Door.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
+import 'package:flutter_application_1/pages/number_for_Egg/Edit_NumberEggchicken_3.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'bottombar.dart'; 
+import 'package:http/http.dart' as http;
+import 'bottombar.dart';
 
 class ShowChart extends StatefulWidget {
   const ShowChart({super.key});
@@ -18,45 +21,280 @@ class ShowChart extends StatefulWidget {
 class _ShowChartState extends State<ShowChart> {
   int selectedIndex = 2;
 
-  // ตัวแปรสำหรับสลับดูกราฟ รายเดือน / รายปี
-  bool isMonthly = true; 
-  // ตัวแปรเก็บปีที่ถูกเลือกดูข้อมูล
-  String selectedYear = '2024'; 
+  bool isMonthly = true;
+  String selectedYear = DateTime.now().year.toString();
+  
+  bool isLoading = true;
+  bool isSubmitting = false; 
 
-  // ข้อมูลจำลองสำหรับ 12 เดือน แยกตามปี
-  final Map<String, List<double>> mockMonthlyData = {
-    '2020': [15, 20, 25, 22, 30, 35, 40, 38, 45, 50, 48, 55],
-    '2021': [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75],
-    '2022': [25, 40, 35, 60, 50, 70, 45, 55, 40, 65, 30, 75],
-    '2023': [30, 50, 45, 70, 60, 85, 55, 65, 50, 75, 40, 80],
-    '2024': [40, 65, 50, 85, 70, 90, 60, 75, 55, 80, 45, 95],
-  };
+  int todayTotalEggs = 0;
+  int yesterdayTotalEggs = 0;
+
+  Map<String, List<double>> actualMonthlyData = {};
+  List<String> availableYears = [];
+  
+  List<dynamic> eggHistoryList = [];
+
+  final TextEditingController _eggCountController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
+  
+  String? _selectedCoop;
+  List<String> availableCoops = [];
+
+  final String backendBaseUrl = "http://10.0.2.2:8080"; 
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCoops().then((_) {
+      _fetchEggData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _eggCountController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchCoops() async {
+    try {
+      final response = await http.get(Uri.parse('$backendBaseUrl/api/coops'));
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        
+        setState(() {
+          availableCoops = data
+              .map((item) => item['coop_id'].toString())
+              .toSet()
+              .toList();
+
+          if (availableCoops.isNotEmpty) {
+            _selectedCoop = availableCoops.first;
+          }
+        });
+      } else {
+        debugPrint("Error fetching coops: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Connection error (coops): $e");
+    }
+  }
+
+  Future<void> _fetchEggData() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final response = await http.get(Uri.parse('$backendBaseUrl/api/eggs'));
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        Map<String, List<double>> tempMonthlyData = {};
+
+        int tempTodayTotal = 0;
+        int tempYesterdayTotal = 0;
+        DateTime now = DateTime.now();
+        DateTime today = DateTime(now.year, now.month, now.day);
+        DateTime yesterday = today.subtract(const Duration(days: 1));
+
+        for (var item in data) {
+          if (item['date_collect_egg'] == null) continue;
+
+          DateTime date = DateTime.parse(item['date_collect_egg']).toLocal();
+          String yearStr = date.year.toString();
+          int monthIndex = date.month - 1;
+          double amount = (item['number_egg'] ?? 0).toDouble();
+
+          tempMonthlyData.putIfAbsent(yearStr, () => List.filled(12, 0.0));
+          tempMonthlyData[yearStr]![monthIndex] += amount;
+
+          DateTime itemDate = DateTime(date.year, date.month, date.day);
+          if (itemDate == today) {
+            tempTodayTotal += amount.toInt();
+          } else if (itemDate == yesterday) {
+            tempYesterdayTotal += amount.toInt();
+          }
+        }
+
+        setState(() {
+          actualMonthlyData = tempMonthlyData;
+          availableYears = tempMonthlyData.keys.toList()..sort();
+          
+          todayTotalEggs = tempTodayTotal;
+          yesterdayTotalEggs = tempYesterdayTotal;
+          
+          eggHistoryList = List.from(data.reversed);
+          
+          if (availableYears.isNotEmpty) {
+            selectedYear = availableYears.last;
+          } else {
+            String currentYear = DateTime.now().year.toString();
+            availableYears = [currentYear];
+            actualMonthlyData[currentYear] = List.filled(12, 0.0);
+            selectedYear = currentYear;
+          }
+        });
+      } else {
+        debugPrint("Error fetching eggs: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Connection error: $e");
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _submitEggData() async {
+    if (_selectedCoop == null) {
+      _showSnackBar('กรุณาเลือกคอกไก่');
+      return;
+    }
+    
+    if (_eggCountController.text.trim().isEmpty) {
+      _showSnackBar('กรุณากรอกจำนวนไข่');
+      return;
+    }
+
+    int? eggCount = int.tryParse(_eggCountController.text.trim());
+    if (eggCount == null || eggCount < 0) {
+      _showSnackBar('กรุณากรอกตัวเลขจำนวนไข่ที่ถูกต้อง');
+      return;
+    }
+
+    setState(() {
+      isSubmitting = true;
+    });
+
+    DateTime now = DateTime.now();
+    String formattedDate = now.toUtc().toIso8601String(); 
+
+    Map<String, dynamic> payload = {
+      "coop_id": int.parse(_selectedCoop!),
+      "number_egg": eggCount,
+      "date_collect_egg": formattedDate,
+      "note": _noteController.text.trim(),
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse('$backendBaseUrl/api/eggs'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _showSnackBar('บันทึกข้อมูลสำเร็จ', isSuccess: true);
+        _eggCountController.clear();
+        _noteController.clear();
+        _fetchEggData();
+      } else {
+        _showSnackBar('เกิดข้อผิดพลาดในการบันทึก: Error ${response.statusCode}');
+      }
+    } catch (e) {
+      _showSnackBar('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+    } finally {
+      setState(() {
+        isSubmitting = false;
+      });
+    }
+  }
+
+  Future<void> _deleteEggData(int id) async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final response = await http.delete(
+        Uri.parse('$backendBaseUrl/api/eggs?id=$id'), 
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _showSnackBar('ลบข้อมูลสำเร็จ', isSuccess: true);
+        _fetchEggData(); 
+      } else {
+        _showSnackBar('เกิดข้อผิดพลาดในการลบ: Error ${response.statusCode}');
+      }
+    } catch (e) {
+      _showSnackBar('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+      debugPrint("Delete error: $e");
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void _showDeleteConfirmDialog(int id) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1F2933),
+          title: Text('ยืนยันการลบ', style: GoogleFonts.kanit(color: Colors.white)),
+          content: Text('คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลนี้?', style: GoogleFonts.kanit(color: Colors.white70)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('ยกเลิก', style: GoogleFonts.kanit(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              onPressed: () {
+                Navigator.pop(context);
+                _deleteEggData(id);
+              },
+              child: Text('ลบข้อมูล', style: GoogleFonts.kanit(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSnackBar(String message, {bool isSuccess = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.kanit()),
+        backgroundColor: isSuccess ? Colors.green : Colors.redAccent,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  double _calculateMaxY() {
+    if (actualMonthlyData.isEmpty || !actualMonthlyData.containsKey(selectedYear)) return 100;
+    
+    double max = 0;
+    if (isMonthly) {
+      for (var val in actualMonthlyData[selectedYear]!) {
+        if (val > max) max = val;
+      }
+    } else {
+      for (var year in availableYears) {
+        double yearlyTotal = actualMonthlyData[year]!.reduce((a, b) => a + b);
+        if (yearlyTotal > max) max = yearlyTotal;
+      }
+    }
+    return max > 0 ? max * 1.2 : 100;
+  }
 
   void onTabSelected(int index) {
     if (index == 0) {
-     Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainScreen()),
-      );
-    } else if(index == 3){
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const Mainchicken()),
-      );
-    } else if(index == 4){
-       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
-      );
-    }else if(index == 1){
-       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
-      );
-    }
-
-
-    else {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
+    } else if (index == 3) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Mainchicken()));
+    } else if (index == 4) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainShowDataFood()));
+    } else if (index == 1) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CloseOpenDoor()));
+    } else {
       setState(() {
         selectedIndex = index;
       });
@@ -75,84 +313,36 @@ class _ShowChartState extends State<ShowChart> {
         child: Container(
           constraints: BoxConstraints(minHeight: screenHeight),
           decoration: const BoxDecoration(
-            color: Color(0xFFF5F5F5),
+            color: Color(0xFF101820), 
             image: DecorationImage(
-              image: AssetImage('assets/images/back1.png'),
+              image: AssetImage('assets/images/chart.png'),
               fit: BoxFit.fitWidth,
               alignment: Alignment.topCenter,
             ),
           ),
-          child: Stack(
+          child: Column(
             children: [
-              // --- ส่วนที่ 2: เนื้อหา ---
-              Column(
-                children: [
-                  const SizedBox(height: 270), 
+              const SizedBox(height: 240), 
 
-                  // --- กราฟสถิติการเก็บไข่ ---
-                  _buildChartCard(),
-
-                  const SizedBox(height: 100), 
-                ],
-              ),
-
-              // --- ส่วนที่ 3: Header (Logo & Text) ---
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SafeArea(
-                  child: Container(
-                    height: 160,
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          left: 0,
-                          top: 0,
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            width: 120,
-                            height: 120,
-                          ),
-                        ),
-                        // 👇 ปรับข้อความและขนาดฟอนต์ให้เหมือนในรูป
-                        Positioned(
-                          left: 135,
-                          top: 25,
-                          child: Text(
-                            'EZ -\nSMART\nFARM',
-                            style: GoogleFonts.kanit(
-                              fontSize: 28,
-                              height: 1.1,
-                              fontWeight: FontWeight.bold,
-                              color: const Color.fromARGB(255, 252, 250, 250),
-                            ),
-                          ),
-                        ),
-                        // 👇 ปรับไอคอนกระดิ่งเป็นสีดำและนำไอคอนขีดๆ ออก
-                        Positioned(
-                          right: 0,
-                          bottom: 20,
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const Notifications()),
-                              );
-                            },
-                            child: const Icon(
-                              Icons.notifications_active,
-                              color: Colors.black87,
-                              size: 32,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+              if (isLoading && actualMonthlyData.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(50.0),
+                    child: CircularProgressIndicator(),
                   ),
+                )
+              else
+                Column(
+                  children: [
+                    _buildSummaryCard(),
+                    _buildToggleSwitch(),
+                    _buildRecordFormCard(),
+                    _buildLineChartCard(),
+                    _buildHistoryList(),
+                  ],
                 ),
-              ),
+
+              const SizedBox(height: 100), 
             ],
           ),
         ),
@@ -165,289 +355,351 @@ class _ShowChartState extends State<ShowChart> {
     );
   }
 
-  // ==========================================
-  // ส่วนสร้าง Widget กราฟที่สวยงาม
-  // ==========================================
-  Widget _buildChartCard() {
+  Widget _buildSummaryCard() {
+    String formatNum(int n) => n.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+
+    bool isUp = todayTotalEggs > yesterdayTotalEggs;
+    bool isEqual = todayTotalEggs == yesterdayTotalEggs;
+    
+    IconData trendIcon = isEqual ? Icons.remove : (isUp ? Icons.arrow_upward : Icons.arrow_downward);
+    Color trendColor = isEqual ? Colors.grey : (isUp ? Colors.greenAccent : Colors.redAccent);
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95), 
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+        color: const Color(0xFF1F2933),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.egg_outlined, color: Color(0xFFFDE68A), size: 50),
+          const SizedBox(height: 10),
+          Text(
+            'วันนี้ : ${formatNum(todayTotalEggs)} ฟอง', 
+            style: GoogleFonts.kanit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          const SizedBox(height: 5),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(trendIcon, color: trendColor, size: 18), 
+              const SizedBox(width: 5),
+              Text(
+                'เมื่อวาน : ${formatNum(yesterdayTotalEggs)} ฟอง',
+                style: GoogleFonts.kanit(fontSize: 14, color: Colors.white70),
+              ),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleSwitch() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => setState(() => isMonthly = true),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isMonthly ? const Color(0xFFFF7B7B) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'เดือน',
+                      style: GoogleFonts.kanit(
+                        fontSize: 14,
+                        color: isMonthly ? Colors.white : Colors.black54,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setState(() => isMonthly = false),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: !isMonthly ? const Color(0xFFFF7B7B) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'ปี',
+                      style: GoogleFonts.kanit(
+                        fontSize: 14,
+                        color: !isMonthly ? Colors.white : Colors.black54,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRecordFormCard() {
+    DateTime now = DateTime.now();
+    String formattedDate = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1F2933),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // หัวข้อกราฟ และ Dropdown เลือกปี
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'สถิติการเก็บไข่',
-                    style: GoogleFonts.kanit(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  if (isMonthly)
-                    // แสดง Dropdown ให้เลือกปีเมื่ออยู่ในโหมดรายเดือน
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+            color: const Color(0xFF4CAF50), 
+            child: Row(
+              children: [
+                const Icon(Icons.add_circle_outline, color: Colors.white),
+                const SizedBox(width: 10),
+                Text(
+                  'บันทึกยอดเก็บไข่ไก่',
+                  style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+          
+          Padding(
+            padding: const EdgeInsets.all(15),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
                     Container(
                       height: 30,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       decoration: BoxDecoration(
-                        color: Colors.orange.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange.shade200),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(5),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
-                          value: selectedYear,
+                          value: availableCoops.contains(_selectedCoop) ? _selectedCoop : null,
                           isDense: true,
-                          icon: const Icon(Icons.arrow_drop_down, color: Colors.orange),
-                          style: GoogleFonts.kanit(
-                            color: Colors.orange.shade800, 
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                          hint: Text(
+                            availableCoops.isEmpty ? 'กำลังโหลด..' : 'เลือกคอก',
+                            style: GoogleFonts.kanit(fontSize: 14),
                           ),
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              selectedYear = newValue!;
-                            });
-                          },
-                          items: mockMonthlyData.keys.map<DropdownMenuItem<String>>((String value) {
+                          style: GoogleFonts.kanit(fontSize: 14, color: Colors.black, fontWeight: FontWeight.bold),
+                          items: availableCoops.map((String val) {
                             return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text('ปี $value'),
+                              value: val, 
+                              child: Text('เลือกคอก $val'),
                             );
                           }).toList(),
+                          onChanged: availableCoops.isEmpty ? null : (val) {
+                            setState(() { 
+                              _selectedCoop = val!; 
+                            });
+                          },
                         ),
                       ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          formattedDate,
+                          style: GoogleFonts.kanit(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 20),
+                      ],
                     )
-                  else
-                    // ข้อความแนะนำเมื่ออยู่ในโหมดรายปี
-                    Text(
-                      'แตะที่กราฟเพื่อดูรายเดือน',
-                      style: GoogleFonts.kanit(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                ],
-              ),
-              // ปุ่มสลับโหมด รายเดือน / รายปี
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => setState(() => isMonthly = true),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isMonthly ? const Color.fromARGB(255, 172, 24, 24) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          'เดือน',
-                          style: GoogleFonts.kanit(
-                            fontSize: 12,
-                            color: isMonthly ? Colors.white : Colors.black54,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => setState(() => isMonthly = false),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: !isMonthly ? const Color.fromARGB(255, 172, 24, 24) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          'ปี',
-                          style: GoogleFonts.kanit(
-                            fontSize: 12,
-                            color: !isMonthly ? Colors.white : Colors.black54,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 25),
-          // กราฟที่เลื่อนซ้ายขวาได้
-          SizedBox(
-            height: 200,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Container(
-                width: isMonthly ? 650 : MediaQuery.of(context).size.width - 80,
-                padding: const EdgeInsets.only(right: 15), 
-                child: BarChart(
-                  BarChartData(
-                    alignment: BarChartAlignment.spaceAround,
-                    maxY: 100, 
-                    barTouchData: BarTouchData(
-                      enabled: true,
-                      // ตั้งค่า Tooltip เวลากดให้สวยงาม
-                      touchTooltipData: BarTouchTooltipData(
-                        getTooltipColor: (group) => Colors.black87,
-                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                          return BarTooltipItem(
-                            '${rod.toY.toInt()}\n',
-                            GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold),
-                            children: [
-                              TextSpan(
-                                text: isMonthly ? 'ฟอง' : 'แตะดูรายเดือน',
-                                style: GoogleFonts.kanit(
-                                  color: Colors.orangeAccent,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.normal,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                const SizedBox(height: 15),
+
+                _buildFormInputRow('จำนวนไข่', _eggCountController, inputType: TextInputType.number),
+                const SizedBox(height: 10),
+                
+                _buildFormInputRow('หมายเหตุ', _noteController, hint: '-'),
+                
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 45,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4CAF50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      // เมื่อผู้ใช้แตะแท่งกราฟในรายปี จะสลับไปดูรายเดือนของปีนั้นทันที
-                      touchCallback: (FlTouchEvent event, barTouchResponse) {
-                        if (!event.isInterestedForInteractions || barTouchResponse == null || barTouchResponse.spot == null) {
-                          return;
-                        }
-                        // ถ้าคลิกแบบปล่อยนิ้ว (TapUp) ตอนอยู่โหมดปี
-                        if (event is FlTapUpEvent && !isMonthly) {
-                          int index = barTouchResponse.spot!.touchedBarGroupIndex;
-                          String tappedYear = (2020 + index).toString();
-                          setState(() {
-                            selectedYear = tappedYear;
-                            isMonthly = true; // สลับเป็นรายเดือนให้เลย
-                          });
-                        }
+                    ),
+                    onPressed: isSubmitting ? null : _submitEggData,
+                    child: isSubmitting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : Text(
+                            'บันทึกข้อมูล',
+                            style: GoogleFonts.kanit(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                  ),
+                )
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormInputRow(String label, TextEditingController controller, {String hint = '', TextInputType inputType = TextInputType.text}) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(label, style: GoogleFonts.kanit(fontSize: 14, color: Colors.white)),
+        ),
+        Expanded(
+          child: Container(
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFF151C22), 
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
+            ),
+            child: TextField(
+              controller: controller,
+              keyboardType: inputType, 
+              style: GoogleFonts.kanit(color: Colors.white),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                isDense: true,
+                hintText: hint,
+                hintStyle: GoogleFonts.kanit(color: Colors.white54),
+              ),
+            ),
+          ),
+        )
+      ],
+    );
+  }
+
+  Widget _buildLineChartCard() {
+    double chartMaxY = _calculateMaxY();
+    int thaiYear = int.parse(selectedYear) + 543;
+
+    List<double> currentData = isMonthly 
+        ? (actualMonthlyData[selectedYear] ?? List.filled(12, 0.0))
+        : availableYears.map((y) => actualMonthlyData[y]!.reduce((a, b) => a + b)).toList();
+        
+    double minVal = currentData.where((v) => v > 0).isEmpty ? 0 : currentData.where((v) => v > 0).reduce((a, b) => a < b ? a : b);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1F2933),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'บันทึกการเก็บไข่รวมทุกคอก ปี $thaiYear',
+            style: GoogleFonts.kanit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          const SizedBox(height: 15),
+          
+          SizedBox(
+            height: 180,
+            child: LineChart(
+              LineChartData(
+                minY: 0,
+                maxY: chartMaxY,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey.withOpacity(0.3), strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  show: true,
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 35,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: GoogleFonts.kanit(color: Colors.white54, fontSize: 10),
+                          textAlign: TextAlign.right,
+                        );
                       },
                     ),
-                    titlesData: FlTitlesData(
-                      show: true,
-                      // --- แกน X (ด้านล่าง) ---
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 30,
-                          getTitlesWidget: (double value, TitleMeta meta) {
-                            final style = GoogleFonts.kanit(
-                              color: Colors.grey[700],
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11, 
-                            );
-                            String text = '';
-                            if (isMonthly) {
-                              switch (value.toInt()) {
-                                case 0: text = 'ม.ค.'; break;
-                                case 1: text = 'ก.พ.'; break;
-                                case 2: text = 'มี.ค.'; break;
-                                case 3: text = 'เม.ย.'; break;
-                                case 4: text = 'พ.ค.'; break;
-                                case 5: text = 'มิ.ย.'; break;
-                                case 6: text = 'ก.ค.'; break;
-                                case 7: text = 'ส.ค.'; break;
-                                case 8: text = 'ก.ย.'; break;
-                                case 9: text = 'ต.ค.'; break;
-                                case 10: text = 'พ.ย.'; break;
-                                case 11: text = 'ธ.ค.'; break;
-                                default: text = ''; break;
-                              }
-                            } else {
-                              switch (value.toInt()) {
-                                case 0: text = '2020'; break;
-                                case 1: text = '2021'; break;
-                                case 2: text = '2022'; break;
-                                case 3: text = '2023'; break;
-                                case 4: text = '2024'; break;
-                                default: text = ''; break;
-                              }
-                            }
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(text, style: style),
-                            );
-                          },
-                        ),
-                      ),
-                      // --- แกน Y (ด้านซ้าย) ---
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 40,
-                          getTitlesWidget: (double value, TitleMeta meta) {
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
-                              child: Text(
-                                value.toInt().toString(),
-                                style: GoogleFonts.kanit(
-                                  color: Colors.grey[700],
-                                  fontSize: 12,
-                                ),
-                                textAlign: TextAlign.right,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      topTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 15,
-                          getTitlesWidget: (value, meta) => const SizedBox.shrink(),
-                        ),
-                      ),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 22,
+                      getTitlesWidget: (value, meta) {
+                        List<String> months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                        String text = '';
+                        if (isMonthly && value >= 0 && value < 12) {
+                          text = months[value.toInt()];
+                        } else if (!isMonthly && value >= 0 && value < availableYears.length) {
+                          text = availableYears[value.toInt()];
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(text, style: GoogleFonts.kanit(color: Colors.white54, fontSize: 10)),
+                        );
+                      },
                     ),
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      getDrawingHorizontalLine: (value) => FlLine(
-                        color: Colors.grey[300],
-                        strokeWidth: 1,
-                      ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    // สร้างแท่งกราฟโดยดึงข้อมูลตามปี (selectedYear)
-                    barGroups: isMonthly 
-                    ? List.generate(
-                        12, 
-                        (index) => _makeBarData(index, mockMonthlyData[selectedYear]![index])
-                      )
-                    : [
-                        _makeBarData(0, 30), // ยอดรวมปี 2020
-                        _makeBarData(1, 55), // ยอดรวมปี 2021
-                        _makeBarData(2, 45), // ยอดรวมปี 2022
-                        _makeBarData(3, 80), // ยอดรวมปี 2023
-                        _makeBarData(4, 95), // ยอดรวมปี 2024
-                      ],
                   ),
                 ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: List.generate(
+                      currentData.length,
+                      (index) => FlSpot(index.toDouble(), currentData[index]),
+                    ),
+                    isCurved: false, 
+                    color: Colors.white,
+                    barWidth: 2,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        bool isLowest = spot.y == minVal && spot.y > 0;
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: isLowest ? Colors.red : Colors.greenAccent,
+                          strokeWidth: 0,
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -456,26 +708,99 @@ class _ShowChartState extends State<ShowChart> {
     );
   }
 
-  // ฟังก์ชันช่วยสร้างแท่งกราฟ (Bar)
-  BarChartGroupData _makeBarData(int x, double y) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: y,
-          color: const Color.fromARGB(255, 230, 150, 40), 
-          width: 18, 
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(6),
-            topRight: Radius.circular(6),
+  Widget _buildHistoryList() {
+    if (eggHistoryList.isEmpty) return const SizedBox();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1F2933),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.history, color: Colors.white70, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'ประวัติการบันทึก (ล่าสุด)',
+                style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ],
           ),
-          backDrawRodData: BackgroundBarChartRodData(
-            show: true,
-            toY: 100, 
-            color: Colors.grey[200],
+          const SizedBox(height: 10),
+          const Divider(color: Colors.white24, thickness: 1),
+          
+          MediaQuery.removePadding(
+            context: context,
+            removeTop: true,
+            removeBottom: true,
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: eggHistoryList.length > 5 ? 5 : eggHistoryList.length,
+              itemBuilder: (context, index) {
+                var item = eggHistoryList[index];
+                int id = item['id'] ?? item['egg_id'] ?? 0;
+                int amount = item['number_egg'] ?? 0;
+                String coop = item['coop_id']?.toString() ?? '-';
+                
+                String dateStr = item['date_collect_egg']?.toString() ?? '';
+                String formattedDate = '';
+                if (dateStr.isNotEmpty && dateStr.length >= 10) {
+                  formattedDate = dateStr.substring(0, 10);
+                }
+
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: const VisualDensity(horizontal: 0, vertical: -4),
+                  title: Text(
+                    'คอกที่ $coop : $amount ฟอง', 
+                    style: GoogleFonts.kanit(color: Colors.white, fontSize: 15),
+                  ),
+                  subtitle: Text(
+                    'วันที่: $formattedDate', 
+                    style: GoogleFonts.kanit(color: Colors.white54, fontSize: 13),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min, 
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => EditNumbereggchicken(
+                                initialData: {
+                                  'id': item['egg_id'] ?? item['id'], 
+                                  'date': item['date_collect_egg'],
+                                  'count': item['number_egg'],
+                                  'note': item['note'],
+                                  'coop_id': item['coop_id'], 
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                        onPressed: () => _showDeleteConfirmDialog(id),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
