@@ -15,15 +15,13 @@ class MainAddDatachicken extends StatefulWidget {
 class _MainAddDatachickenState extends State<MainAddDatachicken> {
   int selectedIndex = 2; 
 
-  final TextEditingController _idController = TextEditingController();
+  // นำ _idController ออกแล้ว
   final TextEditingController _numberController = TextEditingController();
-  
   final TextEditingController _tempController = TextEditingController(text: '28');
   final TextEditingController _ppmController = TextEditingController(text: '20');
 
   @override
   void dispose() {
-    _idController.dispose();
     _numberController.dispose();
     _tempController.dispose();
     _ppmController.dispose();
@@ -181,22 +179,6 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              'รหัสคอกไก่',
-                              style: GoogleFonts.kanit(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          _buildTextField(controller: _idController),
-                          
-                          const SizedBox(height: 15),
-
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
                               'คอกไก่ ที่ เท่าไหร่',
                               style: GoogleFonts.kanit(
                                 fontSize: 16,
@@ -247,9 +229,8 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
                           onTap: () {
                             if (_numberController.text.isEmpty) return; // เช็คว่าไม่ได้เว้นว่าง
                             
-                            // ส่งข้อมูลกลับไปหน้าหลัก
+                            // ส่งข้อมูลกลับไปหน้าหลัก (ลบ id ออกจากการส่งกลับแล้ว)
                             Navigator.pop(context, {
-                              "id": _idController.text,
                               "number": _numberController.text,
                               "temp": _tempController.text,
                               "ppm": _ppmController.text,
