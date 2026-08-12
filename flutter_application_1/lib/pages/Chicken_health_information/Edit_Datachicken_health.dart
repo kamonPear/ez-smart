@@ -231,6 +231,15 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true, // ทำให้พื้นหลังไหลทะลุไปใต้ BottomNavigationBar ได้
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Container(
         width: double.infinity,
         height: double.infinity,

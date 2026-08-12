@@ -12,32 +12,67 @@ import 'package:flutter_application_1/pages/calendar.dart';
 import 'package:flutter_application_1/pages/close_open_Door.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
-import '../main_dash.dart'; 
+import '../main_dash.dart';
 
 class MainVaccine extends StatefulWidget {
-  const MainVaccine({super.key});
+  final String? initialCoopId;
+
+  const MainVaccine({super.key, this.initialCoopId});
 
   @override
   State<MainVaccine> createState() => _MainVaccineState();
 }
 
 class _MainVaccineState extends State<MainVaccine> {
-  int selectedIndex = 0; 
-  
+  int selectedIndex = 0;
+
   DateTime _selectedDay = DateTime.now();
-  List<DateTime> _markedDates = []; 
-  List<dynamic> _vaccineAlerts = []; 
-  bool _isLoading = true; 
+  List<DateTime> _markedDates = [];
+  List<dynamic> _vaccineAlerts = [];
+  bool _isLoading = true;
+  Map<String, String> _coopNames =
+      {}; // ✅ แผนที่ coop_id -> ชื่อคอก สำหรับแสดงผล
 
   @override
   void initState() {
     super.initState();
-    fetchVaccineAlerts(); 
+    fetchVaccineAlerts();
+    _fetchCoopNames();
+  }
+
+  Future<void> _fetchCoopNames() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://10.0.2.2:8080/api/coops'),
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _coopNames = {
+            for (var item in data)
+              (item['coop_id'] ?? item['id']).toString():
+                  (item['name_coop']?.toString().trim().isNotEmpty == true)
+                  ? item['name_coop'].toString()
+                  : (item['coop_id'] ?? item['id']).toString(),
+          };
+        });
+      }
+    } catch (e) {
+      print('เกิดข้อผิดพลาดในการดึงชื่อคอก: $e');
+    }
+  }
+
+  // ✅ ถ้าเปิดหน้านี้มาจากคอกใดคอกหนึ่งโดยเฉพาะ ให้กรองเหลือแค่คอกนั้น
+  List<dynamic> get _coopFilteredAlerts {
+    if (widget.initialCoopId == null) return _vaccineAlerts;
+    return _vaccineAlerts.where((alert) {
+      return alert['coop_id']?.toString() == widget.initialCoopId;
+    }).toList();
   }
 
   void _updateMarkedDates() {
-    Set<DateTime> pendingDates = {}; 
-    for (var alert in _vaccineAlerts) {
+    Set<DateTime> pendingDates = {};
+    for (var alert in _coopFilteredAlerts) {
       bool isCompleted = alert['is_completed'] ?? false;
       if (!isCompleted && alert['date'] != null) {
         try {
@@ -57,14 +92,16 @@ class _MainVaccineState extends State<MainVaccine> {
     });
 
     try {
-      final response = await http.get(Uri.parse('http://10.0.2.2:8080/api/vaccines/alerts'));
+      final response = await http.get(
+        Uri.parse('http://10.0.2.2:8080/api/vaccines/alerts'),
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
 
         setState(() {
           _vaccineAlerts = data;
-          _updateMarkedDates(); 
+          _updateMarkedDates();
           _isLoading = false;
         });
       } else {
@@ -77,22 +114,25 @@ class _MainVaccineState extends State<MainVaccine> {
     }
   }
 
-  Future<void> updateCompletionStatus(Map<String, dynamic> alert, bool newValue) async {
+  Future<void> updateCompletionStatus(
+    Map<String, dynamic> alert,
+    bool newValue,
+  ) async {
     String id = alert['id']?.toString() ?? '';
-    if (id.isEmpty) return; 
-    
+    if (id.isEmpty) return;
+
     try {
       final response = await http.put(
         Uri.parse('http://10.0.2.2:8080/api/vaccines/alerts?id=$id'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "is_completed": newValue,                            
-          "method": alert['injection_type'] ?? '-',            
-          "chicken_age": alert['chicken_age'] ?? 0,            
-          "note": alert['description'] ?? 'ไม่มีหมายเหตุ'         
+          "is_completed": newValue,
+          "method": alert['injection_type'] ?? '-',
+          "chicken_age": alert['chicken_age'] ?? 0,
+          "note": alert['description'] ?? 'ไม่มีหมายเหตุ',
         }),
       );
-      
+
       if (response.statusCode == 200) {
         print('✅ อัปเดตฐานข้อมูลสำเร็จ');
       } else {
@@ -118,7 +158,7 @@ class _MainVaccineState extends State<MainVaccine> {
 
       if (response.statusCode == 200) {
         print('✅ ลบข้อมูลสำเร็จ');
-        fetchVaccineAlerts(); 
+        fetchVaccineAlerts();
       } else {
         setState(() => _isLoading = false);
       }
@@ -134,8 +174,24 @@ class _MainVaccineState extends State<MainVaccine> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(flex: 2, child: Text(label, style: GoogleFonts.kanit(color: Colors.white70, fontSize: 15))),
-          Expanded(flex: 3, child: Text(value, style: GoogleFonts.kanit(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500))),
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: GoogleFonts.kanit(color: Colors.white70, fontSize: 15),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: GoogleFonts.kanit(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -153,36 +209,86 @@ class _MainVaccineState extends State<MainVaccine> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(child: Text("ข้อมูลวัคซีน", style: GoogleFonts.kanit(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold))),
-              const Divider(color: Color(0xFF62A199), thickness: 1.5, height: 30),
-              _buildDetailRow("ชื่อวัคซีน:", alert['vaccine_name'] ?? 'ไม่ระบุชื่อ'),
-              _buildDetailRow("คอกเป้าหมาย:", "คอก ${alert['coop_id'] ?? '-'}"),
+              Center(
+                child: Text(
+                  "ข้อมูลวัคซีน",
+                  style: GoogleFonts.kanit(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const Divider(
+                color: Color(0xFF62A199),
+                thickness: 1.5,
+                height: 30,
+              ),
+              _buildDetailRow(
+                "ชื่อวัคซีน:",
+                alert['vaccine_name'] ?? 'ไม่ระบุชื่อ',
+              ),
+              _buildDetailRow(
+                "คอกเป้าหมาย:",
+                "คอก ${_coopNames[alert['coop_id']?.toString()] ?? alert['coop_id'] ?? '-'}",
+              ),
               _buildDetailRow("อายุไก่:", "${alert['chicken_age'] ?? '-'} วัน"),
               _buildDetailRow("ประเภทการให้:", alert['injection_type'] ?? '-'),
-              _buildDetailRow("หมายเหตุ:", alert['description'] != null && alert['description'].toString().isNotEmpty ? alert['description'] : 'ไม่มีหมายเหตุ'),
+              _buildDetailRow(
+                "หมายเหตุ:",
+                alert['description'] != null &&
+                        alert['description'].toString().isNotEmpty
+                    ? alert['description']
+                    : 'ไม่มีหมายเหตุ',
+              ),
               const SizedBox(height: 30),
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade700, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                       onPressed: () => Navigator.pop(context),
-                      child: Text("ปิด", style: GoogleFonts.kanit(color: Colors.white, fontSize: 16)),
+                      child: Text(
+                        "ปิด",
+                        style: GoogleFonts.kanit(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 15),
                   Expanded(
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                       onPressed: () {
-                        Navigator.pop(context); 
-                        deleteVaccineAlertData(alert['id']?.toString() ?? ''); 
+                        Navigator.pop(context);
+                        deleteVaccineAlertData(alert['id']?.toString() ?? '');
                       },
-                      child: Text("ลบข้อมูล", style: GoogleFonts.kanit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        "ลบข้อมูล",
+                        style: GoogleFonts.kanit(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              )
+              ),
             ],
           ),
         ),
@@ -204,19 +310,20 @@ class _MainVaccineState extends State<MainVaccine> {
 
     try {
       // ✅ แก้ไข: ใช้ Uri.encodeComponent เพื่อป้องกัน URL พังเวลาชื่อเป็นภาษาไทยหรือมีเว้นวรรค
-      String url = 'http://10.0.2.2:8080/api/vaccines/schedule/update?old_name=${Uri.encodeComponent(oldName)}';
+      String url =
+          'http://10.0.2.2:8080/api/vaccines/schedule/update?old_name=${Uri.encodeComponent(oldName)}';
 
       final response = await http.put(
         Uri.parse(url),
         headers: {"Content-Type": "application/json"},
         // ตรวจสอบในฟังก์ชัน editVaccineAlertData ของ Flutter ว่า body เขียนแบบนี้ไหม
-body: jsonEncode({
-  "name": newName,
-  "min_age_days": age,  // ต้องเขียน min_age_days ตัวพิมพ์เล็ก มีขีดล่าง
-  "max_age_days": age,  // ต้องเขียน max_age_days ตัวพิมพ์เล็ก มีขีดล่าง
-  "method": type,
-  "description": note,
-}),
+        body: jsonEncode({
+          "name": newName,
+          "min_age_days": age, // ต้องเขียน min_age_days ตัวพิมพ์เล็ก มีขีดล่าง
+          "max_age_days": age, // ต้องเขียน max_age_days ตัวพิมพ์เล็ก มีขีดล่าง
+          "method": type,
+          "description": note,
+        }),
       );
 
       if (response.statusCode == 200) {
@@ -233,16 +340,30 @@ body: jsonEncode({
   }
 
   void showEditVaccineDialog(Map<String, dynamic> alert) {
-    TextEditingController nameController = TextEditingController(text: alert['vaccine_name']);
-    TextEditingController ageController = TextEditingController(text: alert['chicken_age']?.toString());
-    TextEditingController typeController = TextEditingController(text: alert['injection_type']);
-    TextEditingController noteController = TextEditingController(text: alert['description']);
+    TextEditingController nameController = TextEditingController(
+      text: alert['vaccine_name'],
+    );
+    TextEditingController ageController = TextEditingController(
+      text: alert['chicken_age']?.toString(),
+    );
+    TextEditingController typeController = TextEditingController(
+      text: alert['injection_type'],
+    );
+    TextEditingController noteController = TextEditingController(
+      text: alert['description'],
+    );
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1E2730),
-        title: Text("แก้ไขข้อมูลวัคซีน", style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(
+          "แก้ไขข้อมูลวัคซีน",
+          style: GoogleFonts.kanit(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -251,10 +372,14 @@ body: jsonEncode({
                 controller: nameController,
                 style: GoogleFonts.kanit(color: Colors.white),
                 decoration: InputDecoration(
-                  labelText: "ชื่อวัคซีน", 
+                  labelText: "ชื่อวัคซีน",
                   labelStyle: GoogleFonts.kanit(color: Colors.grey),
-                  enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF62A199))),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF62A199)),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -263,10 +388,14 @@ body: jsonEncode({
                 keyboardType: TextInputType.number,
                 style: GoogleFonts.kanit(color: Colors.white),
                 decoration: InputDecoration(
-                  labelText: "อายุไก่ (วัน)", 
+                  labelText: "อายุไก่ (วัน)",
                   labelStyle: GoogleFonts.kanit(color: Colors.grey),
-                  enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF62A199))),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF62A199)),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -274,10 +403,14 @@ body: jsonEncode({
                 controller: typeController,
                 style: GoogleFonts.kanit(color: Colors.white),
                 decoration: InputDecoration(
-                  labelText: "ประเภทการให้", 
+                  labelText: "ประเภทการให้",
                   labelStyle: GoogleFonts.kanit(color: Colors.grey),
-                  enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF62A199))),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF62A199)),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -285,10 +418,14 @@ body: jsonEncode({
                 controller: noteController,
                 style: GoogleFonts.kanit(color: Colors.white),
                 decoration: InputDecoration(
-                  labelText: "หมายเหตุ", 
+                  labelText: "หมายเหตุ",
                   labelStyle: GoogleFonts.kanit(color: Colors.grey),
-                  enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF62A199))),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF62A199)),
+                  ),
                 ),
               ),
             ],
@@ -300,16 +437,21 @@ body: jsonEncode({
             child: Text("ยกเลิก", style: GoogleFonts.kanit(color: Colors.grey)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF34C759)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF34C759),
+            ),
             onPressed: () {
               Navigator.pop(context);
-              
+
               // 🌟 1. ดึงข้อความออกมาแล้วตัดช่องว่างรอบๆ ทิ้ง
               String rawAgeText = ageController.text.trim();
-              
+
               // 🌟 2. ลบตัวอักษรอื่นๆ ออกให้เหลือแค่ตัวเลข 0-9 เท่านั้น (ป้องกัน user พิมพ์คำว่า 'วัน' ติดมา)
-              String numericString = rawAgeText.replaceAll(RegExp(r'[^0-9]'), '');
-              
+              String numericString = rawAgeText.replaceAll(
+                RegExp(r'[^0-9]'),
+                '',
+              );
+
               // 🌟 3. ค่อยแปลงเป็น int (ถ้าว่างเปล่าให้ค่าเริ่มต้นเป็น 0)
               int parsedAge = int.tryParse(numericString) ?? 0;
 
@@ -324,7 +466,13 @@ body: jsonEncode({
                 note: noteController.text.trim(),
               );
             },
-            child: Text("บันทึก", style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(
+              "บันทึก",
+              style: GoogleFonts.kanit(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -333,15 +481,30 @@ body: jsonEncode({
 
   void onTabSelected(int index) {
     if (index == 0) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
-    } else if(index == 3){
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Mainchicken()));
-    } else if(index == 4){
-       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainShowDataFood()));
-    } else if(index == 1){
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CloseOpenDoor()));
-    } else if(index == 2){
-       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ShowChart()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
+    } else if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Mainchicken()),
+      );
+    } else if (index == 4) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
+      );
     } else {
       setState(() {
         selectedIndex = index;
@@ -353,16 +516,25 @@ body: jsonEncode({
   Widget build(BuildContext context) {
     double screenHeight = MediaQuery.of(context).size.height;
 
-    List<dynamic> alertsForSelectedDay = _vaccineAlerts.where((alert) {
+    List<dynamic> alertsForSelectedDay = _coopFilteredAlerts.where((alert) {
       if (alert['date'] == null) return false;
       DateTime alertDate = DateTime.parse(alert['date']).toLocal();
       return alertDate.year == _selectedDay.year &&
-             alertDate.month == _selectedDay.month &&
-             alertDate.day == _selectedDay.day;
+          alertDate.month == _selectedDay.month &&
+          alertDate.day == _selectedDay.day;
     }).toList();
 
     return Scaffold(
       extendBody: true,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Stack(
         children: [
           Container(
@@ -380,7 +552,11 @@ body: jsonEncode({
             top: 45,
             right: 25,
             child: IconButton(
-              icon: const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 28),
+              icon: const Icon(
+                Icons.calendar_today_outlined,
+                color: Colors.white,
+                size: 28,
+              ),
               onPressed: () {
                 setState(() {
                   _selectedDay = DateTime.now();
@@ -389,7 +565,7 @@ body: jsonEncode({
             ),
           ),
           Positioned(
-            top: 90, 
+            top: 90,
             left: 0,
             right: 0,
             bottom: 90,
@@ -398,9 +574,23 @@ body: jsonEncode({
               physics: const BouncingScrollPhysics(),
               child: Column(
                 children: [
-                  const SizedBox(height: 160), 
+                  const SizedBox(height: 160),
+                  if (widget.initialCoopId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'ตารางวัคซีนคอก ${_coopNames[widget.initialCoopId] ?? widget.initialCoopId}',
+                        style: GoogleFonts.kanit(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   CustomCalendar(
-                    key: ValueKey(_selectedDay.toString() + _markedDates.length.toString()), 
+                    key: ValueKey(
+                      _selectedDay.toString() + _markedDates.length.toString(),
+                    ),
                     initialDate: _selectedDay,
                     markedDates: _markedDates,
                     onDateSelected: (selectedDay) {
@@ -410,18 +600,23 @@ body: jsonEncode({
                     },
                   ),
                   const SizedBox(height: 25),
-                  _isLoading 
-                    ? const Center(child: CircularProgressIndicator(color: Colors.white)) 
-                    : alertsForSelectedDay.isEmpty
-                        ? Text(
-                            "ไม่มีคิวฉีดวัคซีนในวันนี้", 
-                            style: GoogleFonts.kanit(color: Colors.white, fontSize: 16)
-                          )
-                        : Column(
-                            children: alertsForSelectedDay.map((alert) {
-                              return buildAlertCard(alert);
-                            }).toList(),
+                  _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        )
+                      : alertsForSelectedDay.isEmpty
+                      ? Text(
+                          "ไม่มีคิวฉีดวัคซีนในวันนี้",
+                          style: GoogleFonts.kanit(
+                            color: Colors.white,
+                            fontSize: 16,
                           ),
+                        )
+                      : Column(
+                          children: alertsForSelectedDay.map((alert) {
+                            return buildAlertCard(alert);
+                          }).toList(),
+                        ),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -435,10 +630,15 @@ body: jsonEncode({
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const datavaccine(vaccineTypeFilter: "ทั้งหมด")), 
+              MaterialPageRoute(
+                builder: (context) => ShowDatavaccine(
+                  vaccineTypeFilter: "ทั้งหมด",
+                  initialCoopId: widget.initialCoopId,
+                ),
+              ),
             );
           },
-          backgroundColor: const Color(0xFFE53935), 
+          backgroundColor: const Color(0xFFE53935),
           shape: const CircleBorder(),
           child: const Icon(Icons.add, color: Colors.white, size: 36),
         ),
@@ -453,14 +653,15 @@ body: jsonEncode({
 
   Widget buildAlertCard(Map<String, dynamic> alert) {
     bool isCompleted = alert['is_completed'] ?? false;
-    String coopId = alert['coop_id']?.toString() ?? '-';
+    String rawCoopId = alert['coop_id']?.toString() ?? '-';
+    String coopId = _coopNames[rawCoopId] ?? rawCoopId;
     String vaccineName = alert['vaccine_name'] ?? 'ไม่ระบุชื่อวัคซีน';
     String injectionType = alert['injection_type'] ?? '-';
     String chickenAge = alert['chicken_age']?.toString() ?? '-';
     String remark = alert['description'] ?? '';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 15), 
+      margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF1E2730),
@@ -476,7 +677,6 @@ body: jsonEncode({
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          
           // 🌟 แถวสำหรับแสดงชื่อวัคซีน + ปุ่มแก้ไข + ปุ่มดูข้อมูล
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,7 +686,11 @@ body: jsonEncode({
                 child: Center(
                   child: Text(
                     "แจ้งเตือน: $vaccineName",
-                    style: GoogleFonts.kanit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.kanit(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -497,59 +701,144 @@ body: jsonEncode({
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.edit, color: Colors.orangeAccent, size: 24),
-                    onPressed: () => showEditVaccineDialog(alert), // 🌟 เปิดหน้าแก้ไข
+                    icon: const Icon(
+                      Icons.edit,
+                      color: Colors.orangeAccent,
+                      size: 24,
+                    ),
+                    onPressed: () =>
+                        showEditVaccineDialog(alert), // 🌟 เปิดหน้าแก้ไข
                   ),
                   const SizedBox(width: 12),
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
-                    icon: const Icon(Icons.info_outline, color: Colors.blueAccent, size: 26),
-                    onPressed: () => showVaccineDetailDialog(alert), // เปิดหน้าดูข้อมูลแบบเดิม
+                    icon: const Icon(
+                      Icons.info_outline,
+                      color: Colors.blueAccent,
+                      size: 26,
+                    ),
+                    onPressed: () => showVaccineDetailDialog(
+                      alert,
+                    ), // เปิดหน้าดูข้อมูลแบบเดิม
                   ),
                 ],
-              )
+              ),
             ],
           ),
           const SizedBox(height: 15),
-          
+
           Container(
             padding: const EdgeInsets.only(bottom: 6),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFF62A199), width: 1.5)),
+              border: Border(
+                bottom: BorderSide(color: Color(0xFF62A199), width: 1.5),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: Text("คอก", style: GoogleFonts.kanit(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500), textAlign: TextAlign.start)),
-                Expanded(child: Text("อายุไก่", style: GoogleFonts.kanit(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500), textAlign: TextAlign.center)),
-                Expanded(child: Text("ประเภทการให้", style: GoogleFonts.kanit(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500), textAlign: TextAlign.end)),
+                Expanded(
+                  child: Text(
+                    "คอก",
+                    style: GoogleFonts.kanit(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    "อายุไก่",
+                    style: GoogleFonts.kanit(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    "ประเภทการให้",
+                    style: GoogleFonts.kanit(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.end,
+                  ),
+                ),
               ],
             ),
           ),
-          
+
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFF62A199), width: 1.0)),
+              border: Border(
+                bottom: BorderSide(color: Color(0xFF62A199), width: 1.0),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: Text(coopId, style: GoogleFonts.kanit(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold), textAlign: TextAlign.start)),
-                Expanded(child: Text("$chickenAge วัน", style: GoogleFonts.kanit(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold), textAlign: TextAlign.center)),
-                Expanded(child: Text(injectionType, style: GoogleFonts.kanit(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold), textAlign: TextAlign.end)),
+                Expanded(
+                  child: Text(
+                    coopId,
+                    style: GoogleFonts.kanit(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.start,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    "$chickenAge วัน",
+                    style: GoogleFonts.kanit(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    injectionType,
+                    style: GoogleFonts.kanit(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.end,
+                  ),
+                ),
               ],
             ),
           ),
-          
+
           if (remark.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0xFF131D2A), borderRadius: BorderRadius.circular(8)),
-              child: Text("หมายเหตุ: $remark", style: GoogleFonts.kanit(color: Colors.white70, fontSize: 13, height: 1.4)),
+              decoration: BoxDecoration(
+                color: const Color(0xFF131D2A),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                "หมายเหตุ: $remark",
+                style: GoogleFonts.kanit(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
             ),
           ],
           if (remark.isEmpty) ...[
@@ -557,39 +846,59 @@ body: jsonEncode({
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: const Color(0xFF131D2A), borderRadius: BorderRadius.circular(8)),
-              child: Text("หมายเหตุ: ไม่มีหมายเหตุ", style: GoogleFonts.kanit(color: Colors.white70, fontSize: 13, height: 1.4)),
+              decoration: BoxDecoration(
+                color: const Color(0xFF131D2A),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                "หมายเหตุ: ไม่มีหมายเหตุ",
+                style: GoogleFonts.kanit(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
             ),
           ],
 
           const SizedBox(height: 20),
-          
+
           InkWell(
             onTap: () {
-              bool newValue = !isCompleted; 
+              bool newValue = !isCompleted;
               setState(() {
-                alert['is_completed'] = newValue; 
-                _updateMarkedDates();             
+                alert['is_completed'] = newValue;
+                _updateMarkedDates();
               });
-              updateCompletionStatus(alert, newValue); 
+              updateCompletionStatus(alert, newValue);
             },
             borderRadius: BorderRadius.circular(8),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: isCompleted ? Colors.grey.shade700 : const Color(0xFF34C759),
+                color: isCompleted
+                    ? Colors.grey.shade700
+                    : const Color(0xFF34C759),
                 borderRadius: BorderRadius.circular(8),
               ),
               alignment: Alignment.center,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(isCompleted ? Icons.check_circle : Icons.vaccines, color: Colors.white, size: 22),
+                  Icon(
+                    isCompleted ? Icons.check_circle : Icons.vaccines,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     isCompleted ? "ให้วัคซีนแล้ว" : "เสร็จสิ้น (ให้วัคซีน)",
-                    style: GoogleFonts.kanit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.kanit(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),

@@ -93,8 +93,18 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: const Color(0xFF131A21), 
-      
+      extendBodyBehindAppBar: true,
+      backgroundColor: const Color(0xFF131A21),
+
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+
       body: Stack(
         children: [
           // --- Layer 1: ภาพพื้นหลัง ---

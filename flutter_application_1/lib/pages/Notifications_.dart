@@ -295,8 +295,17 @@ class _NotificationsState extends State<Notifications> {
     double screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      extendBody: true, 
-      backgroundColor: Colors.white, 
+      extendBody: true,
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(), 
         child: Container(

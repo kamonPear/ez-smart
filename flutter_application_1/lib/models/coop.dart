@@ -1,5 +1,6 @@
 class Coop {
   final String id;
+  final String name;
   final String importDate;
   final String count;
   final String birthDate;
@@ -7,6 +8,7 @@ class Coop {
 
   Coop({
     required this.id,
+    required this.name,
     required this.importDate,
     required this.count,
     required this.birthDate,
@@ -14,11 +16,31 @@ class Coop {
   });
 
   factory Coop.fromJson(Map<String, dynamic> json) {
+    String id =
+        json['CoopID']?.toString() ??
+        json['coop_id']?.toString() ??
+        json['id']?.toString() ??
+        '';
+    String name =
+        json['name_coop']?.toString() ?? json['NameCoop']?.toString() ?? '';
     return Coop(
-      id: json['CoopID']?.toString() ?? json['coop_id']?.toString() ?? json['id']?.toString() ?? '',
-      importDate: json['date_adopt_animals']?.toString() ?? json['DateAdoptAnimals']?.toString() ?? json['importDate']?.toString() ?? '',
-      count: json['amount']?.toString() ?? json['Amount']?.toString() ?? json['count']?.toString() ?? '',
-      birthDate: json['birthday']?.toString() ?? json['Birthday']?.toString() ?? json['birthDate']?.toString() ?? '',
+      id: id,
+      name: name.trim().isNotEmpty ? name : id,
+      importDate:
+          json['date_adopt_animals']?.toString() ??
+          json['DateAdoptAnimals']?.toString() ??
+          json['importDate']?.toString() ??
+          '',
+      count:
+          json['amount']?.toString() ??
+          json['Amount']?.toString() ??
+          json['count']?.toString() ??
+          '',
+      birthDate:
+          json['birthday']?.toString() ??
+          json['Birthday']?.toString() ??
+          json['birthDate']?.toString() ??
+          '',
       note: json['note']?.toString() ?? json['Note']?.toString() ?? '',
     );
   }
@@ -27,13 +49,14 @@ class Coop {
   int? get coopId => int.tryParse(id);
 
   // 🌟 แก้ให้สร้างข้อความแสดงผลใน Dropdown จริง ๆ แทนการ return null
-  String get displayLabel => 'คอก #$id  (จำนวน $count ตัว)';
+  String get displayLabel => 'คอก $name  (จำนวน $count ตัว)';
 
   Map<String, String> toMap() => {
-        'id': id,
-        'importDate': importDate,
-        'count': count,
-        'birthDate': birthDate,
-        'note': note,
-      };
+    'id': id,
+    'name': name,
+    'importDate': importDate,
+    'count': count,
+    'birthDate': birthDate,
+    'note': note,
+  };
 }
