@@ -9,7 +9,8 @@ import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
-import '../close_open_Door.dart';       
+import '../close_open_Door.dart';
+import '../../services/backend_config.dart';
 
 class MainEditdataShowfood1 extends StatefulWidget {
   final Map<String, String> initialData;
@@ -153,7 +154,7 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
     });
 
     try {
-      var url = Uri.parse('http://10.0.2.2:8080/api/foods?id=$foodIdStr'); 
+      var url = Uri.parse('$backendBaseUrl/api/foods?id=$foodIdStr');
 
       String amountVal = _amountController.text.replaceAll(' กิโลกรัม', '').trim();
       String thresholdVal = _thresholdController.text.replaceAll(' กิโลกรัม', '').trim();

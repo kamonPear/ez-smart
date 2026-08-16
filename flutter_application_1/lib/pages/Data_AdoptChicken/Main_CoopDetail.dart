@@ -11,6 +11,7 @@ import '../Main_SenSor/Data_System.dart';
 import '../Vaccine/Main_Vaccine.dart';
 import '../number_for_Egg/Add_egg.dart';
 import '../number_for_Egg/Edit_NumberEggchicken_3.dart';
+import '../../widgets/ez_header.dart';
 
 class CoopDetailPage extends StatefulWidget {
   final Map<String, dynamic> coop;
@@ -77,29 +78,22 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1621),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F1621),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          'คอกไก่ ${data["name"]}',
-          style: GoogleFonts.kanit(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
+      backgroundColor: ezBackgroundColor,
+      body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: EzHeader(pageTitle: 'คอกไก่ ${data["name"]}'),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
+                child: Column(
+                  children: [
             Container(
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 15),
-              decoration: BoxDecoration(
-                color: const Color(0xFF19232F),
-                borderRadius: BorderRadius.circular(20),
-              ),
+              decoration: ezCardDecoration(),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -127,10 +121,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
 
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF19232F),
-                borderRadius: BorderRadius.circular(25),
-              ),
+              decoration: ezCardDecoration(radius: 25),
               child: Column(
                 children: [
                   Row(
@@ -416,6 +407,10 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
               )
             else
               ...dailyEggRecords.map((item) => _buildDailyEggItem(item)),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -505,10 +500,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
       child: Container(
         height: 100,
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFF19232F),
-          borderRadius: BorderRadius.circular(18),
-        ),
+        decoration: ezCardDecoration(radius: 18),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -572,10 +564,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF19232F),
-          borderRadius: BorderRadius.circular(16),
-        ),
+        decoration: ezCardDecoration(radius: 16),
         child: Row(
           children: [
             SizedBox(

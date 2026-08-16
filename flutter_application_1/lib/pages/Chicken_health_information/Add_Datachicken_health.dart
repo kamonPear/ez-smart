@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_application_1/pages/calendar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
+import '../../widgets/ez_header.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
@@ -12,7 +13,7 @@ import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:flutter_application_1/models/coop.dart'; // 🌟 ปรับ path ให้ตรงกับโครงสร้างโปรเจกต์จริง
 
 // 🌟 URL ของ Backend
-const String backendBaseUrl = 'http://10.0.2.2:8080';
+import '../../services/backend_config.dart';
 
 class AddDatachickenHealth extends StatefulWidget {
   final String? initialCoopId;
@@ -28,6 +29,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
   bool isLoading = false; // สำหรับทำปุ่มโหลด
 
   DateTime selectedDate = DateTime.now();
+  bool _isAppointment = false; // 🌟 นัดหมายตรวจล่วงหน้า (ยังไม่มีผลตรวจจริง)
 
   // 🌟 สำหรับ Dropdown เลือกคอก (Coop.id เป็น String ตามโมเดลจริง)
   List<Coop> _coopList = [];
@@ -50,13 +52,13 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
   ];
 
   final TextEditingController _healthyController = TextEditingController(
-    text: '180',
+ 
   );
   final TextEditingController _unhealthyController = TextEditingController(
-    text: '20',
+  
   );
   final TextEditingController _noteController = TextEditingController(
-    text: 'ไก่บางตัวซึม ไม่กินอาหาร',
+    
   );
 
   @override
@@ -77,6 +79,13 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
     String day = date.day.toString().padLeft(2, '0');
     String month = monthNames[date.month - 1];
     return "$day $month ${date.year}";
+  }
+
+  bool _isFutureDate(DateTime date) {
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    return dateOnly.isAfter(todayOnly);
   }
 
   String _getDbFormattedDate(DateTime date) {
@@ -159,6 +168,8 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
       isLoading = true;
     });
 
+    // 🌟 นัดหมายล่วงหน้า: ส่งเข้า backend เส้นเดียวกับการบันทึกตรวจสุขภาพปกติ
+    // แค่ยังไม่กรอกจำนวนไก่ (เป็น 0 ไปก่อน) แล้วผู้ใช้ค่อยมาแก้ไขตัวเลขจริงทีหลังผ่านหน้าแก้ไข
     final Map<String, dynamic> requestData = {
       'coop_id': coopIdValue, // 🌟 ส่ง coop_id เป็น int ตามที่ backend ต้องการ
       'record_date': _getDbFormattedDate(selectedDate),
@@ -186,10 +197,12 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'บันทึกข้อมูลสำเร็จ',
-              style: TextStyle(color: Colors.white),
+              _isAppointment
+                  ? 'บันทึกนัดหมายล่วงหน้าแล้ว กรอกจำนวนไก่ทีหลังได้'
+                  : 'บันทึกข้อมูลสำเร็จ',
+              style: const TextStyle(color: Colors.white),
             ),
             backgroundColor: Colors.green,
           ),
@@ -248,6 +261,9 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                 onDateSelected: (DateTime date) {
                   setState(() {
                     selectedDate = date;
+                    if (!_isFutureDate(date)) {
+                      _isAppointment = false;
+                    }
                   });
                   Navigator.pop(context);
                 },
@@ -296,8 +312,8 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
   Widget build(BuildContext context) {
     double screenHeight = MediaQuery.of(context).size.height;
 
-    const Color bgDarkColor = Color(0xFF0F171E);
-    const Color cardColor = Color(0xFF1B242D);
+    const Color bgDarkColor = ezBackgroundColor;
+    const Color cardColor = ezCardColor;
     const Color inputFillColor = Color(0xFF151D24);
     const Color borderColor = Colors.white24;
     const Color highlightRed = Color(0xFFFF6E5C);
@@ -305,35 +321,20 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
 
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
       backgroundColor: bgDarkColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Container(
           constraints: BoxConstraints(minHeight: screenHeight),
           width: double.infinity,
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/heal.png'),
-              fit: BoxFit.fitWidth,
-              alignment: Alignment.topCenter,
-            ),
-          ),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 130),
+                  const EzHeader(pageTitle: 'บันทึกสุขภาพไก่'),
+                  const SizedBox(height: 20),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -463,6 +464,61 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                             ),
                           ),
                         ),
+
+                        if (_isFutureDate(selectedDate)) ...[
+                          const SizedBox(height: 12),
+                          InkWell(
+                            onTap: isLoading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _isAppointment = !_isAppointment;
+                                    });
+                                  },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _isAppointment
+                                    ? const Color(0xFF42A5F5).withOpacity(0.15)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _isAppointment
+                                      ? const Color(0xFF42A5F5)
+                                      : borderColor,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _isAppointment
+                                        ? Icons.check_box
+                                        : Icons.check_box_outline_blank,
+                                    color: _isAppointment
+                                        ? const Color(0xFF42A5F5)
+                                        : Colors.white54,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'ตั้งเป็นนัดหมายล่วงหน้า (ยังไม่ตรวจตอนนี้ ระบบจะแจ้งเตือนเมื่อถึงวันที่)',
+                                      style: GoogleFonts.kanit(
+                                        fontSize: 12,
+                                        color: Colors.white,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
 
                         // 🌟 Dropdown เลือกคอก
@@ -567,47 +623,49 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                               ),
                         const SizedBox(height: 16),
 
-                        _buildLabel('จำนวนไก่ที่สุขภาพดี (ตัว)'),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildTextField(
-                                controller: _healthyController,
-                                keyboardType: TextInputType.number,
+                        if (!_isAppointment) ...[
+                          _buildLabel('จำนวนไก่ที่สุขภาพดี (ตัว)'),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTextField(
+                                  controller: _healthyController,
+                                  keyboardType: TextInputType.number,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'ตัว',
-                              style: GoogleFonts.kanit(
-                                color: Colors.white,
-                                fontSize: 14,
+                              const SizedBox(width: 12),
+                              Text(
+                                'ตัว',
+                                style: GoogleFonts.kanit(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
 
-                        _buildLabel('จำนวนไก่ที่สุขภาพไม่ดี (ตัว)'),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildTextField(
-                                controller: _unhealthyController,
-                                keyboardType: TextInputType.number,
+                          _buildLabel('จำนวนไก่ที่สุขภาพไม่ดี (ตัว)'),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTextField(
+                                  controller: _unhealthyController,
+                                  keyboardType: TextInputType.number,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'ตัว',
-                              style: GoogleFonts.kanit(
-                                color: Colors.white,
-                                fontSize: 14,
+                              const SizedBox(width: 12),
+                              Text(
+                                'ตัว',
+                                style: GoogleFonts.kanit(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
 
                         _buildLabel('หมายเหตุ'),
                         _buildTextField(
@@ -638,7 +696,9 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  'ระบบจะบันทึกข้อมูลวันที่ตรวจอัตโนมัติ\nเมื่อกดบันทึกข้อมูล',
+                                  _isAppointment
+                                      ? 'ระบบจะแจ้งเตือนในแอปเมื่อถึงวันที่นัดหมาย\nแล้วค่อยกลับมากรอกผลตรวจจริงภายหลัง'
+                                      : 'ระบบจะบันทึกข้อมูลวันที่ตรวจอัตโนมัติ\nเมื่อกดบันทึกข้อมูล',
                                   style: GoogleFonts.kanit(
                                     fontSize: 12,
                                     color: Colors.white70,
@@ -705,7 +765,9 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                           ),
                                         )
                                       : Text(
-                                          'บันทึกข้อมูล',
+                                          _isAppointment
+                                              ? 'บันทึกนัดหมาย'
+                                              : 'บันทึกข้อมูล',
                                           style: GoogleFonts.kanit(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,

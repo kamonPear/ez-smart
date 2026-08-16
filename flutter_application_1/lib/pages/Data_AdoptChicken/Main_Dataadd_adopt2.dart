@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../bottombar.dart';
 import '../../services/backend_config.dart';
+import '../../widgets/ez_header.dart';
 
 class AddDataadopt extends StatefulWidget {
   const AddDataadopt({super.key});
@@ -266,7 +267,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: const Color(0xFF0F1621), // พื้นหลังสีเข้ม
+      backgroundColor: ezBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -274,27 +275,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               children: [
-                // 🔹 ส่วนหัว (Header)
-                const SizedBox(height: 15),
-                Text(
-                  'EZ - SMART FARM',
-                  style: GoogleFonts.oswald(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFFE5BA93)),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    Text(
-                      'เพิ่มคอก',
-                      style: GoogleFonts.kanit(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFFE5BA93)),
-                    ),
-                    const SizedBox(width: 48), // ถ่วงน้ำหนักเพื่อให้ Title อยู่ตรงกลาง
-                  ],
-                ),
+                const EzHeader(pageTitle: 'เพิ่มคอก'),
                 const SizedBox(height: 20),
 
                 // 🔹 ส่วนปฏิทิน

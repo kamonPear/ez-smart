@@ -5,7 +5,8 @@ import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'bottombar.dart'; 
+import 'bottombar.dart';
+import '../widgets/ez_header.dart';
 
 class CloseOpenDoor extends StatefulWidget {
   const CloseOpenDoor({super.key});
@@ -89,46 +90,21 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFF131A21),
-
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      backgroundColor: ezBackgroundColor,
 
       body: Stack(
         children: [
-          // --- Layer 1: ภาพพื้นหลัง ---
-          Container(
-            height: screenHeight, 
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/Door.png'), 
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-              ),
-            ),
-          ),
-          
-          // ตัวคลุมสีดำโปร่งแสง (ลบออกได้ถ้าไม่ต้องการให้ภาพมืดลง)
-          Container(color: Colors.black.withOpacity(0.3)),
-
-          // --- Layer 2: เนื้อหา ( SafeArea + Column ) ---
+          // --- Layer: เนื้อหา ( SafeArea + Column ) ---
           SafeArea(
             child: Column(
               children: [
-                // 🌟 เพิ่ม SizedBox ตรงนี้เพื่อดันเนื้อหาลงมา ไม่ให้ทับภาพพื้นหลังส่วนบน
-                const SizedBox(height: 180), 
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: EzHeader(pageTitle: 'ประตูเล้าไก่'),
+                ),
+                const SizedBox(height: 20),
 
                 // Header Icons (ลบซ้าย - เพิ่มขวา)
                 Padding(

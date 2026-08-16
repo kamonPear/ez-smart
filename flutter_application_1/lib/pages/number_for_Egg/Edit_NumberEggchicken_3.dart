@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../bottombar.dart';
 import '../../services/backend_config.dart';
+import '../../widgets/ez_header.dart';
 
 class EditNumbereggchicken extends StatefulWidget {
   final Map<String, dynamic> initialData;
@@ -555,88 +556,59 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+      backgroundColor: ezBackgroundColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: EzHeader(pageTitle: 'แก้ไขข้อมูลไข่'),
+            ),
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 25,
+                      vertical: 20,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildSummary(),
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 25),
+                          decoration: ezCardDecoration(radius: 15),
+                          child: Column(
+                            children: [
+                              _buildCoopFieldRow(),
+                              _buildDateFieldRow(),
+                              _buildDarkTextFieldRow(
+                                label: "จำนวนไข่",
+                                controller: _amountController,
+                                keyboardType: TextInputType.number,
+                              ),
+                              _buildDarkTextFieldRow(
+                                label: "หมายเหตุ",
+                                controller: _noteController,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildSaveButton(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-
-      body: Stack(
-        children: [
-          // 1. ภาพพื้นหลังเดิมของคุณ
-          Container(
-            height: screenHeight,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/egg.png'),
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-              ),
-            ),
-          ),
-
-          // 2. เนื้อหาหน้าจัดให้อยู่ตรงกลางหน้าจอ
-          Center(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 25,
-                  vertical: 40,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildSummary(),
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 25),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1F2933),
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.5),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          _buildCoopFieldRow(),
-                          _buildDateFieldRow(),
-                          _buildDarkTextFieldRow(
-                            label: "จำนวนไข่",
-                            controller: _amountController,
-                            keyboardType: TextInputType.number,
-                          ),
-                          _buildDarkTextFieldRow(
-                            label: "หมายเหตุ",
-                            controller: _noteController,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSaveButton(),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-
       bottomNavigationBar: CustomBottomBar(
         selectedIndex: selectedIndex,
         onTabSelected: onTabSelected,

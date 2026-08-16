@@ -16,7 +16,8 @@ import 'close_open_Door.dart';
 import 'main_dash_AddData.dart';
 import 'Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'Data_AdoptChicken/Main_CoopDetail.dart';
-import '../../services/backend_config.dart' hide backendBaseUrl;
+import '../../services/backend_config.dart';
+import '../widgets/ez_header.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -251,28 +252,23 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFF0F1621),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
+      backgroundColor: ezBackgroundColor,
       body: SingleChildScrollView(
         child: Container(
           constraints: BoxConstraints(minHeight: screenHeight),
-          decoration: const BoxDecoration(
-            color: Color(0xFF0F1621),
-            image: DecorationImage(
-              image: AssetImage('assets/images/backg2.png'),
-              fit: BoxFit.fitWidth,
-              alignment: Alignment.topCenter,
-            ),
-          ),
           child: SafeArea(
             child: Column(
               children: [
-                const SizedBox(height: 150),
+                const SizedBox(height: 15),
+                Text(
+                  'EZ - SMART FARM',
+                  style: GoogleFonts.oswald(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: ezGoldColor,
+                  ),
+                ),
+                const SizedBox(height: 15),
 
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -291,7 +287,7 @@ class _MainScreenState extends State<MainScreen> {
                             color: Colors.white,
                             size: 32,
                           ),
-                          color: const Color(0xFF19232F),
+                          color: ezCardColor,
                           offset: const Offset(0, 50),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -421,7 +417,7 @@ class _MainScreenState extends State<MainScreen> {
                     horizontal: 15,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF19232F),
+                    color: ezCardColor,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(

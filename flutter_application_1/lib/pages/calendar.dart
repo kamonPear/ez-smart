@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/ez_header.dart';
 
 class CustomCalendar extends StatefulWidget {
   final DateTime? initialDate;
@@ -66,10 +67,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
     return Container(
       // 🌟 แก้ไข 1: ลด padding vertical จาก 20 เหลือ 15 เพื่อเพิ่มพื้นที่ให้ปฏิทิน
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-      decoration: BoxDecoration(
-        color: const Color(0xFF19232F),
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: ezCardDecoration(),
       child: Column(
         mainAxisSize: MainAxisSize
             .min, // 🌟 แก้ไข 2: เพิ่มบรรทัดนี้เพื่อให้ Column สูงพอดีกับเนื้อหาด้านใน
@@ -142,7 +140,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
             itemCount: offset + daysInMonth,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              childAspectRatio: 1.3,
+              childAspectRatio: 1.0,
             ),
             itemBuilder: (context, index) {
               if (index < offset) return const SizedBox();
@@ -195,7 +193,8 @@ class _CustomCalendarState extends State<CustomCalendar> {
                         day.toString(),
                         style: GoogleFonts.kanit(
                           color: isSelected ? Colors.black : Colors.white,
-                          fontSize: 16,
+                          fontSize: 14,
+                          height: 1.0,
                           fontWeight: isSelected
                               ? FontWeight.bold
                               : FontWeight.normal,
@@ -205,8 +204,8 @@ class _CustomCalendarState extends State<CustomCalendar> {
                       if (hasMarker)
                         Container(
                           margin: const EdgeInsets.only(top: 2),
-                          width: 5,
-                          height: 5,
+                          width: 4,
+                          height: 4,
                           decoration: BoxDecoration(
                             // ถ้าวันนั้นกำลังถูกเลือกอยู่ ให้จุดเปลี่ยนเป็นสีดำเพื่อให้ตัดกับพื้นหลังสีเขียวของปุ่ม
                             color: isSelected
@@ -217,7 +216,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
                         )
                       else
                         const SizedBox(
-                          height: 7,
+                          height: 6,
                         ), // เผื่อพื้นที่ว่างไว้เท่ากัน เพื่อให้ตัวเลขอยู่ในระดับระนาบเดียวกันตลอด
                     ],
                   ),

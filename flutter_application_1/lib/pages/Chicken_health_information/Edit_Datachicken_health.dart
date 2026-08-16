@@ -9,8 +9,9 @@ import 'package:flutter_application_1/pages/close_open_Door.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
+import '../../widgets/ez_header.dart';
 
-const String backendBaseUrl = 'http://10.0.2.2:8080'; 
+import '../../services/backend_config.dart';
 
 class Editckickenhealth extends StatefulWidget {
   final Map<String, dynamic> initialData;
@@ -231,36 +232,26 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true, // ทำให้พื้นหลังไหลทะลุไปใต้ BottomNavigationBar ได้
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Container(
+      backgroundColor: ezBackgroundColor,
+      body: SafeArea(
+        child: Container(
         width: double.infinity,
         height: double.infinity,
-        // กำหนดภาพพื้นหลังให้อยู่กับที่
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/images/heal.png'),
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-          ),
-        ),
         child: SingleChildScrollView(
           // ใช้ Padding จัดการระยะเว้นขอบบน-ล่าง แทนการใช้ Stack/Positioned
           padding: EdgeInsets.only(
-            top: 220, 
+            top: 10,
             left: 20,
             right: 20,
             // เผื่อพื้นที่ด้านล่าง 120 (สำหรับ BottomBar) + ขนาดคีย์บอร์ดตอนเด้งขึ้นมา
-            bottom: MediaQuery.of(context).viewInsets.bottom + 120, 
+            bottom: MediaQuery.of(context).viewInsets.bottom + 120,
           ),
-          child: Container(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const EzHeader(pageTitle: 'แก้ไขสุขภาพไก่'),
+              const SizedBox(height: 20),
+              Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: const Color(0xFF1C2733), 
@@ -390,6 +381,9 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
                     ),
                   ],
                 ),
+              ],
+            ),
+          ),
               ],
             ),
           ),

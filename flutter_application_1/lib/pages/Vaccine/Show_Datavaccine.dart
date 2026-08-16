@@ -10,6 +10,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../bottombar.dart';
 import '../main_dash.dart';
+import '../../widgets/ez_header.dart';
+import '../../services/backend_config.dart';
 
 class ShowDatavaccine extends StatefulWidget {
   final String vaccineTypeFilter;
@@ -42,8 +44,16 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
 
   // Controllers สำหรับช่องกรอกข้อมูล
   TextEditingController medNameCtrl = TextEditingController(text: "");
-  TextEditingController methodCtrl = TextEditingController(text: "");
-  TextEditingController ageCondCtrl = TextEditingController(text: "");
+  String? selectedMethod;
+  static const List<String> methodOptions = [
+    'พ่น',
+    'ฉีด',
+    'หยอดปาก',
+    'ผสมน้ำ',
+    'ผสมอาหาร',
+  ];
+  TextEditingController minAgeCtrl = TextEditingController(text: "");
+  TextEditingController maxAgeCtrl = TextEditingController(text: "");
   TextEditingController remarkCtrl = TextEditingController(text: "");
 
   @override
@@ -61,8 +71,9 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
   Future<void> saveVaccineData() async {
     // 1. เช็คว่ากรอกข้อมูลครบไหม (เพิ่มตรวจสอบ remarkCtrl.text.isEmpty เข้าไป)
     if (medNameCtrl.text.isEmpty ||
-        methodCtrl.text.isEmpty ||
-        ageCondCtrl.text.isEmpty ||
+        selectedMethod == null ||
+        minAgeCtrl.text.isEmpty ||
+        maxAgeCtrl.text.isEmpty ||
         remarkCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -80,34 +91,20 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
       isSaving = true;
     });
 
-    // 2. แปลงข้อความเงื่อนไขอายุ เช่น "5-7" เป็นตัวเลข
-    int minDays = 0;
-    int maxDays = 0;
-    try {
-      String cleanAge = ageCondCtrl.text.replaceAll('วัน', '').trim();
-      if (cleanAge.contains('-')) {
-        List<String> parts = cleanAge.split('-');
-        minDays = int.parse(parts[0].trim());
-        maxDays = int.parse(parts[1].trim());
-      } else {
-        minDays = int.parse(cleanAge);
-        maxDays = minDays;
-      }
-    } catch (e) {
-      minDays = 1;
-      maxDays = 1;
-    }
+    // 2. แปลงอายุต่ำสุด/สูงสุดที่กรอกเป็นตัวเลข
+    int minDays = int.tryParse(minAgeCtrl.text.trim()) ?? 1;
+    int maxDays = int.tryParse(maxAgeCtrl.text.trim()) ?? minDays;
 
     // โครงสร้างข้อมูลที่ Backend ต้องการ
     final Map<String, dynamic> requestBody = {
       "name": medNameCtrl.text,
-      "method": methodCtrl.text,
+      "method": selectedMethod ?? "",
       "min_age_days": minDays,
       "max_age_days": maxDays,
       "description": remarkCtrl.text,
     };
 
-    final String apiUrl = 'http://10.0.2.2:8080/api/vaccines/schedule';
+    final String apiUrl = '$backendBaseUrl/api/vaccines/schedule';
 
     try {
       final response = await http.post(
@@ -129,9 +126,12 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
 
         // ล้างข้อมูลช่องกรอก
         medNameCtrl.clear();
-        methodCtrl.clear();
-        ageCondCtrl.clear();
+        minAgeCtrl.clear();
+        maxAgeCtrl.clear();
         remarkCtrl.clear();
+        setState(() {
+          selectedMethod = null;
+        });
 
         // รีเฟรชตารางข้อมูล
         fetchVaccineData();
@@ -156,7 +156,7 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
   }
 
   Future<void> fetchCoops() async {
-    final String apiUrl = 'http://10.0.2.2:8080/api/coops';
+    final String apiUrl = '$backendBaseUrl/api/coops';
     try {
       final response = await http.get(Uri.parse(apiUrl));
       if (response.statusCode == 200) {
@@ -202,10 +202,10 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
       isLoading = true;
     });
 
-    String apiUrl = 'http://10.0.2.2:8080/api/vaccines/recommended';
+    String apiUrl = '$backendBaseUrl/api/vaccines/recommended';
     if (selectedCoop != "ทั้งหมด" && selectedCoop != "เลือกคอก") {
       apiUrl =
-          'http://10.0.2.2:8080/api/vaccines/recommended?coop_id=$selectedCoop';
+          '$backendBaseUrl/api/vaccines/recommended?coop_id=$selectedCoop';
     }
 
     try {
@@ -527,40 +527,18 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFF0F172A),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      backgroundColor: ezBackgroundColor,
       body: Stack(
         children: [
-          // 1. ภาพพื้นหลัง
-          Container(
-            height: MediaQuery.of(context).size.height * 0.45,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/Vaccine.png'),
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-              ),
-            ),
-          ),
-
-          // 2. เนื้อหา UI (ลบตัวปฏิทินออกแล้ว ปรับระยะความสูงให้พอดี)
+          // เนื้อหา UI
           SafeArea(
             bottom: false,
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 children: [
-                  // ปรับความสูงจากด้านบนลงมาให้แบบฟอร์มแสดงผลในตำแหน่งที่เหมาะสม
-                  const SizedBox(height: 180),
+                  const EzHeader(pageTitle: 'บันทึกวัคซีน'),
+                  const SizedBox(height: 20),
 
                   // UI ฟอร์มข้อมูลวัคซีน
                   _buildVaccineFormWidget(),
@@ -677,9 +655,19 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
                 // ฟอร์มกรอกข้อมูล
                 _buildInputRow("ชื่อยา", medNameCtrl),
                 const SizedBox(height: 12),
-                _buildInputRow("วิธีการให้", methodCtrl),
+                _buildMethodDropdownRow(),
                 const SizedBox(height: 12),
-                _buildInputRow("เงื่อนไขอายุ", ageCondCtrl),
+                _buildInputRow(
+                  "อายุต่ำสุด (วัน)",
+                  minAgeCtrl,
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                _buildInputRow(
+                  "อายุสูงสุด (วัน)",
+                  maxAgeCtrl,
+                  keyboardType: TextInputType.number,
+                ),
                 const SizedBox(height: 12),
                 _buildInputRow("หมายเหตุ", remarkCtrl),
 
@@ -745,7 +733,63 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
     );
   }
 
-  Widget _buildInputRow(String label, TextEditingController controller) {
+  Widget _buildMethodDropdownRow() {
+    return Row(
+      children: [
+        SizedBox(
+          width: 90,
+          child: Text(
+            "วิธีการให้",
+            style: GoogleFonts.kanit(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131D2A),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF2B3A4A), width: 1.5),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: selectedMethod,
+                isExpanded: true,
+                dropdownColor: const Color(0xFF1E293B),
+                hint: Text(
+                  "เลือกวิธีการให้",
+                  style: GoogleFonts.kanit(color: Colors.white38, fontSize: 14),
+                ),
+                style: GoogleFonts.kanit(color: Colors.white, fontSize: 14),
+                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white54),
+                items: methodOptions
+                    .map(
+                      (m) => DropdownMenuItem(value: m, child: Text(m)),
+                    )
+                    .toList(),
+                onChanged: (val) {
+                  setState(() {
+                    selectedMethod = val;
+                  });
+                },
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInputRow(
+    String label,
+    TextEditingController controller, {
+    TextInputType? keyboardType,
+  }) {
     return Row(
       children: [
         SizedBox(
@@ -770,6 +814,7 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
             child: TextField(
               controller: controller,
               textAlign: TextAlign.center,
+              keyboardType: keyboardType,
               style: GoogleFonts.kanit(color: Colors.white, fontSize: 14),
               decoration: const InputDecoration(
                 border: InputBorder.none,

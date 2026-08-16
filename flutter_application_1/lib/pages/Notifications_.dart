@@ -6,8 +6,9 @@ import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood
 import 'package:flutter_application_1/pages/close_open_Door.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart'; 
-import 'bottombar.dart'; 
+import 'bottombar.dart';
 import '../../services/backend_config.dart';
+import '../widgets/ez_header.dart';
 
 class Notifications extends StatefulWidget {
   const Notifications({super.key});
@@ -164,7 +165,7 @@ class _NotificationsState extends State<Notifications> {
     if (type == 'vaccine') {
       // 💡 ส่งข้อมูลไปบอก Backend ว่าทำรายการนี้เสร็จแล้ว (ปรับ URL ให้ตรงกับ Backend ของคุณ)
       try {
-        await http.put(Uri.parse('$backendBaseUrl/api/vaccines/complete/$id')); 
+        await http.put(Uri.parse('$backendBaseUrl/api/vaccines/complete/$id'));
       } catch (e) {
         debugPrint("Error updating vaccine status: $e");
       }
@@ -212,15 +213,15 @@ class _NotificationsState extends State<Notifications> {
     Color buttonColor = type == "food" ? Colors.blueAccent : const Color(0xFF4CAF50); // สีเขียวสำหรับปุ่มเสร็จสิ้น
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 15), 
+      margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isUrgent ? const Color(0xFFFFEBEE) : const Color(0xFFE0E0E0),
-        borderRadius: BorderRadius.circular(20), 
+        color: isUrgent ? const Color(0xFF3A2020) : ezCardColor,
+        borderRadius: BorderRadius.circular(20),
         border: isUrgent ? Border.all(color: Colors.redAccent.withOpacity(0.5), width: 1.5) : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -239,7 +240,7 @@ class _NotificationsState extends State<Notifications> {
                   style: GoogleFonts.kanit(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: isUrgent ? Colors.red[800] : Colors.black87, 
+                    color: isUrgent ? const Color(0xFFFF8A80) : Colors.white,
                   ),
                 ),
               ),
@@ -248,12 +249,12 @@ class _NotificationsState extends State<Notifications> {
                 style: GoogleFonts.kanit(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Colors.white,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20), 
+          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -262,7 +263,7 @@ class _NotificationsState extends State<Notifications> {
                 style: GoogleFonts.kanit(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black87,
+                  color: Colors.white70,
                 ),
               ),
               GestureDetector(
@@ -296,52 +297,22 @@ class _NotificationsState extends State<Notifications> {
 
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(), 
+      backgroundColor: ezBackgroundColor,
+      body: SafeArea(
+        child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         child: Container(
           constraints: BoxConstraints(minHeight: screenHeight),
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/noc.png'),
-              fit: BoxFit.fitWidth, 
-              alignment: Alignment.topCenter,
-            ),
-          ),
           child: Stack(
             children: [
               Column(
                 children: [
-                  const SizedBox(height: 270), 
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300], 
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0,2))
-                      ]
-                    ),
-                    child: Text(
-                      "การแจ้งเตือน",
-                      style: GoogleFonts.kanit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.brown[400], 
-                      ),
-                    ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: EzHeader(pageTitle: 'การแจ้งเตือน'),
                   ),
-                  
+                  const SizedBox(height: 20),
+
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: isLoading 
@@ -371,6 +342,7 @@ class _NotificationsState extends State<Notifications> {
               ),
             ],
           ),
+        ),
         ),
       ),
       bottomNavigationBar: CustomBottomBar(

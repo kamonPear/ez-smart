@@ -13,6 +13,7 @@ import 'Main_EditData_adoptchicken2.dart';
 import '../../models/coop.dart';
 import '../../services/api_service.dart';
 import '../../services/backend_config.dart';
+import '../../widgets/ez_header.dart';
 
 class Adoptchicken extends StatefulWidget {
   const Adoptchicken({super.key});
@@ -104,6 +105,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
 
   Widget _buildHealthBar(int good, int bad) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
@@ -112,80 +114,63 @@ class _AdoptchickenState extends State<Adoptchicken> {
               'สุขภาพไก่ ',
               style: GoogleFonts.kanit(color: Colors.white, fontSize: 13),
             ),
-            Container(
-              width: 130,
-              height: 20,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                width: 130,
+                height: 20,
                 color: Colors.grey[800],
-              ),
-              child: Row(
-                children: [
-                  if (good > 0)
-                    Expanded(
-                      flex: good,
-                      child: Container(
-                        alignment: Alignment.centerLeft,
-                        padding: const EdgeInsets.only(left: 6),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF5DBB63),
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(4),
-                            bottomLeft: Radius.circular(4),
-                          ),
-                        ),
-                        child: Text(
-                          good.toString(),
-                          style: GoogleFonts.kanit(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                child: Row(
+                  children: [
+                    if (good > 0)
+                      Expanded(
+                        flex: good,
+                        child: Container(color: const Color(0xFF5DBB63)),
                       ),
-                    ),
-                  if (bad > 0)
-                    Expanded(
-                      flex: bad,
-                      child: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 6),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFD9534F),
-                          borderRadius: BorderRadius.only(
-                            topRight: Radius.circular(4),
-                            bottomRight: Radius.circular(4),
-                          ),
-                        ),
-                        child: Text(
-                          bad.toString(),
-                          style: GoogleFonts.kanit(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                    if (bad > 0)
+                      Expanded(
+                        flex: bad,
+                        child: Container(color: const Color(0xFFD9534F)),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 60, top: 4),
+          padding: const EdgeInsets.only(top: 4),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Icon(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              const Icon(
                 Icons.sentiment_satisfied_alt,
                 color: Color(0xFF5DBB63),
-                size: 18,
+                size: 16,
               ),
-              Icon(
+              const SizedBox(width: 4),
+              Text(
+                good.toString(),
+                style: GoogleFonts.kanit(
+                  color: const Color(0xFF5DBB63),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Icon(
                 Icons.sentiment_dissatisfied,
                 color: Color(0xFFD9534F),
-                size: 18,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                bad.toString(),
+                style: GoogleFonts.kanit(
+                  color: const Color(0xFFD9534F),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -522,35 +507,26 @@ class _AdoptchickenState extends State<Adoptchicken> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      backgroundColor: ezBackgroundColor,
       body: Stack(
         children: [
-          Container(
-            height: screenHeight,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/coop.png'),
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: EzHeader(pageTitle: 'ข้อมูลคอกไก่'),
               ),
             ),
           ),
 
           Positioned(
-            top: 245,
+            top: 180,
             left: 0,
             right: 0,
             bottom: 80,

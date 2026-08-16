@@ -12,7 +12,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
 import '../close_open_Door.dart';           
 import 'Main_EditData_ShowFood1.dart';  
-import '../../services/backend_config.dart'; 
+import '../../services/backend_config.dart';
+import '../../widgets/ez_header.dart';
 
 class MainShowDataFood extends StatefulWidget {
   const MainShowDataFood({super.key});
@@ -32,8 +33,9 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   double currentPercent = 0.0;
   String expireStatusText = "กำลังโหลดข้อมูล...";
   
-  List<dynamic> foodHistory = []; 
+  List<dynamic> foodHistory = [];
   final TextEditingController _updateQtyController = TextEditingController();
+  DateTime? _selectedUpdateExpiryDate;
 
   @override
   void initState() {
@@ -164,6 +166,33 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     }
   }
 
+  Future<void> _pickUpdateExpiryDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF6FE975),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() { _selectedUpdateExpiryDate = picked; });
+    }
+  }
+
+  // 🌟 อัพเดตสต็อกด้วยการยิงไปที่ /api/importfoods เหมือนตอน "เข้าสต็อกอาหาร"
+  // เพื่อให้ importfood บันทึกปริมาณที่เพิ่มเข้ามาไว้ด้วย (ไม่ใช่แค่ทับยอด foodstock เฉยๆ)
   Future<void> _updateFoodStock() async {
     if (_updateQtyController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -172,9 +201,9 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
       return;
     }
 
-    if (currentFoodId == null) {
+    if (_selectedUpdateExpiryDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("ไม่พบ ID อาหาร กรุณาเพิ่มสต็อกก่อน", style: GoogleFonts.kanit())),
+        SnackBar(content: Text("กรุณาเลือกวันที่อาหารใกล้หมดก่อนอัปเดต", style: GoogleFonts.kanit())),
       );
       return;
     }
@@ -182,42 +211,19 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     setState(() { isLoading = true; });
 
     try {
-      final url = Uri.parse('$backendBaseUrl/api/foods?id=$currentFoodId'); 
-      
+      final url = Uri.parse('$backendBaseUrl/api/importfoods');
+
       double inputQty = double.tryParse(_updateQtyController.text) ?? 0.0;
 
-      double oldQty = (rawData?['quantity_current'] ?? rawData?['Quantity_current'] ?? 0).toDouble();
-      double oldImportVolume = (rawData?['import_volume'] ?? rawData?['Import_volume'] ?? 0).toDouble();
-
-      double newTotalQty = oldQty + inputQty;
-      double newImportVolume = oldImportVolume + inputQty;
-
-      String validTimeFormat = DateTime.now().toUtc().toIso8601String();
-      
-      String expiryDateStr = rawData?['expiry_date'] ?? rawData?['Expiry_date'] ?? validTimeFormat;
-      if (expiryDateStr.isNotEmpty && !expiryDateStr.contains('T')) {
-         try {
-           expiryDateStr = DateTime.parse(expiryDateStr).toUtc().toIso8601String();
-         } catch (_) {
-           expiryDateStr = validTimeFormat;
-         }
-      }
-
       final requestBody = {
-        "import_volume": newImportVolume,   
-        "quantity_current": newTotalQty,    
-        "min_quantity": (rawData?['min_quantity'] ?? rawData?['Min_quantity'] ?? 0).toDouble(),
-        "expiry_date": expiryDateStr, 
-        
-        "up_quantity": inputQty,            
-        "import_date": validTimeFormat,
-        "date_up": validTimeFormat,
+        "import_volume": inputQty.round(),
+        "expiry_date": _selectedUpdateExpiryDate!.toUtc().toIso8601String(),
       };
 
       print("📌 กำลังส่งข้อมูลอัปเดตไปที่: $url");
       print("📌 ข้อมูลที่ส่งไป (Body): $requestBody");
 
-      final response = await http.put(
+      final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
         body: json.encode(requestBody),
@@ -231,6 +237,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
           SnackBar(content: Text("อัปเดตสต็อกเรียบร้อยแล้ว!", style: GoogleFonts.kanit())),
         );
         _updateQtyController.clear();
+        setState(() { _selectedUpdateExpiryDate = null; });
         await _fetchFoodData();
         await _fetchFoodHistory();
       } else {
@@ -476,35 +483,26 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      backgroundColor: ezBackgroundColor,
       body: Stack(
         children: [
-          Container(
-            height: screenHeight,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/Food.png'),
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: EzHeader(pageTitle: 'คลังอาหาร'),
               ),
             ),
           ),
 
           Positioned(
-            top: 250, 
+            top: 110,
             left: 0,
             right: 0,
             bottom: 80,
@@ -626,17 +624,36 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                                     ),
                                   ),
                                   const SizedBox(width: 10),
-                                  const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 24),
+                                  GestureDetector(
+                                    onTap: _pickUpdateExpiryDate,
+                                    child: Icon(
+                                      Icons.calendar_today_outlined,
+                                      color: _selectedUpdateExpiryDate != null
+                                          ? const Color(0xFF6FE975)
+                                          : Colors.white,
+                                      size: 24,
+                                    ),
+                                  ),
                                 ],
                               )
                             ],
                           ),
+                          if (_selectedUpdateExpiryDate != null) ...[
+                            const SizedBox(height: 6),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                "วันหมดอายุ: ${_formatDate(_selectedUpdateExpiryDate!.toIso8601String())}",
+                                style: GoogleFonts.kanit(fontSize: 12, color: Colors.white70),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 15),
 
                           _buildActionBtn(
                             text: "อัพเดตสต็อก",
                             color: const Color(0xFF6A92D4),
-                            onTap: _updateFoodStock, 
+                            onTap: _updateFoodStock,
                           ),
                         ],
                       ),

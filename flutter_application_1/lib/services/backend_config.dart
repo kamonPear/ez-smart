@@ -4,4 +4,5 @@
 // กรณี backend อยู่เครื่องอื่นในเครือข่ายเดียวกัน:
 //   const String backendBaseUrl = 'http://<IP ของเครื่อง backend>:8080';
 // เช่น 'http://192.168.1.100:8080'
-const String backendBaseUrl = 'http://10.0.2.2:8080';
+const String backendBaseUrl = 'https://ez-smartfarm-backn.onrender.com';
+//const String backendBaseUrl = 'http://10.0.2.2:8080';

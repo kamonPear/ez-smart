@@ -12,9 +12,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
 import 'Edit_Datachicken_health.dart';
 import 'Add_Datachicken_health.dart';
-
-// 🌟🌟🌟 อย่าลืมเปลี่ยน Path นี้ให้ตรงกับที่อยู่ไฟล์ CustomCalendar ของคุณนะครับ 🌟🌟🌟
-const String backendBaseUrl = 'http://10.0.2.2:8080';
+import '../../widgets/ez_header.dart';
+import '../../services/backend_config.dart';
 
 class Chickenhealth extends StatefulWidget {
   final String? initialCoopId;
@@ -141,6 +140,24 @@ class _ChickenhealthState extends State<Chickenhealth> {
         }).toList();
       }
     });
+  }
+
+  // ✅ เช็คว่ารายการนี้เป็น "นัดหมายตรวจล่วงหน้า" หรือไม่ (วันที่ตรวจยังมาไม่ถึง)
+  bool _isAppointmentRecord(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return false;
+    try {
+      final recordDate = DateTime.parse(dateStr).toLocal();
+      final today = DateTime.now();
+      final todayOnly = DateTime(today.year, today.month, today.day);
+      final dateOnly = DateTime(
+        recordDate.year,
+        recordDate.month,
+        recordDate.day,
+      );
+      return dateOnly.isAfter(todayOnly);
+    } catch (e) {
+      return false;
+    }
   }
 
   Map<String, String> _formatDateForCard(String? dateStr) {
@@ -613,9 +630,9 @@ class _ChickenhealthState extends State<Chickenhealth> {
     double screenHeight = MediaQuery.of(context).size.height;
 
     const Color highlightColor = Color(0xFFFF6E5C);
-    const Color cardColor = Color(0xFF1B242D);
+    const Color cardColor = ezCardColor;
     const Color greenTextColor = Color(0xFF4ADE80);
-    const Color bgDarkColor = Color(0xFF0F171E);
+    const Color bgDarkColor = ezBackgroundColor;
 
     const monthsEN = [
       'JANUARY',
@@ -636,17 +653,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
 
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
       backgroundColor: bgDarkColor,
-
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
 
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 40.0),
@@ -681,23 +688,18 @@ class _ChickenhealthState extends State<Chickenhealth> {
         ),
       ),
 
-      body: SingleChildScrollView(
+      body: SafeArea(
+        child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Container(
           constraints: BoxConstraints(minHeight: screenHeight),
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/heal.png'),
-              fit: BoxFit.fitWidth,
-              alignment: Alignment.topCenter,
-            ),
-          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 200),
+                EzHeader(pageTitle: widget.initialCoopId != null ? 'ตรวจสุขภาพไก่' : 'สุขภาพไก่ทั้งหมด'),
+                const SizedBox(height: 20),
 
                 InkWell(
                   onTap: () => _selectDate(context),
@@ -876,6 +878,9 @@ class _ChickenhealthState extends State<Chickenhealth> {
                               data['ID']?.toString() ??
                               data['health_id']?.toString() ??
                               UniqueKey().toString();
+                          bool isAppointment = _isAppointmentRecord(
+                            data['record_date']?.toString(),
+                          );
 
                           return Dismissible(
                             key: Key(uniqueKey),
@@ -1041,6 +1046,59 @@ class _ChickenhealthState extends State<Chickenhealth> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
+                                              if (isAppointment)
+                                                Container(
+                                                  margin: const EdgeInsets
+                                                      .only(bottom: 8),
+                                                  padding:
+                                                      const EdgeInsets
+                                                          .symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 3,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(
+                                                      0xFF42A5F5,
+                                                    ).withOpacity(0.15),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      6,
+                                                    ),
+                                                    border: Border.all(
+                                                      color: const Color(
+                                                        0xFF42A5F5,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.event_available,
+                                                        size: 12,
+                                                        color: Color(
+                                                          0xFF42A5F5,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        width: 4,
+                                                      ),
+                                                      Text(
+                                                        'นัดหมายล่วงหน้า',
+                                                        style:
+                                                            GoogleFonts.kanit(
+                                                          fontSize: 11,
+                                                          color: const Color(
+                                                            0xFF42A5F5,
+                                                          ),
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
                                               Row(
                                                 children: [
                                                   SizedBox(
@@ -1149,6 +1207,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
               ],
             ),
           ),
+        ),
         ),
       ),
 

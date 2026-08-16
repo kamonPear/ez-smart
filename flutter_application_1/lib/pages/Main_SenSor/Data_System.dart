@@ -11,6 +11,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:async'; // 🔥 เพิ่มเข้ามาเพื่อรองรับการทำระบบ Real-time
 import '../bottombar.dart';
+import '../../widgets/ez_header.dart';
+import '../../services/backend_config.dart';
 
 class DataSystem extends StatefulWidget {
   final String? initialCoopId;
@@ -68,7 +70,7 @@ class _DataSystemState extends State<DataSystem> {
   Future<void> fetchCoops() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:8080/api/coops'),
+        Uri.parse('$backendBaseUrl/api/coops'),
       );
       if (response.statusCode == 200) {
         setState(() {
@@ -88,9 +90,9 @@ class _DataSystemState extends State<DataSystem> {
       });
     }
     try {
-      String url = 'http://10.0.2.2:8080/api/devices';
+      String url = '$backendBaseUrl/api/devices';
       if (selectedCoopId != null && selectedCoopId!.isNotEmpty) {
-        url = 'http://10.0.2.2:8080/api/devices?coop_id=$selectedCoopId';
+        url = '$backendBaseUrl/api/devices?coop_id=$selectedCoopId';
       }
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -182,36 +184,21 @@ class _DataSystemState extends State<DataSystem> {
 
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: ezBackgroundColor,
 
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-
-      body: SingleChildScrollView(
+      body: SafeArea(
+        child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Container(
           constraints: BoxConstraints(minHeight: screenHeight),
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/device.png'),
-              fit: BoxFit.fitWidth,
-              alignment: Alignment.topCenter,
-            ),
-          ),
           child: Stack(
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
-                    const SizedBox(height: 240),
+                    const EzHeader(pageTitle: 'อุปกรณ์เซนเซอร์'),
+                    const SizedBox(height: 20),
 
                     // 1. ส่วนหัว เลือกคอก
                     Column(
@@ -364,6 +351,7 @@ class _DataSystemState extends State<DataSystem> {
               ),
             ],
           ),
+        ),
         ),
       ),
 

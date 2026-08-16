@@ -9,6 +9,8 @@ import 'package:flutter_application_1/pages/number_for_Egg/Edit_NumberEggchicken
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../bottombar.dart';
+import '../../widgets/ez_header.dart';
+import '../../services/backend_config.dart';
 
 class AddEgg extends StatefulWidget {
   final String? initialCoopId;
@@ -45,8 +47,6 @@ class _AddEggState extends State<AddEgg> {
   List<String> availableCoops = [];
   Map<String, String> _coopNames =
       {}; // ✅ แผนที่ coop_id -> ชื่อคอก สำหรับแสดงผล
-
-  final String backendBaseUrl = "http://10.0.2.2:8080";
 
   @override
   void initState() {
@@ -370,32 +370,16 @@ class _AddEggState extends State<AddEgg> {
 
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: ezBackgroundColor,
 
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-
-      body: SingleChildScrollView(
+      body: SafeArea(
+        child: SingleChildScrollView(
         child: Container(
           constraints: BoxConstraints(minHeight: screenHeight),
-          decoration: const BoxDecoration(
-            color: Color(0xFF101820),
-            image: DecorationImage(
-              image: AssetImage('assets/images/chart.png'),
-              fit: BoxFit.fitWidth,
-              alignment: Alignment.topCenter,
-            ),
-          ),
           child: Column(
             children: [
-              const SizedBox(height: 240),
+              const EzHeader(pageTitle: 'บันทึกการเก็บไข่'),
+              const SizedBox(height: 20),
 
               if (isLoading && actualMonthlyData.isEmpty)
                 const Center(
@@ -418,6 +402,7 @@ class _AddEggState extends State<AddEgg> {
               const SizedBox(height: 100),
             ],
           ),
+        ),
         ),
       ),
 

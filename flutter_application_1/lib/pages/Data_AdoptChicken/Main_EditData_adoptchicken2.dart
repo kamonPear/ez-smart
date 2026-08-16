@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart'; // อย่าลืม import intl สำหรับจัดการเดือน
 import '../bottombar.dart';
 import '../../services/backend_config.dart';
+import '../../widgets/ez_header.dart';
 
 class EditDataAdoptchicken extends StatefulWidget {
   final Map<String, String> initialData;
@@ -266,7 +267,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E282E), // สีพื้นหลัง Dark ตามรูป
+        color: ezCardColor,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -441,52 +442,22 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       extendBody: true,
-      body: Stack(
-        children: [
-          // พื้นหลังยังคงใช้งานอยู่ตามที่ Request (ไม่ถูกลบ)
-          Container(
-            height: screenHeight,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/Editcoop.png'),
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-              ),
-            ),
-          ),
+      backgroundColor: ezBackgroundColor,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: [
+              const EzHeader(pageTitle: 'แก้ไขคอก'),
+              const SizedBox(height: 20),
 
-          SafeArea(
-            child: Column(
-              children: [
-                // Header (App Bar แบบ Custom มีปุ่ม Back)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
-                  child: Row(
+              // พื้นที่เนื้อหาหลักแบบเลื่อนได้
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      
-                      const SizedBox(width: 48), // Spacer สำหรับ Balance ให้ Title อยู่ตรงกลาง
-                    ],
-                  ),
-                ),
-
-                // พื้นที่เนื้อหาหลักแบบเลื่อนได้
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        // 👇 เพิ่มตรงนี้เพื่อดันปฏิทินลงมา ไม่ให้ทับหัวพื้นหลัง (ปรับตัวเลขตามต้องการ)
-                        const SizedBox(height: 100), 
-
                         // ปฏิทินเลือกวัน
                         _buildCustomCalendar(),
                         const SizedBox(height: 20),
@@ -494,10 +465,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
                         // กล่องข้อมูลไก่ (Data Container)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E282E),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
+                          decoration: ezCardDecoration(),
                           child: Column(
                             children: [
                               Text(
@@ -554,7 +522,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
                         ),
                         
                         // 👇 เพิ่มความกว้างตรงนี้เพื่อให้หน้าจอเลื่อนขึ้นพ้น Bottom Bar ได้เต็มที่
-                        const SizedBox(height: 150), 
+                        const SizedBox(height: 150),
                       ],
                     ),
                   ),
@@ -562,9 +530,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
               ],
             ),
           ),
-        ],
-      ),
-
+        ),
       bottomNavigationBar: CustomBottomBar(
         selectedIndex: selectedIndex,
         onTabSelected: onTabSelected,

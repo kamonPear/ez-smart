@@ -13,6 +13,8 @@ import 'package:flutter_application_1/pages/close_open_Door.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
 import '../main_dash.dart';
+import '../../widgets/ez_header.dart';
+import '../../services/backend_config.dart';
 
 class MainVaccine extends StatefulWidget {
   final String? initialCoopId;
@@ -43,7 +45,7 @@ class _MainVaccineState extends State<MainVaccine> {
   Future<void> _fetchCoopNames() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:8080/api/coops'),
+        Uri.parse('$backendBaseUrl/api/coops'),
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -93,7 +95,7 @@ class _MainVaccineState extends State<MainVaccine> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:8080/api/vaccines/alerts'),
+        Uri.parse('$backendBaseUrl/api/vaccines/alerts'),
       );
 
       if (response.statusCode == 200) {
@@ -123,7 +125,7 @@ class _MainVaccineState extends State<MainVaccine> {
 
     try {
       final response = await http.put(
-        Uri.parse('http://10.0.2.2:8080/api/vaccines/alerts?id=$id'),
+        Uri.parse('$backendBaseUrl/api/vaccines/alerts?id=$id'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "is_completed": newValue,
@@ -152,7 +154,7 @@ class _MainVaccineState extends State<MainVaccine> {
 
     try {
       final response = await http.delete(
-        Uri.parse('http://10.0.2.2:8080/api/vaccines/alerts?id=$id'),
+        Uri.parse('$backendBaseUrl/api/vaccines/alerts?id=$id'),
         headers: {"Content-Type": "application/json"},
       );
 
@@ -311,7 +313,7 @@ class _MainVaccineState extends State<MainVaccine> {
     try {
       // ✅ แก้ไข: ใช้ Uri.encodeComponent เพื่อป้องกัน URL พังเวลาชื่อเป็นภาษาไทยหรือมีเว้นวรรค
       String url =
-          'http://10.0.2.2:8080/api/vaccines/schedule/update?old_name=${Uri.encodeComponent(oldName)}';
+          '$backendBaseUrl/api/vaccines/schedule/update?old_name=${Uri.encodeComponent(oldName)}';
 
       final response = await http.put(
         Uri.parse(url),
@@ -514,8 +516,6 @@ class _MainVaccineState extends State<MainVaccine> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
-
     List<dynamic> alertsForSelectedDay = _coopFilteredAlerts.where((alert) {
       if (alert['date'] == null) return false;
       DateTime alertDate = DateTime.parse(alert['date']).toLocal();
@@ -526,46 +526,37 @@ class _MainVaccineState extends State<MainVaccine> {
 
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      backgroundColor: ezBackgroundColor,
       body: Stack(
         children: [
-          Container(
-            height: screenHeight,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/Vaccine.png'),
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: EzHeader(
+                  pageTitle: 'ตารางวัคซีน',
+                  trailing: IconButton(
+                    icon: const Icon(
+                      Icons.calendar_today_outlined,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _selectedDay = DateTime.now();
+                      });
+                    },
+                  ),
+                ),
               ),
             ),
           ),
           Positioned(
-            top: 45,
-            right: 25,
-            child: IconButton(
-              icon: const Icon(
-                Icons.calendar_today_outlined,
-                color: Colors.white,
-                size: 28,
-              ),
-              onPressed: () {
-                setState(() {
-                  _selectedDay = DateTime.now();
-                });
-              },
-            ),
-          ),
-          Positioned(
-            top: 90,
+            top: 110,
             left: 0,
             right: 0,
             bottom: 90,
@@ -574,7 +565,7 @@ class _MainVaccineState extends State<MainVaccine> {
               physics: const BouncingScrollPhysics(),
               child: Column(
                 children: [
-                  const SizedBox(height: 160),
+                  const SizedBox(height: 10),
                   if (widget.initialCoopId != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -653,6 +644,7 @@ class _MainVaccineState extends State<MainVaccine> {
 
   Widget buildAlertCard(Map<String, dynamic> alert) {
     bool isCompleted = alert['is_completed'] ?? false;
+    bool isOverdue = alert['is_overdue'] ?? false;
     String rawCoopId = alert['coop_id']?.toString() ?? '-';
     String coopId = _coopNames[rawCoopId] ?? rawCoopId;
     String vaccineName = alert['vaccine_name'] ?? 'ไม่ระบุชื่อวัคซีน';
@@ -727,6 +719,43 @@ class _MainVaccineState extends State<MainVaccine> {
             ],
           ),
           const SizedBox(height: 15),
+
+          if (isOverdue && !isCompleted)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.redAccent),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 14,
+                      color: Colors.redAccent,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        "เลยกำหนดฉีดแล้ว (ก่อนวันรับเข้าคอก)",
+                        style: GoogleFonts.kanit(
+                          fontSize: 12,
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           Container(
             padding: const EdgeInsets.only(bottom: 6),

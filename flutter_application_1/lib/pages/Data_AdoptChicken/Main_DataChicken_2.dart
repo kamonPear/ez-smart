@@ -12,6 +12,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../Chicken_health_information/Show_Chicken_health.dart';
 import '../bottombar.dart';
 import '../main_dash.dart';
+import '../../widgets/ez_header.dart';
+import '../../services/backend_config.dart';
 
 class Mainchicken extends StatefulWidget {
   const Mainchicken({super.key});
@@ -42,7 +44,7 @@ class _MainchickenState extends State<Mainchicken> {
 
     try {
       // 🔴 เปลี่ยน URL เป็น API ของคุณ (เช่น http://192.168.x.x/api/get_coops)
-      final String apiUrl = "http://10.0.2.2:8080/api/coops";
+      final String apiUrl = "$backendBaseUrl/api/coops";
       final response = await http.get(Uri.parse(apiUrl));
 
       if (response.statusCode == 200) {
@@ -203,38 +205,27 @@ class _MainchickenState extends State<Mainchicken> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFF131A21),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      backgroundColor: ezBackgroundColor,
       body: Stack(
         children: [
-          // --- ส่วนที่ 1: ภาพพื้นหลัง ---
-          Container(
-            height: screenHeight,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/Datacoop.png'),
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: EzHeader(pageTitle: 'เมนูไก่'),
               ),
             ),
           ),
 
-          // --- ส่วนที่ 2: เนื้อหา ---
+          // --- เนื้อหา ---
           Positioned(
-            top: 250, // ปรับระดับความสูงลงมาให้พอดี
+            top: 110,
             left: 0,
             right: 0,
             bottom: 80,

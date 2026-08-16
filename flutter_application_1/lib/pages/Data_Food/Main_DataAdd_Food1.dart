@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../bottombar.dart';
 import '../close_open_Door.dart';
+import '../../widgets/ez_header.dart';
+import '../../services/backend_config.dart';
 
 class MainaddDataFood extends StatefulWidget {
   const MainaddDataFood({super.key});
@@ -19,8 +21,6 @@ class MainaddDataFood extends StatefulWidget {
 
 class _MainaddDataFoodState extends State<MainaddDataFood> {
   int selectedIndex = 4;
-
-  final String backendBaseUrl = "http://10.0.2.2:8080";
 
   final TextEditingController _dateReceivedController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
@@ -81,7 +81,9 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
 
   // 🌟 ฟังก์ชันส่งข้อมูลไปยัง API
   Future<void> _saveFoodData() async {
-    final url = Uri.parse('$backendBaseUrl/api/foods');
+    // 🌟 เพิ่มสต็อกต้องยิงผ่าน /api/importfoods เท่านั้น (ฝั่ง backend จะบันทึกลง
+    // importfood และบวกเพิ่มใน foodstock ให้อัตโนมัติ) — /api/foods รับแค่ GET/PUT/DELETE
+    final url = Uri.parse('$backendBaseUrl/api/importfoods');
 
     // ตรวจสอบก่อนส่งว่ากรอกข้อมูลวันที่หรือยัง
     if (_selectedImportDate == null || _selectedExpiryDate == null) {
@@ -96,16 +98,9 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
         url,
         headers: {"Content-Type": "application/json"},
         body: json.encode({
-          // 🌟 ส่ง food_id: 1 ไปด้วย เพื่อให้ข้อมูลวิ่งไปทับที่ช่องเดิมเสมอ
-          "food_id": 1,
-          "quantity_current": double.tryParse(_amountController.text) ?? 0.0,
-          "min_quantity": double.tryParse(_thresholdController.text) ?? 0.0,
-          "import_volume": double.tryParse(_amountController.text) ?? 0.0,
-          "up_quantity": 0.0,
-
-          "import_date": _selectedImportDate!.toUtc().toIso8601String(),
+          // 🌟 import_volume เป็น int ฝั่ง backend (models.CreateImportFoodRequest)
+          "import_volume": (double.tryParse(_amountController.text) ?? 0.0).round(),
           "expiry_date": _selectedExpiryDate!.toUtc().toIso8601String(),
-          "date_up": DateTime.now().toUtc().toIso8601String(),
         }),
       );
 
@@ -255,53 +250,27 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
+      backgroundColor: ezBackgroundColor,
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Stack(
-        children: [
-          Container(
-            height: screenHeight,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/Food.png'),
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-              ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: EzHeader(pageTitle: 'เพิ่มสต็อกอาหาร'),
             ),
-          ),
-
-          Center(
+            Expanded(
+              child: Center(
             child: SingleChildScrollView(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center, 
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 340, 
+                    width: 340,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1F2933), 
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.4), 
-                          blurRadius: 8,
-                          offset: const Offset(0, 4)
-                        )
-                      ],
-                    ),
+                    decoration: ezCardDecoration(radius: 15),
                     child: Column(
                       children: [
                         Text(
@@ -371,7 +340,9 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
               ),
             ),
           ),
-        ],
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: CustomBottomBar(selectedIndex: selectedIndex, onTabSelected: onTabSelected),
     );

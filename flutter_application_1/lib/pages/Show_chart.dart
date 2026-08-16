@@ -8,6 +8,8 @@ import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'bottombar.dart';
+import '../widgets/ez_header.dart';
+import '../services/backend_config.dart';
 
 class ShowChart extends StatefulWidget {
   const ShowChart({super.key});
@@ -33,8 +35,6 @@ class _ShowChartState extends State<ShowChart> {
   List<String> availableCoops = [];
   Map<String, String> _coopNames =
       {}; // ✅ แผนที่ coop_id -> ชื่อคอก สำหรับแสดงผล
-
-  final String backendBaseUrl = "http://10.0.2.2:8080";
 
   @override
   void initState() {
@@ -291,32 +291,16 @@ class _ShowChartState extends State<ShowChart> {
 
     return Scaffold(
       extendBody: true,
-      extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: ezBackgroundColor,
 
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-
-      body: SingleChildScrollView(
+      body: SafeArea(
+        child: SingleChildScrollView(
         child: Container(
           constraints: BoxConstraints(minHeight: screenHeight),
-          decoration: const BoxDecoration(
-            color: Color(0xFF101820),
-            image: DecorationImage(
-              image: AssetImage('assets/images/chart.png'),
-              fit: BoxFit.fitWidth,
-              alignment: Alignment.topCenter,
-            ),
-          ),
           child: Column(
             children: [
-              const SizedBox(height: 240),
+              const EzHeader(pageTitle: 'กราฟข้อมูล'),
+              const SizedBox(height: 20),
 
               if (isLoading && _rawEggData.isEmpty)
                 const Center(
@@ -339,6 +323,7 @@ class _ShowChartState extends State<ShowChart> {
               const SizedBox(height: 100),
             ],
           ),
+        ),
         ),
       ),
 
