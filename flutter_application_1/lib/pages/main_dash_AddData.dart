@@ -13,7 +13,7 @@ class MainAddDatachicken extends StatefulWidget {
 }
 
 class _MainAddDatachickenState extends State<MainAddDatachicken> {
-  int selectedIndex = 2; 
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
 
   // นำ _idController ออกแล้ว
   final TextEditingController _numberController = TextEditingController();

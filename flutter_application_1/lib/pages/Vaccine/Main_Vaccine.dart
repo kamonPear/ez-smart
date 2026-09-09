@@ -27,7 +27,7 @@ class MainVaccine extends StatefulWidget {
 }
 
 class _MainVaccineState extends State<MainVaccine> {
-  int selectedIndex = 0;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
 
   DateTime _selectedDay = DateTime.now();
   List<DateTime> _markedDates = [];

@@ -26,7 +26,7 @@ class DataSystem extends StatefulWidget {
 }
 
 class _DataSystemState extends State<DataSystem> {
-  int selectedIndex = 0;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   List<dynamic> devices = [];
   List<dynamic> coops = [];
   bool isLoading = true;

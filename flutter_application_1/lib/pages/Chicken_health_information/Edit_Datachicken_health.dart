@@ -23,7 +23,7 @@ class Editckickenhealth extends StatefulWidget {
 }
 
 class _EditckickenhealthState extends State<Editckickenhealth> {
-  int selectedIndex = 0;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
 
   late TextEditingController _recordIdController;
   late TextEditingController _healthyCountController;

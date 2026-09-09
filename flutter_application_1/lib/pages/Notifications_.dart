@@ -20,7 +20,7 @@ class Notifications extends StatefulWidget {
 }
 
 class _NotificationsState extends State<Notifications> {
-  int selectedIndex = 0;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   bool isLoading = true;
 
   // 🌟 1. เปลี่ยนเป็น Map<String, dynamic> เพื่อให้เก็บ ID (int) และแยกประเภทได้

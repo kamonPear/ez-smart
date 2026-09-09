@@ -27,7 +27,7 @@ class Chickenhealth extends StatefulWidget {
 }
 
 class _ChickenhealthState extends State<Chickenhealth> {
-  int selectedIndex = 0;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
 
   List<dynamic> allHealthDataList = [];
   List<dynamic> displayedHealthDataList = [];

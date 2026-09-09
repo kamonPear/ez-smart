@@ -20,7 +20,7 @@ class MainaddDataFood extends StatefulWidget {
 }
 
 class _MainaddDataFoodState extends State<MainaddDataFood> {
-  int selectedIndex = 4;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
 
   final TextEditingController _dateReceivedController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();

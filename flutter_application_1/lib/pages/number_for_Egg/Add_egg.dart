@@ -25,7 +25,7 @@ class AddEgg extends StatefulWidget {
 }
 
 class _AddEggState extends State<AddEgg> {
-  int selectedIndex = 2;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
 
   bool isMonthly = true;
   String selectedYear = DateTime.now().year.toString();

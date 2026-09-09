@@ -23,7 +23,7 @@ class EditDataAdoptchicken extends StatefulWidget {
 }
 
 class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
-  int selectedIndex = 0;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
 
   late TextEditingController idController;
   late TextEditingController importDateController;

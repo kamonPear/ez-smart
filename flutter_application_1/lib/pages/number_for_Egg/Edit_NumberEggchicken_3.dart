@@ -22,7 +22,7 @@ class EditNumbereggchicken extends StatefulWidget {
 }
 
 class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
-  int selectedIndex = 0;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
 
   late TextEditingController _eggIdController;
   late TextEditingController _amountController;

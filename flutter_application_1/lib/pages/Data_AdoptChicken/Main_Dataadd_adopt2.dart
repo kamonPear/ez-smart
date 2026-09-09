@@ -20,7 +20,7 @@ class AddDataadopt extends StatefulWidget {
 }
 
 class _AddDataadoptState extends State<AddDataadopt> {
-  int selectedIndex = 0;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
 
   final TextEditingController importDateController = TextEditingController();
   final TextEditingController countController = TextEditingController();

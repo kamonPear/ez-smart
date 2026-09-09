@@ -26,7 +26,7 @@ class AddDatachickenHealth extends StatefulWidget {
 }
 
 class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
-  int selectedIndex = 0;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   bool isLoading = false; // สำหรับทำปุ่มโหลด
 
   DateTime selectedDate = DateTime.now();

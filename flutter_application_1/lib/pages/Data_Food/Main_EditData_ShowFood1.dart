@@ -22,7 +22,7 @@ class MainEditdataShowfood1 extends StatefulWidget {
 }
 
 class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
-  int selectedIndex = 4;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   bool _isLoading = false; // 🌟 ตัวแปรสำหรับแสดงสถานะ Loading
 
   late TextEditingController _dateReceivedController;

@@ -31,7 +31,7 @@ class ShowDatavaccine extends StatefulWidget {
 }
 
 class _ShowDatavaccineState extends State<ShowDatavaccine> {
-  int selectedIndex = 0;
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   String selectedCoop = "เลือกคอก";
 
   List<Map<String, dynamic>> allVaccineData = [];
