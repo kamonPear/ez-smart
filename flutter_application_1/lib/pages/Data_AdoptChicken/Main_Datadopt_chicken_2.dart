@@ -18,6 +18,7 @@ import '../../widgets/ez_header.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../utils/thai_date.dart';
 import '../../widgets/ez_top_banner.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 class Adoptchicken extends StatefulWidget {
   const Adoptchicken({super.key});
@@ -684,18 +685,14 @@ class _AdoptchickenState extends State<Adoptchicken> {
     );
   }
 
-  void _confirmDelete({required int index, required String id}) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AppDeleteDialog(
-          onConfirm: () async {
-            Navigator.of(dialogContext).pop();
-            await _executeDeleteAPI(index: index, id: id);
-          },
-        );
-      },
+  Future<void> _confirmDelete({required int index, required String id}) async {
+    final confirmed = await showEzDeleteConfirm(
+      context,
+      message: 'คุณต้องการลบข้อมูลคอกนี้ใช่หรือไม่?',
     );
+    if (confirmed) {
+      await _executeDeleteAPI(index: index, id: id);
+    }
   }
 
   Future<bool> _executeDeleteAPI({
@@ -836,17 +833,10 @@ class _AdoptchickenState extends State<Adoptchicken> {
                           size: 32,
                         ),
                       ),
-                      confirmDismiss: (direction) async {
-                        return await showDialog<bool>(
-                          context: context,
-                          builder: (BuildContext dialogContext) {
-                            return AppDeleteDialog(
-                              onConfirm: () =>
-                                  Navigator.of(dialogContext).pop(true),
-                            );
-                          },
-                        );
-                      },
+                      confirmDismiss: (direction) => showEzDeleteConfirm(
+                        context,
+                        message: 'คุณต้องการลบข้อมูลคอกนี้ใช่หรือไม่?',
+                      ),
                       onDismissed: (direction) async {
                         await _executeDeleteAPI(index: index, id: data.id);
                       },
@@ -898,39 +888,6 @@ class _AdoptchickenState extends State<Adoptchicken> {
         selectedIndex: selectedIndex,
         onTabSelected: onTabSelected,
       ),
-    );
-  }
-}
-
-class AppDeleteDialog extends StatelessWidget {
-  final VoidCallback onConfirm;
-
-  const AppDeleteDialog({super.key, required this.onConfirm});
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('ยืนยันการลบ', style: GoogleFonts.kanit()),
-      content: Text(
-        'คุณต้องการลบข้อมูลคอกนี้ใช่หรือไม่?',
-        style: GoogleFonts.kanit(),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text('ยกเลิก', style: GoogleFonts.kanit()),
-        ),
-        TextButton(
-          onPressed: onConfirm,
-          child: Text(
-            'ลบ',
-            style: GoogleFonts.kanit(
-              color: Colors.red,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

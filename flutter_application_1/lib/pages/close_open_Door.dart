@@ -7,6 +7,7 @@ import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'bottombar.dart';
 import '../widgets/ez_header.dart';
+import '../widgets/ez_confirm_dialog.dart';
 
 class CloseOpenDoor extends StatefulWidget {
   const CloseOpenDoor({super.key});
@@ -18,14 +19,12 @@ class CloseOpenDoor extends StatefulWidget {
 class _CloseOpenDoorState extends State<CloseOpenDoor> {
   int selectedIndex = 1;
 
-  // 1. List of Maps เพื่อจำ ID ของประตู และสถานะ
   List<Map<String, dynamic>> doors = List.generate(
     5,
-    (index) => {"id": index + 1, "isOn": false, "selected": false},
+    (index) => {"id": index + 1, "isOn": false},
   );
 
   int nextDoorId = 6;
-  bool isDeleteMode = false;
 
   void onTabSelected(int index) {
     if (index == 0) {
@@ -55,105 +54,115 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
     }
   }
 
-  // ฟังก์ชันเพิ่มประตูใหม่
   void _addNewDoor() {
     setState(() {
-      doors.add({"id": nextDoorId++, "isOn": false, "selected": false});
+      doors.add({"id": nextDoorId++, "isOn": false});
     });
-    print("เพิ่มประตูคอกไก่ที่ ${nextDoorId - 1}");
   }
 
-  // ฟังก์ชันลบประตู หรือจัดการโหมดลบ
-  void _handleDelete() {
-    setState(() {
-      if (!isDeleteMode) {
-        // เปิดโหมดลบ
-        isDeleteMode = true;
-      } else {
-        // ถ้าอยู่ในโหมดลบ ตรวจสอบว่ามีการเลือกประตูหรือไม่
-        bool hasSelection = doors.any((door) => door["selected"] == true);
-        if (hasSelection) {
-          doors.removeWhere((door) => door["selected"] == true);
-          isDeleteMode = false; // ลบเสร็จออกจากโหมดลบ
-        } else {
-          // ถ้าไม่ได้เลือกอะไรเลย ให้ยกเลิกโหมดลบ
-          isDeleteMode = false;
-        }
-      }
-    });
+  Future<void> _confirmDeleteDoor(int doorId) async {
+    final confirmed = await showEzDeleteConfirm(
+      context,
+      message: 'ต้องการลบประตูคอกไก่ที่ $doorId ใช่หรือไม่?',
+    );
+    if (confirmed) {
+      setState(() => doors.removeWhere((d) => d['id'] == doorId));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final ez = ezColors(context);
+    final int openCount = doors.where((d) => d['isOn'] == true).length;
+
     return Scaffold(
       extendBody: true,
       backgroundColor: ezBackgroundColor(context),
-
-      body: Stack(
-        children: [
-          // --- Layer: เนื้อหา ( SafeArea + Column ) ---
-          SafeArea(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: EzHeader(pageTitle: 'ประตูเล้าไก่'),
-                ),
+                const EzHeader(pageTitle: 'ควบคุมประตูคอกไก่'),
                 const SizedBox(height: 20),
 
-                // Header Icons (ลบซ้าย - เพิ่มขวา)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 25.0,
-                    vertical: 10.0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: _handleDelete,
-                        child: Icon(
-                          isDeleteMode ? Icons.delete : Icons.delete_outline,
-                          color: Colors.red,
-                          size: 30,
+                // สรุปภาพรวม: จำนวนประตูทั้งหมด และจำนวนที่เปิดอยู่ตอนนี้
+                if (doors.isNotEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: ez.gold.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.meeting_room_outlined,
+                          size: 18,
+                          color: ez.gold,
                         ),
-                      ),
-                      GestureDetector(
-                        onTap: _addNewDoor,
-                        child: Icon(
-                          Icons.add_circle_outline,
-                          color: ezColors(context).textPrimary,
-                          size: 30,
+                        const SizedBox(width: 8),
+                        Text(
+                          'ทั้งหมด ${doors.length} ประตู',
+                          style: GoogleFonts.kanit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: ez.textPrimary,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // รายการประตู
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
-                          for (int i = 0; i < doors.length; i++)
-                            _buildDoorControlTile(doors[i], i),
-
-                          const SizedBox(
-                            height: 100,
-                          ), // ระยะห่างเผื่อ BottomBar
-                        ],
-                      ),
+                        const Spacer(),
+                        Icon(
+                          Icons.sensor_door_outlined,
+                          size: 16,
+                          color: ez.success,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'เปิดอยู่ $openCount บาน',
+                          style: GoogleFonts.kanit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: ez.textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
+                const SizedBox(height: 16),
+
+                if (doors.isEmpty)
+                  _buildEmptyState()
+                else
+                  Column(
+                    children: [for (final door in doors) _buildDoorCard(door)],
+                  ),
+
+                const SizedBox(
+                  height: 100,
+                ), // เว้นที่สำหรับ BottomNavigationBar
               ],
             ),
           ),
-        ],
+        ),
       ),
+
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 20, right: 8),
+        child: FloatingActionButton(
+          onPressed: _addNewDoor,
+          backgroundColor: const Color(0xFFE74C3C),
+          elevation: 4,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add, size: 36, color: Colors.white),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
 
       bottomNavigationBar: CustomBottomBar(
         selectedIndex: selectedIndex,
@@ -162,97 +171,94 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
     );
   }
 
-  // ฟังก์ชันสร้าง UI สำหรับแต่ละประตู
-  Widget _buildDoorControlTile(Map<String, dynamic> door, int index) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+  Widget _buildEmptyState() {
+    final ez = ezColors(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 60),
+      child: Column(
+        children: [
+          Icon(Icons.meeting_room_outlined, size: 54, color: ez.textSecondary),
+          const SizedBox(height: 14),
+          Text(
+            'ยังไม่มีประตูคอกไก่',
+            style: GoogleFonts.kanit(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: ez.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'กดปุ่ม + ด้านล่างขวาเพื่อเพิ่มประตู',
+            style: GoogleFonts.kanit(fontSize: 13, color: ez.textSecondary),
           ),
         ],
       ),
+    );
+  }
+
+  // การ์ดควบคุมประตูแต่ละบาน — ไอคอนซ้ายบอกสถานะด้วยสีทันที, ป้ายข้อความ
+  // ใต้ชื่อบอกสถานะปัจจุบันอย่างเดียว (ไม่ใช้ OFF/ON คู่กันตลอดแบบเดิมที่ทำให้งง)
+  Widget _buildDoorCard(Map<String, dynamic> door) {
+    final ez = ezColors(context);
+    final bool isOn = door['isOn'] == true;
+    final Color stateColor = isOn ? ez.success : ez.textSecondary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: ezCardColor(context),
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              if (isDeleteMode)
-                Checkbox(
-                  value: door["selected"],
-                  activeColor: Colors.red,
-                  onChanged: (bool? value) {
-                    setState(() {
-                      door["selected"] = value ?? false;
-                    });
-                  },
-                ),
-              Text(
-                'ประตูคอกไก่ที่ ${door["id"]}',
-                style: GoogleFonts.kanit(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-            ],
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: stateColor.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.meeting_room, color: stateColor, size: 22),
           ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    "OFF ",
-                    style: GoogleFonts.kanit(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(
-                    "ON",
-                    style: GoogleFonts.kanit(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              SizedBox(
-                height: 30,
-                child: Transform.scale(
-                  scale: 0.9,
-                  child: Switch(
-                    value: door["isOn"],
-                    activeColor: Colors.white,
-                    activeTrackColor: Colors.black,
-                    inactiveThumbColor: Colors.white,
-                    inactiveTrackColor: Colors.black,
-                    trackOutlineColor: WidgetStateProperty.all(
-                      Colors.transparent,
-                    ),
-                    onChanged: (bool value) {
-                      setState(() {
-                        door["isOn"] = value;
-                        print(
-                          "ประตูที่ ${door["id"]} สถานะ: ${value ? 'เปิด' : 'ปิด'}",
-                        );
-                      });
-                    },
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ประตูคอกไก่ที่ ${door["id"]}',
+                  style: GoogleFonts.kanit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: ez.textPrimary,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  isOn ? 'เปิดอยู่' : 'ปิดอยู่',
+                  style: GoogleFonts.kanit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: stateColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: isOn,
+            onChanged: (value) => setState(() => door['isOn'] = value),
+            activeThumbColor: Colors.white,
+            activeTrackColor: ez.success,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: ez.border,
+          ),
+          IconButton(
+            onPressed: () => _confirmDeleteDoor(door['id']),
+            tooltip: 'ลบประตูนี้',
+            icon: Icon(Icons.delete_outline, color: ez.danger, size: 20),
           ),
         ],
       ),

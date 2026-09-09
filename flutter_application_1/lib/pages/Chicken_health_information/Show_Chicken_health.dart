@@ -17,6 +17,7 @@ import '../../widgets/ez_skeleton.dart';
 import '../../services/backend_config.dart';
 import '../../utils/thai_date.dart';
 import '../../widgets/ez_top_banner.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 class Chickenhealth extends StatefulWidget {
   final String? initialCoopId;
@@ -821,57 +822,13 @@ class _ChickenhealthState extends State<Chickenhealth> {
                                 ),
                               ),
                               confirmDismiss: (direction) async {
-                                bool? confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (BuildContext dialogContext) {
-                                    return AlertDialog(
-                                      backgroundColor: ezCardColor(context),
-                                      title: Text(
-                                        'ยืนยันการลบ',
-                                        style: GoogleFonts.kanit(
-                                          color: ezColors(context).textPrimary,
-                                        ),
-                                      ),
-                                      content: Text(
-                                        'คุณต้องการลบข้อมูลการตรวจสุขภาพนี้ใช่หรือไม่?',
-                                        style: GoogleFonts.kanit(
-                                          color: ezColors(
-                                            context,
-                                          ).textSecondary,
-                                        ),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.of(
-                                            dialogContext,
-                                          ).pop(false),
-                                          child: Text(
-                                            'ยกเลิก',
-                                            style: GoogleFonts.kanit(
-                                              color: ezColors(
-                                                context,
-                                              ).textSecondary,
-                                            ),
-                                          ),
-                                        ),
-                                        TextButton(
-                                          onPressed: () => Navigator.of(
-                                            dialogContext,
-                                          ).pop(true),
-                                          child: Text(
-                                            'ลบ',
-                                            style: GoogleFonts.kanit(
-                                              color: Colors.red,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
+                                bool confirm = await showEzDeleteConfirm(
+                                  context,
+                                  message:
+                                      'คุณต้องการลบข้อมูลการตรวจสุขภาพนี้ใช่หรือไม่?',
                                 );
 
-                                if (confirm == true) {
+                                if (confirm) {
                                   var rawId =
                                       data['id'] ??
                                       data['ID'] ??

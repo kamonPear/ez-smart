@@ -15,6 +15,7 @@ import '../../widgets/ez_skeleton.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_top_banner.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 class AddEgg extends StatefulWidget {
   final String? initialCoopId;
@@ -274,45 +275,15 @@ class _AddEggState extends State<AddEgg> {
     }
   }
 
-  void _showDeleteConfirmDialog(int id) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1F2933),
-          title: Text(
-            'ยืนยันการลบ',
-            style: GoogleFonts.kanit(color: ezColors(context).inputText),
-          ),
-          content: Text(
-            'คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลนี้?',
-            style: GoogleFonts.kanit(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'ยกเลิก',
-                style: GoogleFonts.kanit(color: Colors.white54),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                _deleteEggData(id);
-              },
-              child: Text(
-                'ลบข้อมูล',
-                style: GoogleFonts.kanit(color: ezColors(context).inputText),
-              ),
-            ),
-          ],
-        );
-      },
+  Future<void> _showDeleteConfirmDialog(int id) async {
+    final confirmed = await showEzDeleteConfirm(
+      context,
+      message: 'คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลนี้?',
+      confirmText: 'ลบข้อมูล',
     );
+    if (confirmed) {
+      _deleteEggData(id);
+    }
   }
 
   void _showBanner(String message, {EzBannerType type = EzBannerType.warning}) {

@@ -17,6 +17,7 @@ import '../../utils/thai_date.dart';
 import '../../widgets/ez_header.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../widgets/ez_top_banner.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 class MainShowDataFood extends StatefulWidget {
   const MainShowDataFood({super.key});
@@ -308,48 +309,13 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
       return;
     }
 
-    bool confirmDelete =
-        await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              backgroundColor: ezCardColor(context),
-              title: Text(
-                "ยืนยันการลบข้อมูล",
-                style: GoogleFonts.kanit(
-                  color: ezColors(context).textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: Text(
-                "คุณต้องการลบข้อมูลคลังอาหารสัตว์ทั้งหมดในฐานข้อมูลใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนคืนได้",
-                style: GoogleFonts.kanit(
-                  color: ezColors(context).textSecondary,
-                ),
-              ),
-              actions: [
-                TextButton(
-                  child: Text(
-                    "ยกเลิก",
-                    style: GoogleFonts.kanit(color: Colors.grey),
-                  ),
-                  onPressed: () => Navigator.of(context).pop(false),
-                ),
-                TextButton(
-                  child: Text(
-                    "ลบข้อมูล",
-                    style: GoogleFonts.kanit(
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onPressed: () => Navigator.of(context).pop(true),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
+    final bool confirmDelete = await showEzDeleteConfirm(
+      context,
+      title: 'ยืนยันการลบข้อมูล',
+      message:
+          'คุณต้องการลบข้อมูลคลังอาหารสัตว์ทั้งหมดในฐานข้อมูลใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนคืนได้',
+      confirmText: 'ลบข้อมูล',
+    );
 
     if (!confirmDelete) return;
 
@@ -398,48 +364,13 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
       return;
     }
 
-    bool confirm =
-        await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              backgroundColor: ezCardColor(context),
-              title: Text(
-                "ยืนยันการตัดสต็อก",
-                style: GoogleFonts.kanit(
-                  color: ezColors(context).textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: Text(
-                "คุณต้องการตัดสต็อกอาหาร 20 กิโลกรัม ใช่หรือไม่?",
-                style: GoogleFonts.kanit(
-                  color: ezColors(context).textSecondary,
-                ),
-              ),
-              actions: [
-                TextButton(
-                  child: Text(
-                    "ยกเลิก",
-                    style: GoogleFonts.kanit(color: Colors.grey),
-                  ),
-                  onPressed: () => Navigator.of(context).pop(false),
-                ),
-                TextButton(
-                  child: Text(
-                    "ยืนยัน",
-                    style: GoogleFonts.kanit(
-                      color: const Color(0xFFFFA726),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onPressed: () => Navigator.of(context).pop(true),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
+    final bool confirm = await showEzConfirmDialog(
+      context,
+      title: 'ยืนยันการตัดสต็อก',
+      message: 'คุณต้องการตัดสต็อกอาหาร 20 กิโลกรัม ใช่หรือไม่?',
+      confirmText: 'ยืนยัน',
+      icon: Icons.remove_circle_outline_rounded,
+    );
 
     if (!confirm) return;
 
