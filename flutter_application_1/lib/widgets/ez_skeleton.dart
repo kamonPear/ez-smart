@@ -65,17 +65,9 @@ class EzSkeletonCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 150,
-                  height: 16,
-                  color: Colors.grey,
-                ),
+                Container(width: 150, height: 16, color: Colors.grey),
                 const SizedBox(height: 8),
-                Container(
-                  width: 100,
-                  height: 13,
-                  color: Colors.grey,
-                ),
+                Container(width: 100, height: 13, color: Colors.grey),
               ],
             ),
           ),

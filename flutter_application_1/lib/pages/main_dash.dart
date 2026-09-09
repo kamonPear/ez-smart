@@ -655,7 +655,11 @@ class _MainScreenState extends State<MainScreen> {
               padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
               child: Column(
                 children: [
-                  Icon(Icons.egg_alt_rounded, color: ezGoldColor(context), size: 42),
+                  Icon(
+                    Icons.egg_alt_rounded,
+                    color: ezGoldColor(context),
+                    size: 42,
+                  ),
                   const SizedBox(height: 10),
                   Text(
                     'EZ - SMART FARM',
@@ -674,13 +678,19 @@ class _MainScreenState extends State<MainScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 children: [
                   // เรียงตามลำดับตัวอักษรไทย (ก ขึ้นก่อน)
-                  _buildDrawerItem(Icons.notifications_none, 'การแจ้งเตือน', () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const Notifications()),
-                    );
-                  }),
+                  _buildDrawerItem(
+                    Icons.notifications_none,
+                    'การแจ้งเตือน',
+                    () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const Notifications(),
+                        ),
+                      );
+                    },
+                  ),
                   _buildDrawerItem(Icons.vaccines_outlined, 'การให้วัคซีน', () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -695,40 +705,66 @@ class _MainScreenState extends State<MainScreen> {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const Adoptchicken()),
+                      MaterialPageRoute(
+                        builder: (context) => const Adoptchicken(),
+                      ),
                     );
                   }),
                   _buildDrawerItem(Icons.sensors, 'เซนเซอร์', () {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const DataSystem()),
+                      MaterialPageRoute(
+                        builder: (context) => const DataSystem(),
+                      ),
                     );
                   }),
-                  _buildDrawerItem(Icons.health_and_safety_outlined, 'ตรวจสุขภาพ', () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const Chickenhealth()),
-                    );
-                  }),
-                  _buildDrawerItem(Icons.calendar_month_outlined, 'ปฏิทินรวม', () {
-                    Navigator.pop(context);
-                  }),
-                  _buildDrawerItem(Icons.inventory_2_outlined, 'สต็อกอาหาร', () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const MainShowDataFood()),
-                    );
-                  }),
-                  _buildDrawerItem(Icons.developer_board_outlined, 'อุปกรณ์', () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const DataSystem()),
-                    );
-                  }),
+                  _buildDrawerItem(
+                    Icons.health_and_safety_outlined,
+                    'ตรวจสุขภาพ',
+                    () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const Chickenhealth(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(
+                    Icons.calendar_month_outlined,
+                    'ปฏิทินรวม',
+                    () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                  _buildDrawerItem(
+                    Icons.inventory_2_outlined,
+                    'สต็อกอาหาร',
+                    () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MainShowDataFood(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(
+                    Icons.developer_board_outlined,
+                    'อุปกรณ์',
+                    () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DataSystem(),
+                        ),
+                      );
+                    },
+                  ),
                   Divider(color: ezColors(context).border, height: 24),
                   _buildThemeToggleItem(context),
                 ],

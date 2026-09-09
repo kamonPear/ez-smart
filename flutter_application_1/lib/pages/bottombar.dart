@@ -86,10 +86,7 @@ class CustomBottomBar extends StatelessWidget {
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: bar,
-      ),
+      child: ClipRRect(borderRadius: BorderRadius.circular(28), child: bar),
     );
   }
 

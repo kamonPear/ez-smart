@@ -124,7 +124,7 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
         showEzTopBanner(
           context,
           'บันทึกกำหนดการยา/วัคซีนสำเร็จ!',
-          isError: false,
+          type: EzBannerType.success,
         );
 
         // ล้างข้อมูลช่องกรอก
@@ -143,7 +143,11 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
         throw Exception('Failed with status: ${response.statusCode}');
       }
     } catch (e) {
-      showEzTopBanner(context, 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: $e');
+      showEzTopBanner(
+        context,
+        'เกิดข้อผิดพลาดในการบันทึกข้อมูล: $e',
+        type: EzBannerType.error,
+      );
     } finally {
       setState(() {
         isSaving = false;
@@ -200,8 +204,7 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
 
     String apiUrl = '$backendBaseUrl/api/vaccines/recommended';
     if (selectedCoop != "ทั้งหมด" && selectedCoop != "เลือกคอก") {
-      apiUrl =
-          '$backendBaseUrl/api/vaccines/recommended?coop_id=$selectedCoop';
+      apiUrl = '$backendBaseUrl/api/vaccines/recommended?coop_id=$selectedCoop';
     }
 
     try {
@@ -688,8 +691,7 @@ class _VaccineReminderDialog extends StatefulWidget {
   });
 
   @override
-  State<_VaccineReminderDialog> createState() =>
-      _VaccineReminderDialogState();
+  State<_VaccineReminderDialog> createState() => _VaccineReminderDialogState();
 }
 
 class _VaccineReminderDialogState extends State<_VaccineReminderDialog> {
@@ -978,11 +980,7 @@ class _VaccineReminderDialogState extends State<_VaccineReminderDialog> {
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 15,
-              color: dimmed ? ez.textSecondary : ez.gold,
-            ),
+            Icon(icon, size: 15, color: dimmed ? ez.textSecondary : ez.gold),
             const SizedBox(width: 6),
             Expanded(
               child: Text(

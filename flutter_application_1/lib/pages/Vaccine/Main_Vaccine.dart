@@ -45,9 +45,7 @@ class _MainVaccineState extends State<MainVaccine> {
 
   Future<void> _fetchCoopNames() async {
     try {
-      final response = await http.get(
-        Uri.parse('$backendBaseUrl/api/coops'),
-      );
+      final response = await http.get(Uri.parse('$backendBaseUrl/api/coops'));
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
@@ -181,7 +179,10 @@ class _MainVaccineState extends State<MainVaccine> {
             flex: 2,
             child: Text(
               label,
-              style: GoogleFonts.kanit(color: ezColors(context).textSecondary, fontSize: 15),
+              style: GoogleFonts.kanit(
+                color: ezColors(context).textSecondary,
+                fontSize: 15,
+              ),
             ),
           ),
           Expanded(

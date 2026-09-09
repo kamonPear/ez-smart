@@ -120,7 +120,9 @@ class _MainchickenState extends State<Mainchicken> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: ezColors(context).border, width: 1)),
+        border: Border(
+          bottom: BorderSide(color: ezColors(context).border, width: 1),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

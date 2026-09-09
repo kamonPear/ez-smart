@@ -11,6 +11,7 @@ import '../bottombar.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
 import '../../utils/thai_date.dart';
+import '../../widgets/ez_top_banner.dart';
 
 class EditNumbereggchicken extends StatefulWidget {
   final Map<String, dynamic> initialData;
@@ -187,12 +188,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
 
   Future<void> _updateEggData() async {
     if (_selectedCoopId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('กรุณาเลือกคอก', style: GoogleFonts.kanit()),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showEzTopBanner(context, 'กรุณาเลือกคอก', type: EzBannerType.warning);
       return;
     }
 
@@ -210,14 +206,10 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
       // 🌟 ดักจับ ID หายเพื่อความปลอดภัย
       if (id.isEmpty || id == "null") {
         Navigator.of(context, rootNavigator: true).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'ข้อผิดพลาด: ไม่พบ ID ของข้อมูล',
-              style: GoogleFonts.kanit(),
-            ),
-            backgroundColor: Colors.red,
-          ),
+        showEzTopBanner(
+          context,
+          'ข้อผิดพลาด: ไม่พบ ID ของข้อมูล',
+          type: EzBannerType.error,
         );
         return;
       }
@@ -242,11 +234,10 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
       Navigator.of(context, rootNavigator: true).pop();
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('อัปเดตข้อมูลสำเร็จ', style: GoogleFonts.kanit()),
-            backgroundColor: Colors.green,
-          ),
+        showEzTopBanner(
+          context,
+          'อัปเดตข้อมูลสำเร็จ',
+          type: EzBannerType.success,
         );
         Navigator.pop(context, true);
       } else {
@@ -264,28 +255,19 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
           errorMsg = response.body.isNotEmpty ? response.body : errorMsg;
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'เซิร์ฟเวอร์ปฏิเสธ: $errorMsg',
-              style: GoogleFonts.kanit(),
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
+        showEzTopBanner(
+          context,
+          'เซิร์ฟเวอร์ปฏิเสธ: $errorMsg',
+          type: EzBannerType.error,
         );
       }
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว: $e',
-            style: GoogleFonts.kanit(),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      showEzTopBanner(
+        context,
+        'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว: $e',
+        type: EzBannerType.error,
       );
     }
   }
@@ -325,7 +307,10 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
               child: TextFormField(
                 controller: controller,
                 keyboardType: keyboardType,
-                style: GoogleFonts.kanit(fontSize: 15, color: ezColors(context).inputText),
+                style: GoogleFonts.kanit(
+                  fontSize: 15,
+                  color: ezColors(context).inputText,
+                ),
                 decoration: InputDecoration(
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
@@ -333,7 +318,9 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
                     vertical: 10,
                   ),
                   isDense: true,
-                  hintStyle: GoogleFonts.kanit(color: ezColors(context).textSecondary),
+                  hintStyle: GoogleFonts.kanit(
+                    color: ezColors(context).textSecondary,
+                  ),
                 ),
               ),
             ),
@@ -431,7 +418,10 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
                       fontSize: 15,
                     ),
                   ),
-                  style: GoogleFonts.kanit(fontSize: 15, color: ezColors(context).inputText),
+                  style: GoogleFonts.kanit(
+                    fontSize: 15,
+                    color: ezColors(context).inputText,
+                  ),
                   items: availableCoops.map((val) {
                     return DropdownMenuItem<String>(
                       value: val,
@@ -525,11 +515,10 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
         ),
         onPressed: () {
           if (_amountController.text.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('กรุณากรอกจำนวนไข่', style: GoogleFonts.kanit()),
-                backgroundColor: Colors.red,
-              ),
+            showEzTopBanner(
+              context,
+              'กรุณากรอกจำนวนไข่',
+              type: EzBannerType.warning,
             );
             return;
           }
@@ -538,7 +527,11 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.feed_outlined, color: ezColors(context).textPrimary, size: 24),
+            Icon(
+              Icons.feed_outlined,
+              color: ezColors(context).textPrimary,
+              size: 24,
+            ),
             const SizedBox(width: 10),
             Text(
               "บันทึกการแก้ไข",

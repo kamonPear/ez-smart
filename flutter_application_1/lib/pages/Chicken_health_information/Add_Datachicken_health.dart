@@ -15,6 +15,7 @@ import 'package:flutter_application_1/models/coop.dart'; // 🌟 ปรับ pa
 // 🌟 URL ของ Backend
 import '../../services/backend_config.dart';
 import '../../utils/thai_date.dart';
+import '../../widgets/ez_top_banner.dart';
 
 class AddDatachickenHealth extends StatefulWidget {
   final String? initialCoopId;
@@ -37,15 +38,9 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
   String? _selectedCoopId;
   bool _isLoadingCoops = true;
 
-  final TextEditingController _healthyController = TextEditingController(
- 
-  );
-  final TextEditingController _unhealthyController = TextEditingController(
-  
-  );
-  final TextEditingController _noteController = TextEditingController(
-    
-  );
+  final TextEditingController _healthyController = TextEditingController();
+  final TextEditingController _unhealthyController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
 
   @override
   void initState() {
@@ -104,29 +99,20 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
       } else {
         if (!mounted) return;
         setState(() => _isLoadingCoops = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'ดึงรายชื่อคอกไม่สำเร็จ: รหัส ${response.statusCode}',
-              style: const TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.red,
-          ),
+        showEzTopBanner(
+          context,
+          'ดึงรายชื่อคอกไม่สำเร็จ: รหัส ${response.statusCode}',
+          type: EzBannerType.error,
         );
       }
     } catch (e) {
       print("Error ดึงข้อมูลคอก: $e");
       if (!mounted) return;
       setState(() => _isLoadingCoops = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (โหลดคอก): $e',
-            style: const TextStyle(color: Colors.white),
-          ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
+      showEzTopBanner(
+        context,
+        'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ (โหลดคอก): $e',
+        type: EzBannerType.error,
       );
     }
   }
@@ -136,14 +122,10 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
     // เช็คว่าเลือกคอกแล้วหรือยัง และแปลงเป็น int ได้จริง
     final int? coopIdValue = int.tryParse(_selectedCoopId ?? '');
     if (coopIdValue == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'กรุณาเลือกคอกก่อนบันทึก',
-            style: TextStyle(color: Colors.white),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      showEzTopBanner(
+        context,
+        'กรุณาเลือกคอกก่อนบันทึก',
+        type: EzBannerType.warning,
       );
       return;
     }
@@ -180,42 +162,29 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _isAppointment
-                  ? 'บันทึกนัดหมายล่วงหน้าแล้ว กรอกจำนวนไก่ทีหลังได้'
-                  : 'บันทึกข้อมูลสำเร็จ',
-              style: const TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.green,
-          ),
+        showEzTopBanner(
+          context,
+          _isAppointment
+              ? 'บันทึกนัดหมายล่วงหน้าแล้ว กรอกจำนวนไก่ทีหลังได้'
+              : 'บันทึกข้อมูลสำเร็จ',
+          type: EzBannerType.success,
         );
         Navigator.pop(context, true);
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'บันทึกไม่สำเร็จ: รหัส ${response.statusCode}',
-              style: const TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.red,
-          ),
+        showEzTopBanner(
+          context,
+          'บันทึกไม่สำเร็จ: รหัส ${response.statusCode}',
+          type: EzBannerType.error,
         );
       }
     } catch (e) {
       if (!mounted) return;
       print("Error เชื่อมต่อ: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: $e',
-            style: const TextStyle(color: Colors.white),
-          ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
+      showEzTopBanner(
+        context,
+        'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: $e',
+        type: EzBannerType.error,
       );
     } finally {
       if (mounted) {
@@ -337,7 +306,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                           const SizedBox(width: 4),
                           Icon(
                             Icons.keyboard_arrow_down,
-                              color: ezColors(context).textSecondary,
+                            color: ezColors(context).textSecondary,
                             size: 20,
                           ),
                         ],
@@ -356,12 +325,14 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                           Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              border: Border.all(color: ezColors(context).border),
+                              border: Border.all(
+                                color: ezColors(context).border,
+                              ),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Icon(
                               Icons.calendar_today_outlined,
-                                color: ezColors(context).textPrimary,
+                              color: ezColors(context).textPrimary,
                               size: 16,
                             ),
                           ),
@@ -407,7 +378,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                             ),
                             Icon(
                               Icons.calendar_view_week_outlined,
-                                color: ezColors(context).textSecondary,
+                              color: ezColors(context).textSecondary,
                               size: 24,
                             ),
                           ],
@@ -441,7 +412,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                 ),
                                 Icon(
                                   Icons.calendar_today_outlined,
-                                    color: ezColors(context).textSecondary,
+                                  color: ezColors(context).textSecondary,
                                   size: 20,
                                 ),
                               ],
@@ -545,7 +516,9 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                       child: Text(
                                         'ไม่พบข้อมูลคอก',
                                         style: GoogleFonts.kanit(
-                                          color: ezColors(context).textSecondary,
+                                          color: ezColors(
+                                            context,
+                                          ).textSecondary,
                                           fontSize: 14,
                                         ),
                                       ),
@@ -554,7 +527,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                       onTap: _fetchCoops,
                                       child: Icon(
                                         Icons.refresh,
-                                          color: ezColors(context).textSecondary,
+                                        color: ezColors(context).textSecondary,
                                         size: 20,
                                       ),
                                     ),
@@ -587,7 +560,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                     ),
                                     icon: Icon(
                                       Icons.keyboard_arrow_down,
-                                        color: ezColors(context).textSecondary,
+                                      color: ezColors(context).textSecondary,
                                     ),
                                     items: _coopList.map((coop) {
                                       return DropdownMenuItem<String>(
@@ -674,7 +647,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                             children: [
                               Icon(
                                 Icons.info,
-                                  color: ezColors(context).textSecondary,
+                                color: ezColors(context).textSecondary,
                                 size: 20,
                               ),
                               const SizedBox(width: 10),
@@ -755,7 +728,9 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                           style: GoogleFonts.kanit(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
-                                            color: ezColors(context).textPrimary,
+                                            color: ezColors(
+                                              context,
+                                            ).textPrimary,
                                           ),
                                         ),
                                 ),
@@ -785,7 +760,10 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         text,
-        style: GoogleFonts.kanit(fontSize: 14, color: ezColors(context).textSecondary),
+        style: GoogleFonts.kanit(
+          fontSize: 14,
+          color: ezColors(context).textSecondary,
+        ),
       ),
     );
   }
@@ -799,7 +777,10 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontSize: 14),
+      style: GoogleFonts.kanit(
+        color: ezColors(context).textPrimary,
+        fontSize: 14,
+      ),
       decoration: InputDecoration(
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,

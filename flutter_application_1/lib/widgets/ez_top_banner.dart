@@ -2,19 +2,25 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+/// ระดับความสำคัญของข้อความแจ้งเตือน
+/// - [success] เขียว: ทำรายการสำเร็จ
+/// - [warning] ส้ม: เตือนให้กรอก/แก้ข้อมูลก่อนไปต่อ (ใช้บ่อยที่สุด)
+/// - [error] แดง: เก็บไว้ใช้กับเรื่องที่ผิดพลาดจริงๆ เท่านั้น เช่น ต่อเซิร์ฟเวอร์ไม่ได้
+enum EzBannerType { success, warning, error }
+
 /// แสดงข้อความแจ้งเตือนแบบเลื่อนลงมาจากด้านบนจอ (แทน SnackBar ปกติที่โผล่จากขอบล่าง
 /// ซึ่งมักโดนแถบเมนูด้านล่างบังในหน้าที่มี bottom navigation)
 void showEzTopBanner(
   BuildContext context,
   String message, {
-  bool isError = true,
+  EzBannerType type = EzBannerType.warning,
 }) {
   final overlay = Overlay.of(context);
   late OverlayEntry entry;
   entry = OverlayEntry(
     builder: (context) => _EzTopBanner(
       message: message,
-      isError: isError,
+      type: type,
       onDismiss: () => entry.remove(),
     ),
   );
@@ -23,12 +29,12 @@ void showEzTopBanner(
 
 class _EzTopBanner extends StatefulWidget {
   final String message;
-  final bool isError;
+  final EzBannerType type;
   final VoidCallback onDismiss;
 
   const _EzTopBanner({
     required this.message,
-    required this.isError,
+    required this.type,
     required this.onDismiss,
   });
 
@@ -86,14 +92,13 @@ class _EzTopBannerState extends State<_EzTopBanner>
           child: GestureDetector(
             onTap: _dismiss,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: widget.isError
-                    ? const Color(0xFFFF7A45)
-                    : const Color(0xFF55C759),
+                color: switch (widget.type) {
+                  EzBannerType.success => const Color(0xFF55C759),
+                  EzBannerType.warning => const Color(0xFFF57C00),
+                  EzBannerType.error => const Color(0xFFD32F2F),
+                },
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
@@ -105,12 +110,11 @@ class _EzTopBannerState extends State<_EzTopBanner>
               ),
               child: Row(
                 children: [
-                  Icon(
-                    widget.isError
-                        ? Icons.error_outline
-                        : Icons.check_circle_outline,
-                    color: Colors.white,
-                  ),
+                  Icon(switch (widget.type) {
+                    EzBannerType.success => Icons.check_circle_outline,
+                    EzBannerType.warning => Icons.warning_amber_rounded,
+                    EzBannerType.error => Icons.error_outline,
+                  }, color: Colors.white),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(

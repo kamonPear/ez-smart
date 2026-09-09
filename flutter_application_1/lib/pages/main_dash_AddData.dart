@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'bottombar.dart'; 
-import 'close_open_Door.dart'; 
+import 'bottombar.dart';
+import 'close_open_Door.dart';
 
 class MainAddDatachicken extends StatefulWidget {
   const MainAddDatachicken({super.key});
@@ -17,8 +17,12 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
 
   // นำ _idController ออกแล้ว
   final TextEditingController _numberController = TextEditingController();
-  final TextEditingController _tempController = TextEditingController(text: '28');
-  final TextEditingController _ppmController = TextEditingController(text: '20');
+  final TextEditingController _tempController = TextEditingController(
+    text: '28',
+  );
+  final TextEditingController _ppmController = TextEditingController(
+    text: '20',
+  );
 
   @override
   void dispose() {
@@ -48,29 +52,33 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
     }
   }
 
-  Widget _buildValueBox(TextEditingController controller, Color bgColor, String unit) {
+  Widget _buildValueBox(
+    TextEditingController controller,
+    Color bgColor,
+    String unit,
+  ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 70, 
+          width: 70,
           padding: const EdgeInsets.symmetric(vertical: 5),
           decoration: BoxDecoration(
             color: bgColor,
-            borderRadius: BorderRadius.circular(15), 
+            borderRadius: BorderRadius.circular(15),
           ),
           child: TextField(
             controller: controller,
-            textAlign: TextAlign.center, 
-            keyboardType: TextInputType.number, 
+            textAlign: TextAlign.center,
+            keyboardType: TextInputType.number,
             style: GoogleFonts.kanit(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Colors.black,
             ),
             decoration: const InputDecoration(
-              border: InputBorder.none, 
-              isDense: true, 
+              border: InputBorder.none,
+              isDense: true,
               contentPadding: EdgeInsets.zero,
             ),
           ),
@@ -96,7 +104,7 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFFF7A5F), 
+          color: const Color(0xFFFF7A5F),
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
@@ -149,20 +157,23 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
           ),
 
           Positioned(
-            top: 290, 
+            top: 290,
             left: 0,
             right: 0,
-            bottom: 80, 
+            bottom: 80,
             child: SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 30),
                 child: Column(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 20,
+                        horizontal: 20,
+                      ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFBCE0EA), 
-                        borderRadius: BorderRadius.circular(12), 
+                        color: const Color(0xFFBCE0EA),
+                        borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.2),
@@ -172,14 +183,14 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
                         ],
                       ),
                       child: Column(
-                        mainAxisSize: MainAxisSize.min, 
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Text(
                             'เพิ่มข้อมูลคอกไก่',
                             style: GoogleFonts.kanit(
                               fontSize: 22,
-                              fontWeight: FontWeight.w900, 
+                              fontWeight: FontWeight.w900,
                               color: Colors.black,
                             ),
                           ),
@@ -201,8 +212,8 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
                         ],
                       ),
                     ),
-                    
-                    const SizedBox(height: 30), 
+
+                    const SizedBox(height: 30),
 
                     Text(
                       'ค่าที่ตั้งไว้คงที่ทุกคอก',
@@ -217,27 +228,36 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildValueBox(_tempController, const Color(0xFF8CEEFA), 'C'), 
-                        const SizedBox(width: 25), 
-                        _buildValueBox(_ppmController, const Color(0xFFFF5E5E), 'PPM'), 
+                        _buildValueBox(
+                          _tempController,
+                          const Color(0xFF8CEEFA),
+                          'C',
+                        ),
+                        const SizedBox(width: 25),
+                        _buildValueBox(
+                          _ppmController,
+                          const Color(0xFFFF5E5E),
+                          'PPM',
+                        ),
                       ],
                     ),
                     const SizedBox(height: 15),
 
                     _buildEditButton(),
 
-                    const SizedBox(height: 40), 
+                    const SizedBox(height: 40),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         _buildButton(
                           label: 'บันทึก',
-                          color: const Color(0xFF6FE975), 
+                          color: const Color(0xFF6FE975),
                           textColor: Colors.white,
                           onTap: () {
-                            if (_numberController.text.isEmpty) return; // เช็คว่าไม่ได้เว้นว่าง
-                            
+                            if (_numberController.text.isEmpty)
+                              return; // เช็คว่าไม่ได้เว้นว่าง
+
                             // ส่งข้อมูลกลับไปหน้าหลัก (ลบ id ออกจากการส่งกลับแล้ว)
                             Navigator.pop(context, {
                               "number": _numberController.text,
@@ -249,7 +269,7 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
                         const SizedBox(width: 20),
                         _buildButton(
                           label: 'ยกเลิก',
-                          color: const Color(0xFFEF836B), 
+                          color: const Color(0xFFEF836B),
                           textColor: Colors.white,
                           onTap: () {
                             Navigator.pop(context);
@@ -257,7 +277,7 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 50), 
+                    const SizedBox(height: 50),
                   ],
                 ),
               ),
@@ -271,7 +291,10 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
             child: SafeArea(
               child: Container(
                 height: 160,
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 10.0,
+                ),
                 child: Stack(
                   children: [
                     Positioned(
@@ -304,7 +327,9 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const Notifications()),
+                                MaterialPageRoute(
+                                  builder: (context) => const Notifications(),
+                                ),
                               );
                             },
                             child: const Icon(
@@ -344,12 +369,12 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.shade400),
-         boxShadow: [
+        boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             offset: const Offset(0, 2),
             blurRadius: 2,
-          )
+          ),
         ],
       ),
       child: TextField(
@@ -386,7 +411,7 @@ class _MainAddDatachickenState extends State<MainAddDatachicken> {
           onPressed: onTap,
           style: ElevatedButton.styleFrom(
             backgroundColor: color,
-            shadowColor: Colors.transparent, 
+            shadowColor: Colors.transparent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),

@@ -383,9 +383,8 @@ class _ShowChartState extends State<ShowChart> {
 
     List<double> currentData = availableYears
         .map(
-          (y) => (monthlyData[y] ?? List.filled(12, 0.0)).reduce(
-            (a, b) => a + b,
-          ),
+          (y) =>
+              (monthlyData[y] ?? List.filled(12, 0.0)).reduce((a, b) => a + b),
         )
         .toList();
 
@@ -405,127 +404,122 @@ class _ShowChartState extends State<ShowChart> {
         children: [
           Text(
             'บันทึกการเก็บไข่รายปีของคอกที่ $coopLabel',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.kanit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: ezColors(context).textPrimary,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.kanit(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: ezColors(context).textPrimary,
+            ),
+          ),
+          const SizedBox(height: 15),
+
+          SizedBox(
+            height: 160,
+            child: LineChart(
+              LineChartData(
+                minY: 0,
+                maxY: chartMaxY,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.grey.withOpacity(0.3),
+                    strokeWidth: 1,
                   ),
                 ),
-                const SizedBox(height: 15),
-
-                SizedBox(
-                  height: 160,
-                  child: LineChart(
-                    LineChartData(
-                      minY: 0,
-                      maxY: chartMaxY,
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        getDrawingHorizontalLine: (value) => FlLine(
-                          color: Colors.grey.withOpacity(0.3),
-                          strokeWidth: 1,
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      titlesData: FlTitlesData(
-                        show: true,
-                        topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 32,
-                            getTitlesWidget: (value, meta) {
-                              return Text(
-                                value.toInt().toString(),
-                                style: GoogleFonts.kanit(
-                                  color: ezColors(context).textSecondary,
-                                  fontSize: 10,
-                                ),
-                                textAlign: TextAlign.right,
-                              );
-                            },
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  show: true,
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 32,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: GoogleFonts.kanit(
+                            color: ezColors(context).textSecondary,
+                            fontSize: 10,
                           ),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 22,
-                            getTitlesWidget: (value, meta) {
-                              String text = '';
-                              if (value >= 0 &&
-                                  value < availableYears.length) {
-                                final year = int.tryParse(
-                                  availableYears[value.toInt()],
-                                );
-                                text = year != null
-                                    ? '${year + 543}'
-                                    : availableYears[value.toInt()];
-                              }
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 8.0),
-                                child: Text(
-                                  text,
-                                  style: GoogleFonts.kanit(
-                                    color: ezColors(context).textSecondary,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              );
-                            },
+                          textAlign: TextAlign.right,
+                        );
+                      },
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 22,
+                      getTitlesWidget: (value, meta) {
+                        String text = '';
+                        if (value >= 0 && value < availableYears.length) {
+                          final year = int.tryParse(
+                            availableYears[value.toInt()],
+                          );
+                          text = year != null
+                              ? '${year + 543}'
+                              : availableYears[value.toInt()];
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            text,
+                            style: GoogleFonts.kanit(
+                              color: ezColors(context).textSecondary,
+                              fontSize: 10,
+                            ),
                           ),
-                        ),
-                      ),
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: List.generate(
-                            currentData.length,
-                            (index) =>
-                                FlSpot(index.toDouble(), currentData[index]),
-                          ),
-                          isCurved: false,
-                          color: ezColors(context).textPrimary,
-                          barWidth: 2,
-                          isStrokeCapRound: true,
-                          dotData: FlDotData(
-                            show: true,
-                            getDotPainter: (spot, percent, barData, index) {
-                              bool isLowest = spot.y == minVal && spot.y > 0;
-                              return FlDotCirclePainter(
-                                radius: 4,
-                                color: isLowest
-                                    ? Colors.red
-                                    : Colors.greenAccent,
-                                strokeWidth: 0,
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                      lineTouchData: LineTouchData(
-                        touchTooltipData: LineTouchTooltipData(
-                          getTooltipItems: (touchedSpots) =>
-                              touchedSpots.map((spot) {
-                                return LineTooltipItem(
-                                  '${spot.y.toInt()} ฟอง',
-                                  GoogleFonts.kanit(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 11,
-                                  ),
-                                );
-                              }).toList(),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: List.generate(
+                      currentData.length,
+                      (index) => FlSpot(index.toDouble(), currentData[index]),
+                    ),
+                    isCurved: false,
+                    color: ezColors(context).textPrimary,
+                    barWidth: 2,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: true,
+                      getDotPainter: (spot, percent, barData, index) {
+                        bool isLowest = spot.y == minVal && spot.y > 0;
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: isLowest ? Colors.red : Colors.greenAccent,
+                          strokeWidth: 0,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
+                      return LineTooltipItem(
+                        '${spot.y.toInt()} ฟอง',
+                        GoogleFonts.kanit(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

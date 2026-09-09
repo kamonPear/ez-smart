@@ -19,33 +19,32 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
   int selectedIndex = 1;
 
   // 1. List of Maps เพื่อจำ ID ของประตู และสถานะ
-  List<Map<String, dynamic>> doors = List.generate(5, (index) => {
-    "id": index + 1,
-    "isOn": false,
-    "selected": false,
-  });
-  
-  int nextDoorId = 6; 
-  bool isDeleteMode = false; 
+  List<Map<String, dynamic>> doors = List.generate(
+    5,
+    (index) => {"id": index + 1, "isOn": false, "selected": false},
+  );
+
+  int nextDoorId = 6;
+  bool isDeleteMode = false;
 
   void onTabSelected(int index) {
     if (index == 0) {
-     Navigator.pushReplacement(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainScreen()),
       );
-    } else if(index == 3){
+    } else if (index == 3) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const Mainchicken()),
       );
-    } else if(index == 4){
-       Navigator.pushReplacement(
+    } else if (index == 4) {
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainShowDataFood()),
       );
-    } else if(index == 2){
-       Navigator.pushReplacement(
+    } else if (index == 2) {
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const ShowChart()),
       );
@@ -59,11 +58,7 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
   // ฟังก์ชันเพิ่มประตูใหม่
   void _addNewDoor() {
     setState(() {
-      doors.add({
-        "id": nextDoorId++,
-        "isOn": false,
-        "selected": false,
-      });
+      doors.add({"id": nextDoorId++, "isOn": false, "selected": false});
     });
     print("เพิ่มประตูคอกไก่ที่ ${nextDoorId - 1}");
   }
@@ -108,7 +103,10 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
 
                 // Header Icons (ลบซ้าย - เพิ่มขวา)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 25.0,
+                    vertical: 10.0,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -142,8 +140,10 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
                         children: [
                           for (int i = 0; i < doors.length; i++)
                             _buildDoorControlTile(doors[i], i),
-                          
-                          const SizedBox(height: 100), // ระยะห่างเผื่อ BottomBar
+
+                          const SizedBox(
+                            height: 100,
+                          ), // ระยะห่างเผื่อ BottomBar
                         ],
                       ),
                     ),
@@ -209,8 +209,22 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
             children: [
               Row(
                 children: [
-                  Text("OFF ", style: GoogleFonts.kanit(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12)),
-                  Text("ON", style: GoogleFonts.kanit(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text(
+                    "OFF ",
+                    style: GoogleFonts.kanit(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    "ON",
+                    style: GoogleFonts.kanit(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -224,11 +238,15 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
                     activeTrackColor: Colors.black,
                     inactiveThumbColor: Colors.white,
                     inactiveTrackColor: Colors.black,
-                    trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+                    trackOutlineColor: WidgetStateProperty.all(
+                      Colors.transparent,
+                    ),
                     onChanged: (bool value) {
                       setState(() {
                         door["isOn"] = value;
-                        print("ประตูที่ ${door["id"]} สถานะ: ${value ? 'เปิด' : 'ปิด'}");
+                        print(
+                          "ประตูที่ ${door["id"]} สถานะ: ${value ? 'เปิด' : 'ปิด'}",
+                        );
                       });
                     },
                   ),

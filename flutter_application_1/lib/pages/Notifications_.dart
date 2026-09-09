@@ -5,7 +5,7 @@ import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/close_open_Door.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
-import 'package:google_fonts/google_fonts.dart'; 
+import 'package:google_fonts/google_fonts.dart';
 import 'bottombar.dart';
 import '../../services/backend_config.dart';
 import '../widgets/ez_header.dart';
@@ -39,24 +39,31 @@ class _NotificationsState extends State<Notifications> {
 
     List<Map<String, dynamic>> newNotifications = [];
     DateTime today = DateTime.now();
-    
-    String timeNow = "${today.hour.toString().padLeft(2, '0')}:${today.minute.toString().padLeft(2, '0')}";
+
+    String timeNow =
+        "${today.hour.toString().padLeft(2, '0')}:${today.minute.toString().padLeft(2, '0')}";
     String dateNow = thaiDate(today);
 
     // ---------------------------------------------------------
     // 1. แจ้งเตือนปริมาณอาหาร (ใกล้หมด / หมดแล้ว)
     // ---------------------------------------------------------
     try {
-      final response = await http.get(Uri.parse('$backendBaseUrl/api/foods?id=1'));
-      
-      if (response.statusCode == 200 && response.body.isNotEmpty && response.body != 'null') {
+      final response = await http.get(
+        Uri.parse('$backendBaseUrl/api/foods?id=1'),
+      );
+
+      if (response.statusCode == 200 &&
+          response.body.isNotEmpty &&
+          response.body != 'null') {
         final decoded = jsonDecode(response.body);
-        
+
         if (decoded != null && decoded is Map<String, dynamic>) {
-          double currentQuantity = (decoded['quantity_current'] as num?)?.toDouble() ?? 0.0;
-          double minQuantity = (decoded['min_quantity'] as num?)?.toDouble() ?? 0.0;
+          double currentQuantity =
+              (decoded['quantity_current'] as num?)?.toDouble() ?? 0.0;
+          double minQuantity =
+              (decoded['min_quantity'] as num?)?.toDouble() ?? 0.0;
           int foodId = decoded['id'] ?? 1; // ดึง ID อาหาร
-          
+
           if (currentQuantity <= 0.0) {
             newNotifications.add({
               "id": foodId,
@@ -65,12 +72,12 @@ class _NotificationsState extends State<Notifications> {
               "time": timeNow,
               "date": dateNow,
             });
-          } 
-          else if (currentQuantity <= minQuantity) {
+          } else if (currentQuantity <= minQuantity) {
             newNotifications.add({
               "id": foodId,
               "type": "food",
-              "title": "⚠️ อาหารใกล้หมด! (เหลือ ${currentQuantity.toStringAsFixed(2)} กก.)",
+              "title":
+                  "⚠️ อาหารใกล้หมด! (เหลือ ${currentQuantity.toStringAsFixed(2)} กก.)",
               "time": timeNow,
               "date": dateNow,
             });
@@ -82,24 +89,28 @@ class _NotificationsState extends State<Notifications> {
     }
 
     // ---------------------------------------------------------
-    // 2. แจ้งเตือนวัคซีน 
+    // 2. แจ้งเตือนวัคซีน
     // ---------------------------------------------------------
     try {
-      final responseVaccine = await http.get(Uri.parse('$backendBaseUrl/api/notifications/vaccines'));
-      
-      if (responseVaccine.statusCode == 200 && responseVaccine.body.isNotEmpty && responseVaccine.body != 'null') {
+      final responseVaccine = await http.get(
+        Uri.parse('$backendBaseUrl/api/notifications/vaccines'),
+      );
+
+      if (responseVaccine.statusCode == 200 &&
+          responseVaccine.body.isNotEmpty &&
+          responseVaccine.body != 'null') {
         final decoded = jsonDecode(responseVaccine.body);
-        
+
         if (decoded is List) {
           for (var v in decoded) {
             if (v is Map<String, dynamic>) {
               // 🌟 สำคัญ: ดึง ID ของวัคซีนมาด้วย เพื่อใช้ตอนอัปเดตสถานะ
-              int id = v['id'] ?? v['vaccine_id'] ?? 0; 
+              int id = v['id'] ?? v['vaccine_id'] ?? 0;
               String vaccineName = v['name'] ?? 'วัคซีน';
               String coopName = v['coop_name'] ?? 'ไม่ระบุคอก';
-              bool isToday = v['is_today'] ?? false; 
+              bool isToday = v['is_today'] ?? false;
 
-              String notiTitle = isToday 
+              String notiTitle = isToday
                   ? "‼️ วันนี้ถึงกำหนดให้ $vaccineName ที่ $coopName"
                   : "💉 พรุ่งนี้มีคิวให้ $vaccineName ที่ $coopName";
 
@@ -107,7 +118,7 @@ class _NotificationsState extends State<Notifications> {
                 "id": id,
                 "type": "vaccine", // ระบุประเภท
                 "title": notiTitle,
-                "time": timeNow, 
+                "time": timeNow,
                 "date": dateNow,
               });
             }
@@ -119,22 +130,26 @@ class _NotificationsState extends State<Notifications> {
     }
 
     // ---------------------------------------------------------
-    // 3. แจ้งเตือนตรวจสุขภาพ 
+    // 3. แจ้งเตือนตรวจสุขภาพ
     // ---------------------------------------------------------
     try {
-      final responseHealth = await http.get(Uri.parse('$backendBaseUrl/api/notifications/health_checks'));
-      
-      if (responseHealth.statusCode == 200 && responseHealth.body.isNotEmpty && responseHealth.body != 'null') {
+      final responseHealth = await http.get(
+        Uri.parse('$backendBaseUrl/api/notifications/health_checks'),
+      );
+
+      if (responseHealth.statusCode == 200 &&
+          responseHealth.body.isNotEmpty &&
+          responseHealth.body != 'null') {
         final decoded = jsonDecode(responseHealth.body);
-        
+
         if (decoded is List) {
           for (var h in decoded) {
             if (h is Map<String, dynamic>) {
               int id = h['id'] ?? h['check_id'] ?? 0;
               String coopName = h['coop_name'] ?? 'ไม่ระบุคอก';
-              bool isToday = h['is_today'] ?? false; 
+              bool isToday = h['is_today'] ?? false;
 
-              String notiTitle = isToday 
+              String notiTitle = isToday
                   ? "🩺 วันนี้คอกไก่ที่ $coopName ต้องตรวจสุขภาพ"
                   : "🩺 พรุ่งนี้ถึงคอกไก่ที่ $coopName ต้องตรวจสุขภาพแล้ว";
 
@@ -142,7 +157,7 @@ class _NotificationsState extends State<Notifications> {
                 "id": id,
                 "type": "health", // ระบุประเภท
                 "title": notiTitle,
-                "time": timeNow, 
+                "time": timeNow,
                 "date": dateNow,
               });
             }
@@ -160,7 +175,10 @@ class _NotificationsState extends State<Notifications> {
   }
 
   // 🌟 2. ฟังก์ชันจัดการเมื่อกดปุ่ม "เสร็จสิ้น" หรือ "ลบ"
-  Future<void> _handleNotificationAction(int index, Map<String, dynamic> data) async {
+  Future<void> _handleNotificationAction(
+    int index,
+    Map<String, dynamic> data,
+  ) async {
     String type = data['type'];
     int id = data['id'];
 
@@ -174,7 +192,9 @@ class _NotificationsState extends State<Notifications> {
     } else if (type == 'health') {
       // 💡 ส่งข้อมูลไปบอก Backend ว่าตรวจสุขภาพเสร็จแล้ว (ปรับ URL ให้ตรงกับ Backend ของคุณ)
       try {
-        await http.put(Uri.parse('$backendBaseUrl/api/health_checks/complete/$id'));
+        await http.put(
+          Uri.parse('$backendBaseUrl/api/health_checks/complete/$id'),
+        );
       } catch (e) {
         debugPrint("Error updating health check status: $e");
       }
@@ -187,14 +207,26 @@ class _NotificationsState extends State<Notifications> {
   }
 
   void onTabSelected(int index) {
-    if(index == 0){
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
-    } else if(index == 1){
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CloseOpenDoor()));
-    } else if(index == 3){
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Mainchicken()));
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+      );
+    } else if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Mainchicken()),
+      );
     } else if (index == 4) {
-       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainShowDataFood()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
+      );
     }
     setState(() {
       selectedIndex = index;
@@ -207,12 +239,14 @@ class _NotificationsState extends State<Notifications> {
     String time = data["time"];
     String date = data["date"];
     String type = data["type"];
-    
+
     bool isUrgent = title.contains("อาหารหมดแล้ว");
 
     // กำหนดข้อความและสีของปุ่มตามประเภท
     String buttonText = type == "food" ? "รับทราบ" : "เสร็จสิ้น";
-    Color buttonColor = type == "food" ? Colors.blueAccent : const Color(0xFF4CAF50); // สีเขียวสำหรับปุ่มเสร็จสิ้น
+    Color buttonColor = type == "food"
+        ? Colors.blueAccent
+        : const Color(0xFF4CAF50); // สีเขียวสำหรับปุ่มเสร็จสิ้น
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
@@ -220,7 +254,9 @@ class _NotificationsState extends State<Notifications> {
       decoration: BoxDecoration(
         color: isUrgent ? const Color(0xFF3A2020) : ezCardColor(context),
         borderRadius: BorderRadius.circular(20),
-        border: isUrgent ? Border.all(color: Colors.redAccent.withOpacity(0.5), width: 1.5) : null,
+        border: isUrgent
+            ? Border.all(color: Colors.redAccent.withOpacity(0.5), width: 1.5)
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
@@ -271,9 +307,12 @@ class _NotificationsState extends State<Notifications> {
               GestureDetector(
                 onTap: () => _handleNotificationAction(index, data),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: buttonColor, 
+                    color: buttonColor,
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: Text(
@@ -302,62 +341,67 @@ class _NotificationsState extends State<Notifications> {
       backgroundColor: ezBackgroundColor(context),
       body: SafeArea(
         child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
-          constraints: BoxConstraints(minHeight: screenHeight),
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
-                    child: EzHeader(pageTitle: 'การแจ้งเตือน'),
-                  ),
-                  const SizedBox(height: 20),
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            constraints: BoxConstraints(minHeight: screenHeight),
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: EzHeader(pageTitle: 'การแจ้งเตือน'),
+                    ),
+                    const SizedBox(height: 20),
 
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: isLoading
-                      ? Skeletonizer(
-                          enabled: true,
-                          child: Column(
-                            children: List.generate(
-                              4,
-                              (i) => _buildNotificationCard({
-                                "title": "แจ้งเตือนตัวอย่าง",
-                                "time": "00:00",
-                                "date": "01/01/2026",
-                                "type": "task",
-                              }, i),
-                            ),
-                          ),
-                        )
-                      : notificationsList.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 30),
-                              child: Text(
-                                "ไม่มีการแจ้งเตือน",
-                                style: GoogleFonts.kanit(fontSize: 16, color: Colors.grey),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: isLoading
+                          ? Skeletonizer(
+                              enabled: true,
+                              child: Column(
+                                children: List.generate(
+                                  4,
+                                  (i) => _buildNotificationCard({
+                                    "title": "แจ้งเตือนตัวอย่าง",
+                                    "time": "00:00",
+                                    "date": "01/01/2026",
+                                    "type": "task",
+                                  }, i),
+                                ),
                               ),
+                            )
+                          : notificationsList.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 30),
+                                child: Text(
+                                  "ไม่มีการแจ้งเตือน",
+                                  style: GoogleFonts.kanit(
+                                    fontSize: 16,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Column(
+                              children: [
+                                ...notificationsList.asMap().entries.map((
+                                  entry,
+                                ) {
+                                  int idx = entry.key;
+                                  Map<String, dynamic> data = entry.value;
+                                  return _buildNotificationCard(data, idx);
+                                }),
+                                const SizedBox(height: 100),
+                              ],
                             ),
-                          )
-                        : Column(
-                            children: [
-                              ...notificationsList.asMap().entries.map((entry) {
-                                int idx = entry.key;
-                                Map<String, dynamic> data = entry.value;
-                                return _buildNotificationCard(data, idx);
-                              }),
-                              const SizedBox(height: 100), 
-                            ],
-                          ),
-                  ),
-                ],
-              ),
-            ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
         ),
       ),
       bottomNavigationBar: CustomBottomBar(

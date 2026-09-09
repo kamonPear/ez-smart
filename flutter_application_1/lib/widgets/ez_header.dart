@@ -89,10 +89,7 @@ class EzHeader extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(
-              width: 40,
-              child: EzThemeToggleButton(),
-            ),
+            const SizedBox(width: 40, child: EzThemeToggleButton()),
           ],
         ),
         const SizedBox(height: 10),

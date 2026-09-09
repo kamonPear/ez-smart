@@ -14,6 +14,7 @@ import '../../utils/thai_date.dart';
 import '../../widgets/ez_skeleton.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../services/backend_config.dart';
+import '../../widgets/ez_top_banner.dart';
 
 class AddEgg extends StatefulWidget {
   final String? initialCoopId;
@@ -181,18 +182,18 @@ class _AddEggState extends State<AddEgg> {
 
   Future<void> _submitEggData() async {
     if (_selectedCoop == null) {
-      _showSnackBar('กรุณาเลือกคอกไก่');
+      _showBanner('กรุณาเลือกคอกไก่');
       return;
     }
 
     if (_eggCountController.text.trim().isEmpty) {
-      _showSnackBar('กรุณากรอกจำนวนไข่');
+      _showBanner('กรุณากรอกจำนวนไข่');
       return;
     }
 
     int? eggCount = int.tryParse(_eggCountController.text.trim());
     if (eggCount == null || eggCount < 0) {
-      _showSnackBar('กรุณากรอกตัวเลขจำนวนไข่ที่ถูกต้อง');
+      _showBanner('กรุณากรอกตัวเลขจำนวนไข่ที่ถูกต้อง');
       return;
     }
 
@@ -224,18 +225,19 @@ class _AddEggState extends State<AddEgg> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        _showSnackBar('บันทึกข้อมูลสำเร็จ', isSuccess: true);
+        _showBanner('บันทึกข้อมูลสำเร็จ', type: EzBannerType.success);
         _eggCountController.clear();
         _noteController.clear();
         setState(() => _selectedDate = DateTime.now());
         _fetchEggData();
       } else {
-        _showSnackBar(
+        _showBanner(
           'เกิดข้อผิดพลาดในการบันทึก: Error ${response.statusCode}',
+          type: EzBannerType.error,
         );
       }
     } catch (e) {
-      _showSnackBar('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+      _showBanner('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', type: EzBannerType.error);
     } finally {
       setState(() {
         isSubmitting = false;
@@ -254,13 +256,16 @@ class _AddEggState extends State<AddEgg> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
-        _showSnackBar('ลบข้อมูลสำเร็จ', isSuccess: true);
+        _showBanner('ลบข้อมูลสำเร็จ', type: EzBannerType.success);
         _fetchEggData();
       } else {
-        _showSnackBar('เกิดข้อผิดพลาดในการลบ: Error ${response.statusCode}');
+        _showBanner(
+          'เกิดข้อผิดพลาดในการลบ: Error ${response.statusCode}',
+          type: EzBannerType.error,
+        );
       }
     } catch (e) {
-      _showSnackBar('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+      _showBanner('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', type: EzBannerType.error);
       debugPrint("Delete error: $e");
     } finally {
       setState(() {
@@ -310,14 +315,8 @@ class _AddEggState extends State<AddEgg> {
     );
   }
 
-  void _showSnackBar(String message, {bool isSuccess = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: GoogleFonts.kanit()),
-        backgroundColor: isSuccess ? Colors.green : Colors.redAccent,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  void _showBanner(String message, {EzBannerType type = EzBannerType.warning}) {
+    showEzTopBanner(context, message, type: type);
   }
 
   double _calculateMaxY() {

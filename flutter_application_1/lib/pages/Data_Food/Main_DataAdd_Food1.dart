@@ -11,6 +11,7 @@ import '../bottombar.dart';
 import '../close_open_Door.dart';
 import '../../widgets/ez_header.dart';
 import '../../services/backend_config.dart';
+import '../../widgets/ez_top_banner.dart';
 
 class MainaddDataFood extends StatefulWidget {
   const MainaddDataFood({super.key});
@@ -54,9 +55,9 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
 
     double amount = double.tryParse(_amountController.text) ?? 0.0;
     double threshold = double.tryParse(_thresholdController.text) ?? 0.0;
-    
+
     // อัตราการกิน/ตัดสต็อก ต่อวัน (20 กิโลกรัม)
-    double consumePerDay = 20.0; 
+    double consumePerDay = 20.0;
 
     if (amount > 0) {
       int daysLeft = 0;
@@ -87,8 +88,10 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
 
     // ตรวจสอบก่อนส่งว่ากรอกข้อมูลวันที่หรือยัง
     if (_selectedImportDate == null || _selectedExpiryDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณาเลือกวันที่รับเข้าและวันหมดอายุให้ครบถ้วน')),
+      showEzTopBanner(
+        context,
+        'กรุณาเลือกวันที่รับเข้าและวันหมดอายุให้ครบถ้วน',
+        type: EzBannerType.warning,
       );
       return;
     }
@@ -99,49 +102,77 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
         headers: {"Content-Type": "application/json"},
         body: json.encode({
           // 🌟 import_volume เป็น int ฝั่ง backend (models.CreateImportFoodRequest)
-          "import_volume": (double.tryParse(_amountController.text) ?? 0.0).round(),
+          "import_volume": (double.tryParse(_amountController.text) ?? 0.0)
+              .round(),
           "expiry_date": _selectedExpiryDate!.toUtc().toIso8601String(),
         }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('เพิ่มข้อมูลคลังอาหารสำเร็จ!')),
+        showEzTopBanner(
+          context,
+          'เพิ่มข้อมูลคลังอาหารสำเร็จ!',
+          type: EzBannerType.success,
         );
         Navigator.pop(context, true);
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('บันทึกไม่สำเร็จ (${response.statusCode}): ${response.body}')),
+        showEzTopBanner(
+          context,
+          'บันทึกไม่สำเร็จ (${response.statusCode}): ${response.body}',
+          type: EzBannerType.error,
         );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาดในการเชื่อมต่อ: $e')),
+      showEzTopBanner(
+        context,
+        'เกิดข้อผิดพลาดในการเชื่อมต่อ: $e',
+        type: EzBannerType.error,
       );
     }
   }
 
   void onTabSelected(int index) {
     if (index == 0) {
-       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
     } else if (index == 1) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CloseOpenDoor()));
-    } else if(index == 3){
-       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Mainchicken()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+      );
+    } else if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Mainchicken()),
+      );
     } else if (index == 4) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainShowDataFood()));
-    } else if(index == 2){
-       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ShowChart()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
+      );
     } else {
-      setState(() { selectedIndex = index; });
+      setState(() {
+        selectedIndex = index;
+      });
     }
   }
 
   // 🌟 ฟังก์ชันเปิดปฏิทินที่บันทึกค่าลงตัวแปร DateTime ด้วย
-  Future<void> _selectDate(BuildContext context, TextEditingController controller, bool isImportDate) async {
+  Future<void> _selectDate(
+    BuildContext context,
+    TextEditingController controller,
+    bool isImportDate,
+  ) async {
     DateTime initialDate = DateTime.now();
 
     final DateTime? picked = await showDatePicker(
@@ -190,21 +221,25 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     required TextEditingController controller,
     bool readOnly = false,
     VoidCallback? onTap,
-    bool showCalendarIcon = false, 
-    TextInputType? keyboardType, 
+    bool showCalendarIcon = false,
+    TextInputType? keyboardType,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       child: Row(
         children: [
           SizedBox(
-            width: 140, 
+            width: 140,
             child: Padding(
               padding: const EdgeInsets.only(right: 10.0),
               child: Text(
                 label,
-                style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.normal, color: ezColors(context).textPrimary), 
-                textAlign: TextAlign.end, 
+                style: GoogleFonts.kanit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.normal,
+                  color: ezColors(context).textPrimary,
+                ),
+                textAlign: TextAlign.end,
               ),
             ),
           ),
@@ -213,21 +248,31 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
               children: [
                 Expanded(
                   child: Container(
-                    height: 36, 
+                    height: 36,
                     decoration: BoxDecoration(
-                      color: ezColors(context).inputFill, 
+                      color: ezColors(context).inputFill,
                       borderRadius: BorderRadius.circular(5),
-                      border: Border.all(color: ezColors(context).border, width: 1.0), 
+                      border: Border.all(
+                        color: ezColors(context).border,
+                        width: 1.0,
+                      ),
                     ),
                     child: TextField(
                       controller: controller,
                       readOnly: readOnly,
                       onTap: onTap,
                       keyboardType: keyboardType, // 🌟 ใช้งาน keyboardType
-                      style: GoogleFonts.kanit(fontSize: 16, color: ezColors(context).textPrimary, fontWeight: FontWeight.normal),
+                      style: GoogleFonts.kanit(
+                        fontSize: 16,
+                        color: ezColors(context).textPrimary,
+                        fontWeight: FontWeight.normal,
+                      ),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
                         isDense: true,
                       ),
                     ),
@@ -237,7 +282,11 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
                   const SizedBox(width: 5),
                   GestureDetector(
                     onTap: onTap,
-                    child: Icon(Icons.calendar_today_outlined, color: ezColors(context).textPrimary, size: 22),
+                    child: Icon(
+                      Icons.calendar_today_outlined,
+                      color: ezColors(context).textPrimary,
+                      size: 22,
+                    ),
                   ),
                 ],
               ],
@@ -263,88 +312,116 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
             ),
             Expanded(
               child: Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 340,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-                    decoration: ezCardDecoration(context, radius: 15),
-                    child: Column(
-                      children: [
-                        Text(
-                          "เพิ่มข้อมูลคลังอาหาร",
-                          style: GoogleFonts.kanit(fontSize: 22, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary) 
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 340,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 25,
                         ),
-                        const SizedBox(height: 25), 
-
-                        _buildTextField(
-                          label: "วันที่นำอาหารเข้า",
-                          controller: _dateReceivedController,
-                          readOnly: true,
-                          onTap: () => _selectDate(context, _dateReceivedController, true), 
-                          showCalendarIcon: true, 
-                        ),
-                        // 🌟 เพิ่ม keyboardType ให้ขึ้นแป้นพิมพ์ตัวเลข
-                        _buildTextField(
-                          label: "ปริมาณที่นำเข้า",
-                          controller: _amountController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        ),
-                        // 🌟 เพิ่ม keyboardType ให้ขึ้นแป้นพิมพ์ตัวเลข
-                        _buildTextField(
-                          label: "กำหนดปริมาณใกล้หมด",
-                          controller: _thresholdController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        ),
-                        _buildTextField(
-                          label: "วันที่อาหารใกล้หมด",
-                          controller: _expireDateController,
-                          readOnly: true,
-                          // ยังคงปุ่มเปิดปฏิทินไว้ เผื่อแอดมินต้องการแก้ไขวันที่คำนวณอัตโนมัติ
-                          onTap: () => _selectDate(context, _expireDateController, false), 
-                          showCalendarIcon: true, 
-                        ),
-
-                        const SizedBox(height: 20), 
-
-                        GestureDetector(
-                          onTap: () => _saveFoodData(),
-                          child: Container(
-                            width: double.infinity, 
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6FE975), 
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  offset: const Offset(0, 3),
-                                  blurRadius: 4
-                                )
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                "เข้าสต็อกอาหาร",
-                                style: GoogleFonts.kanit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)
+                        decoration: ezCardDecoration(context, radius: 15),
+                        child: Column(
+                          children: [
+                            Text(
+                              "เพิ่มข้อมูลคลังอาหาร",
+                              style: GoogleFonts.kanit(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: ezColors(context).textPrimary,
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 25),
+
+                            _buildTextField(
+                              label: "วันที่นำอาหารเข้า",
+                              controller: _dateReceivedController,
+                              readOnly: true,
+                              onTap: () => _selectDate(
+                                context,
+                                _dateReceivedController,
+                                true,
+                              ),
+                              showCalendarIcon: true,
+                            ),
+                            // 🌟 เพิ่ม keyboardType ให้ขึ้นแป้นพิมพ์ตัวเลข
+                            _buildTextField(
+                              label: "ปริมาณที่นำเข้า",
+                              controller: _amountController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                            ),
+                            // 🌟 เพิ่ม keyboardType ให้ขึ้นแป้นพิมพ์ตัวเลข
+                            _buildTextField(
+                              label: "กำหนดปริมาณใกล้หมด",
+                              controller: _thresholdController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                            ),
+                            _buildTextField(
+                              label: "วันที่อาหารใกล้หมด",
+                              controller: _expireDateController,
+                              readOnly: true,
+                              // ยังคงปุ่มเปิดปฏิทินไว้ เผื่อแอดมินต้องการแก้ไขวันที่คำนวณอัตโนมัติ
+                              onTap: () => _selectDate(
+                                context,
+                                _expireDateController,
+                                false,
+                              ),
+                              showCalendarIcon: true,
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            GestureDetector(
+                              onTap: () => _saveFoodData(),
+                              child: Container(
+                                width: double.infinity,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6FE975),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      offset: const Offset(0, 3),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    "เข้าสต็อกอาหาร",
+                                    style: GoogleFonts.kanit(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: CustomBottomBar(selectedIndex: selectedIndex, onTabSelected: onTabSelected),
+      bottomNavigationBar: CustomBottomBar(
+        selectedIndex: selectedIndex,
+        onTabSelected: onTabSelected,
+      ),
     );
   }
 }

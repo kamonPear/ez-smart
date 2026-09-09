@@ -16,7 +16,9 @@ class ApiService {
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
       final body = json.decode(resp.body);
       if (body is List) {
-        return body.map((e) => Coop.fromJson(e as Map<String, dynamic>)).toList();
+        return body
+            .map((e) => Coop.fromJson(e as Map<String, dynamic>))
+            .toList();
       } else if (body is Map && body['data'] is List) {
         return (body['data'] as List)
             .map((e) => Coop.fromJson(e as Map<String, dynamic>))

@@ -10,12 +10,13 @@ import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
-import '../close_open_Door.dart';           
-import 'Main_EditData_ShowFood1.dart';  
+import '../close_open_Door.dart';
+import 'Main_EditData_ShowFood1.dart';
 import '../../services/backend_config.dart';
 import '../../utils/thai_date.dart';
 import '../../widgets/ez_header.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import '../../widgets/ez_top_banner.dart';
 
 class MainShowDataFood extends StatefulWidget {
   const MainShowDataFood({super.key});
@@ -29,12 +30,13 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   bool isLoading = true;
 
   Map<String, String>? foodData;
-  Map<String, dynamic>? rawData; // 🌟 เพิ่มตัวแปรสำหรับเก็บข้อมูลดิบจากฐานข้อมูล
-  String? currentFoodId; 
-  
+  Map<String, dynamic>?
+  rawData; // 🌟 เพิ่มตัวแปรสำหรับเก็บข้อมูลดิบจากฐานข้อมูล
+  String? currentFoodId;
+
   double currentPercent = 0.0;
   String expireStatusText = "กำลังโหลดข้อมูล...";
-  
+
   List<dynamic> foodHistory = [];
   final TextEditingController _updateQtyController = TextEditingController();
   DateTime? _selectedUpdateExpiryDate;
@@ -42,8 +44,8 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   @override
   void initState() {
     super.initState();
-    _fetchFoodData(); 
-    _fetchFoodHistory(); 
+    _fetchFoodData();
+    _fetchFoodHistory();
   }
 
   @override
@@ -54,71 +56,89 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
 
   String _getThaiMonthShort(int month) {
     const List<String> thaiMonths = [
-      "", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
-      "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+      "",
+      "ม.ค.",
+      "ก.พ.",
+      "มี.ค.",
+      "เม.ย.",
+      "พ.ค.",
+      "มิ.ย.",
+      "ก.ค.",
+      "ส.ค.",
+      "ก.ย.",
+      "ต.ค.",
+      "พ.ย.",
+      "ธ.ค.",
     ];
     if (month < 1 || month > 12) return "";
     return thaiMonths[month];
   }
 
   Future<void> _fetchFoodData() async {
-    setState(() { isLoading = true; });
+    setState(() {
+      isLoading = true;
+    });
 
     try {
       final response = await http.get(Uri.parse('$backendBaseUrl/api/foods'));
-      
+
       if (response.statusCode == 200) {
         final dynamic decodedData = json.decode(response.body);
         Map<String, dynamic>? data;
 
         if (decodedData is List) {
           if (decodedData.isNotEmpty) {
-            data = decodedData.last; 
+            data = decodedData.last;
           }
         } else if (decodedData is Map<String, dynamic>) {
           data = decodedData;
         }
-        
+
         if (data != null && data['food_id'] != null && data['food_id'] != 0) {
           currentFoodId = data['food_id'].toString();
           rawData = data; // 🌟 เก็บข้อมูลทั้งหมดไว้ เพื่อใช้ตอนส่งอัปเดตกลับไป
 
           double currentQty = (data['quantity_current'] ?? 0).toDouble();
-          double maxQty = (data['max_quantity'] ?? 400).toDouble(); 
-          if (maxQty <= 0) maxQty = 400; 
-          
+          double maxQty = (data['max_quantity'] ?? 400).toDouble();
+          if (maxQty <= 0) maxQty = 400;
+
           double calculatedPercent = (currentQty / maxQty) * 100;
 
           String expireStatus = "ไม่ระบุวันหมด";
-          if (data['expiry_date'] != null && data['expiry_date'].toString().isNotEmpty) {
+          if (data['expiry_date'] != null &&
+              data['expiry_date'].toString().isNotEmpty) {
             try {
               DateTime expDt = DateTime.parse(data['expiry_date']).toLocal();
               DateTime now = DateTime.now();
               DateTime today = DateTime(now.year, now.month, now.day);
               DateTime expDay = DateTime(expDt.year, expDt.month, expDt.day);
-              
+
               int daysDiff = expDay.difference(today).inDays;
               String thaiMonth = _getThaiMonthShort(expDt.month);
-              
+
               if (daysDiff < 0) {
-                 expireStatus = "อาหารหมดอายุแล้ว (${expDt.day} $thaiMonth ${expDt.year + 543})";
+                expireStatus =
+                    "อาหารหมดอายุแล้ว (${expDt.day} $thaiMonth ${expDt.year + 543})";
               } else {
-                 expireStatus = "อาหารจะหมดในอีก : $daysDiff วัน (${expDt.day} $thaiMonth ${expDt.year + 543})";
+                expireStatus =
+                    "อาหารจะหมดในอีก : $daysDiff วัน (${expDt.day} $thaiMonth ${expDt.year + 543})";
               }
             } catch (_) {}
           }
 
           setState(() {
-            currentPercent = calculatedPercent.clamp(0.0, 100.0); 
+            currentPercent = calculatedPercent.clamp(0.0, 100.0);
             expireStatusText = expireStatus;
 
             foodData = {
-              "id": data?['food_id'].toString() ?? "", 
+              "id": data?['food_id'].toString() ?? "",
               "receiveDate": _formatDate(data?['import_date']),
               "amount": _formatAmount(data?['quantity_current']),
               "expireDate": _formatDate(data?['expiry_date']),
               "threshold": "${data?['min_quantity']} กิโลกรัม",
-              "lastUpdateDate": _formatDateTime(data?['updated_at'] ?? data?['date_up']),
+              "lastUpdateDate": _formatDateTime(
+                data?['updated_at'] ?? data?['date_up'],
+              ),
             };
           });
         } else {
@@ -132,33 +152,39 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
       _setEmptyFoodData();
     } finally {
       if (mounted) {
-        setState(() { isLoading = false; });
+        setState(() {
+          isLoading = false;
+        });
       }
     }
   }
 
   void _setEmptyFoodData() {
-    setState(() { 
-      foodData = null; 
+    setState(() {
+      foodData = null;
       rawData = null;
-      currentFoodId = null; 
-      currentPercent = 0.0; 
-      expireStatusText = "ไม่มีข้อมูลอาหาร"; 
+      currentFoodId = null;
+      currentPercent = 0.0;
+      expireStatusText = "ไม่มีข้อมูลอาหาร";
     });
   }
 
   Future<void> _fetchFoodHistory() async {
     try {
-      final url = Uri.parse('$backendBaseUrl/api/food_history'); 
+      final url = Uri.parse('$backendBaseUrl/api/food_history');
       final response = await http.get(url);
-      
+
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
 
         if (decodedData is List) {
-          setState(() { foodHistory = decodedData; });
+          setState(() {
+            foodHistory = decodedData;
+          });
         } else if (decodedData is Map && decodedData.containsKey('data')) {
-          setState(() { foodHistory = decodedData['data']; });
+          setState(() {
+            foodHistory = decodedData['data'];
+          });
         }
       } else {
         debugPrint("Error fetching history: ${response.statusCode}");
@@ -189,7 +215,9 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     );
 
     if (picked != null) {
-      setState(() { _selectedUpdateExpiryDate = picked; });
+      setState(() {
+        _selectedUpdateExpiryDate = picked;
+      });
     }
   }
 
@@ -197,20 +225,26 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   // เพื่อให้ importfood บันทึกปริมาณที่เพิ่มเข้ามาไว้ด้วย (ไม่ใช่แค่ทับยอด foodstock เฉยๆ)
   Future<void> _updateFoodStock() async {
     if (_updateQtyController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("กรุณากรอกปริมาณที่ต้องการอัปเดต", style: GoogleFonts.kanit())),
+      showEzTopBanner(
+        context,
+        "กรุณากรอกปริมาณที่ต้องการอัปเดต",
+        type: EzBannerType.warning,
       );
       return;
     }
 
     if (_selectedUpdateExpiryDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("กรุณาเลือกวันที่อาหารใกล้หมดก่อนอัปเดต", style: GoogleFonts.kanit())),
+      showEzTopBanner(
+        context,
+        "กรุณาเลือกวันที่อาหารใกล้หมดก่อนอัปเดต",
+        type: EzBannerType.warning,
       );
       return;
     }
 
-    setState(() { isLoading = true; });
+    setState(() {
+      isLoading = true;
+    });
 
     try {
       final url = Uri.parse('$backendBaseUrl/api/importfoods');
@@ -235,144 +269,216 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
       print("📌 ข้อความตอบกลับจาก Backend: ${response.body}");
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("อัปเดตสต็อกเรียบร้อยแล้ว!", style: GoogleFonts.kanit())),
+        showEzTopBanner(
+          context,
+          "อัปเดตสต็อกเรียบร้อยแล้ว!",
+          type: EzBannerType.success,
         );
         _updateQtyController.clear();
-        setState(() { _selectedUpdateExpiryDate = null; });
+        setState(() {
+          _selectedUpdateExpiryDate = null;
+        });
         await _fetchFoodData();
         await _fetchFoodHistory();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("อัปเดตไม่สำเร็จ (${response.statusCode})", style: GoogleFonts.kanit())),
+        showEzTopBanner(
+          context,
+          "อัปเดตไม่สำเร็จ (${response.statusCode})",
+          type: EzBannerType.error,
         );
       }
     } catch (e) {
       debugPrint("Error updating stock: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("เกิดข้อผิดพลาดในการเชื่อมต่อ", style: GoogleFonts.kanit())),
+      showEzTopBanner(
+        context,
+        "เกิดข้อผิดพลาดในการเชื่อมต่อ",
+        type: EzBannerType.error,
       );
     } finally {
-      setState(() { isLoading = false; });
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
   // 🌟 ฟังก์ชันลบสต็อกอาหาร
   Future<void> _deleteFoodstock() async {
     if (currentFoodId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("ไม่มีข้อมูลให้ลบ", style: GoogleFonts.kanit())),
-      );
+      showEzTopBanner(context, "ไม่มีข้อมูลให้ลบ", type: EzBannerType.warning);
       return;
     }
 
-    bool confirmDelete = await showDialog(
+    bool confirmDelete =
+        await showDialog(
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
               backgroundColor: ezCardColor(context),
-              title: Text("ยืนยันการลบข้อมูล", style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontWeight: FontWeight.bold)),
-              content: Text("คุณต้องการลบข้อมูลคลังอาหารสัตว์ทั้งหมดในฐานข้อมูลใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนคืนได้", style: GoogleFonts.kanit(color: ezColors(context).textSecondary)),
+              title: Text(
+                "ยืนยันการลบข้อมูล",
+                style: GoogleFonts.kanit(
+                  color: ezColors(context).textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: Text(
+                "คุณต้องการลบข้อมูลคลังอาหารสัตว์ทั้งหมดในฐานข้อมูลใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนคืนได้",
+                style: GoogleFonts.kanit(
+                  color: ezColors(context).textSecondary,
+                ),
+              ),
               actions: [
                 TextButton(
-                  child: Text("ยกเลิก", style: GoogleFonts.kanit(color: Colors.grey)),
+                  child: Text(
+                    "ยกเลิก",
+                    style: GoogleFonts.kanit(color: Colors.grey),
+                  ),
                   onPressed: () => Navigator.of(context).pop(false),
                 ),
                 TextButton(
-                  child: Text("ลบข้อมูล", style: GoogleFonts.kanit(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    "ลบข้อมูล",
+                    style: GoogleFonts.kanit(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   onPressed: () => Navigator.of(context).pop(true),
                 ),
               ],
             );
           },
-        ) ?? false;
+        ) ??
+        false;
 
     if (!confirmDelete) return;
 
-    setState(() { isLoading = true; });
+    setState(() {
+      isLoading = true;
+    });
 
     try {
-      final url = Uri.parse('$backendBaseUrl/api/foods?id=$currentFoodId'); 
+      final url = Uri.parse('$backendBaseUrl/api/foods?id=$currentFoodId');
       print("📌 กำลังส่งคำสั่งลบไปที่: $url");
 
       final response = await http.delete(url);
-      
+
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("ลบข้อมูลอาหารและคลังสำเร็จเรียบร้อยแล้ว!", style: GoogleFonts.kanit())),
+        showEzTopBanner(
+          context,
+          "ลบข้อมูลอาหารและคลังสำเร็จเรียบร้อยแล้ว!",
+          type: EzBannerType.success,
         );
         _fetchFoodData();
-        _fetchFoodHistory(); 
+        _fetchFoodHistory();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("เกิดข้อผิดพลาดจากเซิร์ฟเวอร์: ไม่สามารถลบได้ (${response.statusCode})", style: GoogleFonts.kanit())),
+        showEzTopBanner(
+          context,
+          "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์: ไม่สามารถลบได้ (${response.statusCode})",
+          type: EzBannerType.error,
         );
       }
     } catch (e) {
       debugPrint("Error deleting foodstock: $e");
     } finally {
-      setState(() { isLoading = false; });
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
   // 🌟 เพิ่มฟังก์ชันสั่งตัดสต็อก 20 กก. แบบแมนนวลที่นี่
   Future<void> _forceDeductStock() async {
     if (currentFoodId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("ไม่มีข้อมูลสต็อกให้ตัด", style: GoogleFonts.kanit())),
+      showEzTopBanner(
+        context,
+        "ไม่มีข้อมูลสต็อกให้ตัด",
+        type: EzBannerType.warning,
       );
       return;
     }
 
-    bool confirm = await showDialog(
+    bool confirm =
+        await showDialog(
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
               backgroundColor: ezCardColor(context),
-              title: Text("ยืนยันการตัดสต็อก", style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontWeight: FontWeight.bold)),
-              content: Text("คุณต้องการตัดสต็อกอาหาร 20 กิโลกรัม ใช่หรือไม่?", style: GoogleFonts.kanit(color: ezColors(context).textSecondary)),
+              title: Text(
+                "ยืนยันการตัดสต็อก",
+                style: GoogleFonts.kanit(
+                  color: ezColors(context).textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: Text(
+                "คุณต้องการตัดสต็อกอาหาร 20 กิโลกรัม ใช่หรือไม่?",
+                style: GoogleFonts.kanit(
+                  color: ezColors(context).textSecondary,
+                ),
+              ),
               actions: [
                 TextButton(
-                  child: Text("ยกเลิก", style: GoogleFonts.kanit(color: Colors.grey)),
+                  child: Text(
+                    "ยกเลิก",
+                    style: GoogleFonts.kanit(color: Colors.grey),
+                  ),
                   onPressed: () => Navigator.of(context).pop(false),
                 ),
                 TextButton(
-                  child: Text("ยืนยัน", style: GoogleFonts.kanit(color: const Color(0xFFFFA726), fontWeight: FontWeight.bold)),
+                  child: Text(
+                    "ยืนยัน",
+                    style: GoogleFonts.kanit(
+                      color: const Color(0xFFFFA726),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   onPressed: () => Navigator.of(context).pop(true),
                 ),
               ],
             );
           },
-        ) ?? false;
+        ) ??
+        false;
 
     if (!confirm) return;
 
-    setState(() { isLoading = true; });
+    setState(() {
+      isLoading = true;
+    });
 
     try {
-      final url = Uri.parse('$backendBaseUrl/api/foodstocks/force-deduct'); 
+      final url = Uri.parse('$backendBaseUrl/api/foodstocks/force-deduct');
       print("📌 กำลังส่งคำสั่งตัดสต็อกไปที่: $url");
 
       final response = await http.post(url);
-      
+
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("ตัดสต็อก 20 กก. สำเร็จ!", style: GoogleFonts.kanit())),
+        showEzTopBanner(
+          context,
+          "ตัดสต็อก 20 กก. สำเร็จ!",
+          type: EzBannerType.success,
         );
         await _fetchFoodData();
-        await _fetchFoodHistory(); 
+        await _fetchFoodHistory();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("ตัดสต็อกไม่สำเร็จ (${response.statusCode})", style: GoogleFonts.kanit())),
+        showEzTopBanner(
+          context,
+          "ตัดสต็อกไม่สำเร็จ (${response.statusCode})",
+          type: EzBannerType.error,
         );
       }
     } catch (e) {
       debugPrint("Error deducting foodstock: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("เกิดข้อผิดพลาดในการเชื่อมต่อ", style: GoogleFonts.kanit())),
+      showEzTopBanner(
+        context,
+        "เกิดข้อผิดพลาดในการเชื่อมต่อ",
+        type: EzBannerType.error,
       );
     } finally {
-      setState(() { isLoading = false; });
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -405,17 +511,34 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
 
   void onTabSelected(int index) {
     if (index == 0) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
     } else if (index == 1) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CloseOpenDoor()));
-    } else if(index == 3){
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Mainchicken()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+      );
+    } else if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Mainchicken()),
+      );
     } else if (index == 4) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainShowDataFood()));
-    } else if(index == 2){
-       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ShowChart()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
+      );
     } else {
-      setState(() { selectedIndex = index; });
+      setState(() {
+        selectedIndex = index;
+      });
     }
   }
 
@@ -439,7 +562,11 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     );
   }
 
-  Widget _buildActionBtn({required String text, required Color color, required VoidCallback onTap}) {
+  Widget _buildActionBtn({
+    required String text,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -559,43 +686,73 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                         children: [
                           Text(
                             "ปริมาณคงเหลือปัจจุบัน: ${foodData?['amount'] ?? '0'} กิโลกรัม",
-                            style: GoogleFonts.kanit(fontSize: 18, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary),
+                            style: GoogleFonts.kanit(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: ezColors(context).textPrimary,
+                            ),
                           ),
                           const SizedBox(height: 20),
-                          
+
                           SizedBox(
-                            height: 100, 
+                            height: 100,
                             width: 200,
                             child: Stack(
                               alignment: Alignment.bottomCenter,
                               children: [
                                 CustomPaint(
                                   size: const Size(200, 100),
-                                  painter: GaugePainter(percentage: currentPercent), 
+                                  painter: GaugePainter(
+                                    percentage: currentPercent,
+                                  ),
                                 ),
                                 Positioned(
                                   bottom: 10,
                                   child: Text(
-                                    "${currentPercent.toInt()} %", 
-                                    style: GoogleFonts.kanit(fontSize: 28, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary),
+                                    "${currentPercent.toInt()} %",
+                                    style: GoogleFonts.kanit(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: ezColors(context).textPrimary,
+                                    ),
                                   ),
                                 ),
                                 Positioned(
-                                  bottom: 0, left: 0,
-                                  child: Text("MIN", style: GoogleFonts.kanit(fontSize: 12, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
+                                  bottom: 0,
+                                  left: 0,
+                                  child: Text(
+                                    "MIN",
+                                    style: GoogleFonts.kanit(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: ezColors(context).textPrimary,
+                                    ),
+                                  ),
                                 ),
                                 Positioned(
-                                  bottom: 0, right: 0,
-                                  child: Text("MAX", style: GoogleFonts.kanit(fontSize: 12, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Text(
+                                    "MAX",
+                                    style: GoogleFonts.kanit(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: ezColors(context).textPrimary,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          
+
                           const SizedBox(height: 20),
                           Text(
-                            expireStatusText, 
-                            style: GoogleFonts.kanit(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFFEF5350)),
+                            expireStatusText,
+                            style: GoogleFonts.kanit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFFEF5350),
+                            ),
                           ),
                         ],
                       ),
@@ -607,26 +764,52 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              Text("ปริมาณ (กก.)", style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
-                              Text("วันที่นำอาหารเข้า", style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
+                              Text(
+                                "ปริมาณ (กก.)",
+                                style: GoogleFonts.kanit(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: ezColors(context).textPrimary,
+                                ),
+                              ),
+                              Text(
+                                "วันที่นำอาหารเข้า",
+                                style: GoogleFonts.kanit(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: ezColors(context).textPrimary,
+                                ),
+                              ),
                             ],
                           ),
-                          Divider(color: ezColors(context).border, thickness: 1, height: 20),
-                          
+                          Divider(
+                            color: ezColors(context).border,
+                            thickness: 1,
+                            height: 20,
+                          ),
+
                           if (foodHistory.isEmpty)
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 20),
-                              child: Text("ไม่มีข้อมูลประวัติ", style: GoogleFonts.kanit(color: ezColors(context).textSecondary)),
+                              child: Text(
+                                "ไม่มีข้อมูลประวัติ",
+                                style: GoogleFonts.kanit(
+                                  color: ezColors(context).textSecondary,
+                                ),
+                              ),
                             )
                           else
                             ...foodHistory.map((data) {
                               String amount = "0";
-                              if (data['import_volume'] != null && data['import_volume'] != 0) {
+                              if (data['import_volume'] != null &&
+                                  data['import_volume'] != 0) {
                                 amount = data['import_volume'].toString();
                               } else if (data['quantity_current'] != null) {
                                 amount = data['quantity_current'].toString();
                               }
-                              String date = _formatDateSimple(data['import_date'] ?? data['created_at']);
+                              String date = _formatDateSimple(
+                                data['import_date'] ?? data['created_at'],
+                              );
                               return _buildTableRow(amount, date);
                             }).toList(),
                         ],
@@ -639,7 +822,14 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text("ปริมาณที่อัพเดต", style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
+                              Text(
+                                "ปริมาณที่อัพเดต",
+                                style: GoogleFonts.kanit(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: ezColors(context).textPrimary,
+                                ),
+                              ),
                               Row(
                                 children: [
                                   Container(
@@ -648,16 +838,24 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                                     decoration: BoxDecoration(
                                       color: ezColors(context).inputFill,
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.blueAccent.withOpacity(0.5)),
+                                      border: Border.all(
+                                        color: Colors.blueAccent.withOpacity(
+                                          0.5,
+                                        ),
+                                      ),
                                     ),
                                     child: TextField(
-                                      controller: _updateQtyController, 
+                                      controller: _updateQtyController,
                                       textAlign: TextAlign.center,
-                                      style: GoogleFonts.kanit(color: ezColors(context).inputText),
+                                      style: GoogleFonts.kanit(
+                                        color: ezColors(context).inputText,
+                                      ),
                                       keyboardType: TextInputType.number,
                                       decoration: const InputDecoration(
                                         border: InputBorder.none,
-                                        contentPadding: EdgeInsets.only(bottom: 12),
+                                        contentPadding: EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -673,7 +871,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                                     ),
                                   ),
                                 ],
-                              )
+                              ),
                             ],
                           ),
                           if (_selectedUpdateExpiryDate != null) ...[
@@ -682,7 +880,10 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                               alignment: Alignment.centerRight,
                               child: Text(
                                 "วันหมดอายุ: ${_formatDate(_selectedUpdateExpiryDate!.toIso8601String())}",
-                                style: GoogleFonts.kanit(fontSize: 12, color: ezColors(context).textSecondary),
+                                style: GoogleFonts.kanit(
+                                  fontSize: 12,
+                                  color: ezColors(context).textSecondary,
+                                ),
                               ),
                             ),
                           ],
@@ -704,7 +905,9 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                       onTap: () async {
                         await Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const MainaddDataFood()),
+                          MaterialPageRoute(
+                            builder: (context) => const MainaddDataFood(),
+                          ),
                         );
                         _fetchFoodData();
                         _fetchFoodHistory();
@@ -714,17 +917,19 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                     // 🌟 ปุ่มกดตัดสต็อก (Manual)
                     _buildActionBtn(
                       text: "ตัดสต็อกอาหาร 20 กก. (Manual)",
-                      color: const Color(0xFFFFA726), // ใช้สีส้มเพื่อแยกจากปุ่มอื่นชัดเจน
+                      color: const Color(
+                        0xFFFFA726,
+                      ), // ใช้สีส้มเพื่อแยกจากปุ่มอื่นชัดเจน
                       onTap: _forceDeductStock,
                     ),
 
                     _buildActionBtn(
                       text: "ล้างสต็อกทั้งหมด (ลบข้อมูล)",
-                      color: const Color(0xFFD32F2F), 
-                      onTap: _deleteFoodstock,        
+                      color: const Color(0xFFD32F2F),
+                      onTap: _deleteFoodstock,
                     ),
                     const SizedBox(height: 50),
-                  ]
+                  ],
                 ],
               ),
             ),
@@ -747,8 +952,22 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Text(amount, style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
-              Text(date, style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
+              Text(
+                amount,
+                style: GoogleFonts.kanit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: ezColors(context).textPrimary,
+                ),
+              ),
+              Text(
+                date,
+                style: GoogleFonts.kanit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: ezColors(context).textPrimary,
+                ),
+              ),
             ],
           ),
         ),
@@ -780,7 +999,12 @@ class GaugePainter extends CustomPainter {
     const Gradient gradient = SweepGradient(
       startAngle: pi,
       endAngle: 2 * pi,
-      colors: [Color(0xFF81D4FA), Color(0xFF66BB6A), Color(0xFFFFEE58), Color(0xFFEF5350)],
+      colors: [
+        Color(0xFF81D4FA),
+        Color(0xFF66BB6A),
+        Color(0xFFFFEE58),
+        Color(0xFFEF5350),
+      ],
       stops: [0.0, 0.3, 0.7, 1.0],
     );
 

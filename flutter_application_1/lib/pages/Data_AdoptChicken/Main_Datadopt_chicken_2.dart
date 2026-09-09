@@ -17,6 +17,7 @@ import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../utils/thai_date.dart';
+import '../../widgets/ez_top_banner.dart';
 
 class Adoptchicken extends StatefulWidget {
   const Adoptchicken({super.key});
@@ -403,13 +404,15 @@ class _AdoptchickenState extends State<Adoptchicken> {
     final String note = coop.note.trim();
     final bool hasNote = note.isNotEmpty && note != '-';
 
+    // ส่งวันที่แบบ ISO ดิบเข้าไปให้หน้าแก้ไข (ไม่ใช่ข้อความไทยที่ใช้แสดงผล)
+    // ไม่งั้นหน้าแก้ไขจะแปลงกลับไม่ได้ แล้วบันทึกทับวันที่เป็นค่าว่าง
     void openActions() => _showActionDialog(
       index: index,
       id: coop.id,
       name: coop.name,
-      importDate: importDate,
+      importDate: coop.importDate,
       count: coop.count,
-      birthDate: birthDate,
+      birthDate: coop.birthDate,
       note: coop.note,
     );
 
@@ -625,6 +628,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
                               builder: (context) => EditDataAdoptchicken(
                                 initialData: {
                                   "id": id,
+                                  "name": name,
                                   "importDate": importDate,
                                   "count": count,
                                   "birthDate": birthDate,
@@ -638,8 +642,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
                             setState(() {
                               coopDataList[index] = Coop(
                                 id: result['id'] ?? '',
-                                // ✅ ฟอร์มแก้ไขไม่มีช่องแก้ชื่อคอก จึงคงชื่อเดิมไว้
-                                name: name,
+                                name: result['name'] ?? name,
                                 importDate: result['importDate'] ?? '',
                                 count: result['count'] ?? '',
                                 birthDate: result['birthDate'] ?? '',
@@ -719,36 +722,23 @@ class _AdoptchickenState extends State<Adoptchicken> {
         setState(() {
           coopDataList.removeAt(index);
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ลบข้อมูลสำเร็จ', style: GoogleFonts.kanit()),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showEzTopBanner(context, 'ลบข้อมูลสำเร็จ', type: EzBannerType.success);
         return true;
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'เกิดข้อผิดพลาดในการลบ: ${response.statusCode}',
-              style: GoogleFonts.kanit(),
-            ),
-            backgroundColor: Colors.red,
-          ),
+        showEzTopBanner(
+          context,
+          'เกิดข้อผิดพลาดในการลบ: ${response.statusCode}',
+          type: EzBannerType.error,
         );
         return false;
       }
     } catch (e) {
       if (!context.mounted) return false;
       Navigator.of(context, rootNavigator: true).pop(); // ปิด Loading
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: $e',
-            style: GoogleFonts.kanit(),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      showEzTopBanner(
+        context,
+        'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: $e',
+        type: EzBannerType.error,
       );
       return false;
     }
@@ -886,7 +876,6 @@ class _AdoptchickenState extends State<Adoptchicken> {
                 coopDataList.add(
                   Coop(
                     id: result['id'] ?? '',
-                    // ✅ ฟอร์มเพิ่มคอกไม่มีช่องกรอกชื่อคอก จึงใช้เลขคอกแทนไปก่อน
                     name: result['name'] ?? result['id'] ?? '',
                     importDate: result['importDate'] ?? '',
                     count: result['count'] ?? '',

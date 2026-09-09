@@ -11,6 +11,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
 import '../close_open_Door.dart';
 import '../../services/backend_config.dart';
+import '../../widgets/ez_top_banner.dart';
 
 class MainEditdataShowfood1 extends StatefulWidget {
   final Map<String, String> initialData;
@@ -33,12 +34,18 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
   @override
   void initState() {
     super.initState();
-    _dateReceivedController = TextEditingController(text: widget.initialData['receiveDate']);
-    _expireDateController = TextEditingController(text: widget.initialData['expireDate']);
-    
-    String amountText = widget.initialData['amount']?.replaceAll(' กิโลกรัม', '') ?? '';
-    String thresholdText = widget.initialData['threshold']?.replaceAll(' กิโลกรัม', '') ?? '';
-    
+    _dateReceivedController = TextEditingController(
+      text: widget.initialData['receiveDate'],
+    );
+    _expireDateController = TextEditingController(
+      text: widget.initialData['expireDate'],
+    );
+
+    String amountText =
+        widget.initialData['amount']?.replaceAll(' กิโลกรัม', '') ?? '';
+    String thresholdText =
+        widget.initialData['threshold']?.replaceAll(' กิโลกรัม', '') ?? '';
+
     _amountController = TextEditingController(text: amountText);
     _thresholdController = TextEditingController(text: thresholdText);
   }
@@ -54,21 +61,41 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
 
   void onTabSelected(int index) {
     if (index == 0) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
     } else if (index == 1) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const CloseOpenDoor()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+      );
     } else if (index == 3) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Mainchicken()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Mainchicken()),
+      );
     } else if (index == 4) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainShowDataFood()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
+      );
     } else if (index == 2) {
-       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ShowChart()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
+      );
     } else {
-      setState(() { selectedIndex = index; });
+      setState(() {
+        selectedIndex = index;
+      });
     }
   }
 
-  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+  Future<void> _selectDate(
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
     DateTime initialDate = DateTime.now();
     if (controller.text.isNotEmpty) {
       try {
@@ -76,7 +103,7 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
         if (parts.length == 3) {
           int day = int.parse(parts[0].trim());
           int month = int.parse(parts[1].trim());
-          int year = int.parse(parts[2].trim()) - 543; 
+          int year = int.parse(parts[2].trim()) - 543;
           initialDate = DateTime(year, month, day);
         }
       } catch (e) {
@@ -98,7 +125,9 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
               onSurface: Colors.black,
             ),
             textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(foregroundColor: const Color(0xFF6FE975)),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF6FE975),
+              ),
             ),
           ),
           child: child!,
@@ -125,10 +154,10 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
         int day = int.parse(parts[0].trim());
         int month = int.parse(parts[1].trim());
         int year = int.parse(parts[2].trim()) - 543;
-        
+
         String d = day.toString().padLeft(2, '0');
         String m = month.toString().padLeft(2, '0');
-        
+
         return "$year-$m-${d}T00:00:00Z";
       }
     } catch (e) {
@@ -142,11 +171,13 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
     // ดักจับ Error: เช็คว่ามี ID ส่งมาให้หน้านี้จริงหรือไม่
     String foodIdStr = widget.initialData['id'] ?? '';
     if (foodIdStr.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ไม่พบ ID ของรายการนี้ ไม่สามารถแก้ไขได้'), backgroundColor: Colors.red),
+      showEzTopBanner(
+        context,
+        'ไม่พบ ID ของรายการนี้ ไม่สามารถแก้ไขได้',
+        type: EzBannerType.error,
       );
       print("🚨 ข้อมูล widget.initialData ไม่มี Key 'id' หรือค่าเป็น null");
-      return; 
+      return;
     }
 
     setState(() {
@@ -156,8 +187,12 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
     try {
       var url = Uri.parse('$backendBaseUrl/api/foods?id=$foodIdStr');
 
-      String amountVal = _amountController.text.replaceAll(' กิโลกรัม', '').trim();
-      String thresholdVal = _thresholdController.text.replaceAll(' กิโลกรัม', '').trim();
+      String amountVal = _amountController.text
+          .replaceAll(' กิโลกรัม', '')
+          .trim();
+      String thresholdVal = _thresholdController.text
+          .replaceAll(' กิโลกรัม', '')
+          .trim();
 
       // แปลงเป็นทศนิยมเพื่อให้ตรงกับ float64 ของ Go
       double quantity = double.tryParse(amountVal) ?? 0.0;
@@ -169,28 +204,30 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
       var requestBody = {
         "quantity_current": quantity,
         "min_quantity": minQuantity,
-        "import_date": isoImportDate, 
+        "import_date": isoImportDate,
         "expiry_date": isoExpireDate,
-        "date_up": DateTime.now().toUtc().toIso8601String(), 
+        "date_up": DateTime.now().toUtc().toIso8601String(),
       };
 
-      print("📦 ข้อมูลที่จะส่งไป Go: ${jsonEncode(requestBody)}"); 
+      print("📦 ข้อมูลที่จะส่งไป Go: ${jsonEncode(requestBody)}");
 
       var response = await http.put(
         url,
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode(requestBody), 
+        body: jsonEncode(requestBody),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('บันทึกการแก้ไขสำเร็จ!'), backgroundColor: Colors.green),
+          showEzTopBanner(
+            context,
+            'บันทึกการแก้ไขสำเร็จ!',
+            type: EzBannerType.success,
           );
-          
+
           Map<String, String> updatedDataForUI = {
             "id": foodIdStr,
-            "receiveDate": _dateReceivedController.text, 
+            "receiveDate": _dateReceivedController.text,
             "amount": "$amountVal กิโลกรัม",
             "expireDate": _expireDateController.text,
             "threshold": "$thresholdVal กิโลกรัม",
@@ -199,28 +236,37 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: ${response.statusCode}'), backgroundColor: Colors.red),
+          showEzTopBanner(
+            context,
+            'Error: ${response.statusCode}',
+            type: EzBannerType.error,
           );
-          print("🚨 Go Error Response: ${response.body}"); 
+          print("🚨 Go Error Response: ${response.body}");
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: $e'), backgroundColor: Colors.red),
+        showEzTopBanner(
+          context,
+          'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: $e',
+          type: EzBannerType.error,
         );
       }
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false; 
+          _isLoading = false;
         });
       }
     }
   }
 
-  Widget _buildTextFieldGroup(String label, TextEditingController controller, {bool readOnly = false, VoidCallback? onTap}) {
+  Widget _buildTextFieldGroup(
+    String label,
+    TextEditingController controller, {
+    bool readOnly = false,
+    VoidCallback? onTap,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -228,7 +274,11 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
           padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
           child: Text(
             label,
-            style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+            style: GoogleFonts.kanit(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
           ),
         ),
         Container(
@@ -238,13 +288,20 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
             borderRadius: BorderRadius.circular(15),
           ),
           child: TextField(
-            controller: controller, 
-            readOnly: readOnly,     
-            onTap: onTap,           
-            style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+            controller: controller,
+            readOnly: readOnly,
+            onTap: onTap,
+            style: GoogleFonts.kanit(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
             decoration: const InputDecoration(
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 15,
+                vertical: 10,
+              ),
             ),
           ),
         ),
@@ -255,12 +312,12 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
 
   Widget _buildActionButton(String text, Color color, VoidCallback onTap) {
     return GestureDetector(
-      onTap: _isLoading ? null : onTap, 
+      onTap: _isLoading ? null : onTap,
       child: Container(
         width: 120,
         height: 50,
         decoration: BoxDecoration(
-          color: _isLoading ? Colors.grey : color, 
+          color: _isLoading ? Colors.grey : color,
           borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
@@ -273,7 +330,11 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
         child: Center(
           child: Text(
             text,
-            style: GoogleFonts.kanit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+            style: GoogleFonts.kanit(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         ),
       ),
@@ -321,22 +382,54 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
               child: Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 25,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFBDDDE9),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 3)),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
                       ],
                     ),
                     child: Column(
                       children: [
-                        Text("แก้ไขข้อมูลคลังอาหาร", style: GoogleFonts.kanit(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.black)),
+                        Text(
+                          "แก้ไขข้อมูลคลังอาหาร",
+                          style: GoogleFonts.kanit(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black,
+                          ),
+                        ),
                         const SizedBox(height: 20),
-                        _buildTextFieldGroup("วัน / เดือน / ปี ที่รับอาหารเข้า", _dateReceivedController, readOnly: true, onTap: () => _selectDate(context, _dateReceivedController)),
-                        _buildTextFieldGroup("จำนวนอาหารที่รับเข้า (กิโลกรัม)", _amountController),
-                        _buildTextFieldGroup("วันอาหารจะหมดอายุ", _expireDateController, readOnly: true, onTap: () => _selectDate(context, _expireDateController)),
-                        _buildTextFieldGroup("กำหนดค่าปริมาณใกล้จะหมด (กิโลกรัม)", _thresholdController),
+                        _buildTextFieldGroup(
+                          "วัน / เดือน / ปี ที่รับอาหารเข้า",
+                          _dateReceivedController,
+                          readOnly: true,
+                          onTap: () =>
+                              _selectDate(context, _dateReceivedController),
+                        ),
+                        _buildTextFieldGroup(
+                          "จำนวนอาหารที่รับเข้า (กิโลกรัม)",
+                          _amountController,
+                        ),
+                        _buildTextFieldGroup(
+                          "วันอาหารจะหมดอายุ",
+                          _expireDateController,
+                          readOnly: true,
+                          onTap: () =>
+                              _selectDate(context, _expireDateController),
+                        ),
+                        _buildTextFieldGroup(
+                          "กำหนดค่าปริมาณใกล้จะหมด (กิโลกรัม)",
+                          _thresholdController,
+                        ),
                       ],
                     ),
                   ),
@@ -347,14 +440,14 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _buildActionButton("บันทึก", const Color(0xFF66E675), () {
-                        _updateDataToAPI(); 
+                        _updateDataToAPI();
                       }),
                       _buildActionButton("ยกเลิก", const Color(0xFFEB856D), () {
                         Navigator.pop(context);
                       }),
                     ],
                   ),
-                  const SizedBox(height: 50), 
+                  const SizedBox(height: 50),
                 ],
               ),
             ),
@@ -362,23 +455,55 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
 
           // Header
           Positioned(
-            top: 0, left: 0, right: 0,
+            top: 0,
+            left: 0,
+            right: 0,
             child: SafeArea(
               child: Container(
                 height: 160,
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20.0,
+                  vertical: 10.0,
+                ),
                 child: Stack(
                   children: [
-                    Positioned(left: 0, top: 0, child: Image.asset('assets/images/logo.png', width: 120, height: 120)),
                     Positioned(
-                      left: 135, top: 25,
-                      child: Text('EZ -\nSMART\nFARM', style: GoogleFonts.kanit(fontSize: 28, height: 1.1, fontWeight: FontWeight.bold, color: Colors.white)),
+                      left: 0,
+                      top: 0,
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        width: 120,
+                        height: 120,
+                      ),
                     ),
                     Positioned(
-                      right: 0, bottom: 20,
+                      left: 135,
+                      top: 25,
+                      child: Text(
+                        'EZ -\nSMART\nFARM',
+                        style: GoogleFonts.kanit(
+                          fontSize: 28,
+                          height: 1.1,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 20,
                       child: GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const Notifications())),
-                        child: const Icon(Icons.notifications_active, color: Colors.black87, size: 32),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const Notifications(),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_active,
+                          color: Colors.black87,
+                          size: 32,
+                        ),
                       ),
                     ),
                   ],
@@ -400,7 +525,10 @@ class _MainEditdataShowfood1State extends State<MainEditdataShowfood1> {
         ],
       ),
 
-      bottomNavigationBar: CustomBottomBar(selectedIndex: selectedIndex, onTabSelected: onTabSelected),
+      bottomNavigationBar: CustomBottomBar(
+        selectedIndex: selectedIndex,
+        onTabSelected: onTabSelected,
+      ),
     );
   }
 }

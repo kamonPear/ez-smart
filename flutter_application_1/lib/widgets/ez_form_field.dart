@@ -163,6 +163,60 @@ class _EzFormTextFieldState extends State<EzFormTextField> {
   }
 }
 
+/// ช่องเลือกวันที่พร้อม label ด้านซ้าย ดีไซน์เดียวกับ [EzFormTextField]
+/// ตัวช่องไม่ให้พิมพ์เอง แตะแล้วให้หน้าที่เรียกใช้เปิดปฏิทินผ่าน [onTap]
+/// (ปล่อยให้แต่ละหน้าคุมรูปแบบวันที่ที่เก็บใน controller เอง เช่น พ.ศ.)
+class EzFormDateField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final VoidCallback onTap;
+  final bool isRequired;
+  final String hintText;
+
+  const EzFormDateField({
+    super.key,
+    required this.label,
+    required this.controller,
+    required this.onTap,
+    this.isRequired = false,
+    this.hintText = 'เลือกวันที่',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ez = ezColors(context);
+    return EzFormRow(
+      label: label,
+      isRequired: isRequired,
+      child: InkWell(
+        onTap: onTap,
+        child: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controller,
+          builder: (context, value, _) {
+            final hasValue = value.text.isNotEmpty;
+            return Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    hasValue ? value.text : hintText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.kanit(
+                      fontSize: hasValue ? 14 : 13,
+                      color: hasValue ? ez.textPrimary : ez.textSecondary,
+                    ),
+                  ),
+                ),
+                Icon(Icons.calendar_today_outlined, size: 16, color: ez.gold),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 /// ดรอปดาวน์มาตรฐานพร้อม label ด้านซ้าย ดีไซน์เดียวกับ [EzFormTextField]
 class EzFormDropdown<T> extends StatelessWidget {
   final String label;

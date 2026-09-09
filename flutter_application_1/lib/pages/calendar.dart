@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/ez_header.dart';
+import '../utils/thai_date.dart';
 
 class CustomCalendar extends StatefulWidget {
   final DateTime? initialDate;
@@ -29,25 +30,6 @@ class _CustomCalendarState extends State<CustomCalendar> {
     // ตั้งค่าวันเริ่มต้น
     selectedDate = widget.initialDate ?? DateTime.now();
     currentMonth = DateTime(selectedDate!.year, selectedDate!.month, 1);
-  }
-
-  // ชื่อเดือนแบบภาษาอังกฤษ
-  String _getMonthName(int month) {
-    const months = [
-      'JANUARY',
-      'FEBRUARY',
-      'MARCH',
-      'APRIL',
-      'MAY',
-      'JUNE',
-      'JULY',
-      'AUGUST',
-      'SEPTEMBER',
-      'OCTOBER',
-      'NOVEMBER',
-      'DECEMBER',
-    ];
-    return months[month - 1];
   }
 
   @override
@@ -90,7 +72,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
                 ),
               ),
               Text(
-                '${_getMonthName(currentMonth.month)} ${currentMonth.year}',
+                thaiMonthYear(currentMonth),
                 style: GoogleFonts.kanit(
                   color: ezColors(context).textPrimary,
                   fontSize: 18,
@@ -116,7 +98,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: ['MON', 'TUES', 'WEDNES', 'THURS', 'FRI', 'SATUR', 'SUN']
+            children: ['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา']
                 .map(
                   (day) => Expanded(
                     child: Center(
@@ -192,7 +174,11 @@ class _CustomCalendarState extends State<CustomCalendar> {
                       Text(
                         day.toString(),
                         style: GoogleFonts.kanit(
-                          color: isSelected ? Colors.black : Colors.white,
+                          // เดิมใช้ Colors.white ตายตัว ตัวเลขเลยมองไม่เห็นเวลาการ์ด
+                          // เป็นพื้นสว่าง (โหมดสว่าง) ต้องอิงสีตามธีมแทน
+                          color: isSelected
+                              ? Colors.black
+                              : ezColors(context).textPrimary,
                           fontSize: 14,
                           height: 1.0,
                           fontWeight: isSelected

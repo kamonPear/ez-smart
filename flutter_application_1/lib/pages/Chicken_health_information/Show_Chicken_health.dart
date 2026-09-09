@@ -16,6 +16,7 @@ import '../../widgets/ez_header.dart';
 import '../../widgets/ez_skeleton.dart';
 import '../../services/backend_config.dart';
 import '../../utils/thai_date.dart';
+import '../../widgets/ez_top_banner.dart';
 
 class Chickenhealth extends StatefulWidget {
   final String? initialCoopId;
@@ -229,36 +230,23 @@ class _ChickenhealthState extends State<Chickenhealth> {
       print('==== ข้อความจาก Backend: ${response.body} ====');
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ลบข้อมูลสำเร็จ', style: GoogleFonts.kanit()),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showEzTopBanner(context, 'ลบข้อมูลสำเร็จ', type: EzBannerType.success);
         return true;
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'เกิดข้อผิดพลาดในการลบ: ${response.statusCode}',
-              style: GoogleFonts.kanit(),
-            ),
-            backgroundColor: Colors.red,
-          ),
+        showEzTopBanner(
+          context,
+          'เกิดข้อผิดพลาดในการลบ: ${response.statusCode}',
+          type: EzBannerType.error,
         );
         return false;
       }
     } catch (e) {
       if (!context.mounted) return false;
       Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: $e',
-            style: GoogleFonts.kanit(),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      showEzTopBanner(
+        context,
+        'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: $e',
+        type: EzBannerType.error,
       );
       return false;
     }
@@ -560,7 +548,10 @@ class _ChickenhealthState extends State<Chickenhealth> {
           children: [
             Text(
               title,
-              style: GoogleFonts.kanit(color: ezColors(context).textSecondary, fontSize: 11),
+              style: GoogleFonts.kanit(
+                color: ezColors(context).textSecondary,
+                fontSize: 11,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -573,7 +564,10 @@ class _ChickenhealthState extends State<Chickenhealth> {
             ),
             Text(
               unit,
-              style: GoogleFonts.kanit(color: ezColors(context).textSecondary, fontSize: 12),
+              style: GoogleFonts.kanit(
+                color: ezColors(context).textSecondary,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
@@ -589,9 +583,6 @@ class _ChickenhealthState extends State<Chickenhealth> {
     final Color cardColor = ezCardColor(context);
     const Color greenTextColor = Color(0xFF4ADE80);
     final Color bgDarkColor = ezBackgroundColor(context);
-
-    String displayMonth = kThaiMonthsFull[_selectedDate.month - 1];
-    String displayYear = (_selectedDate.year + 543).toString();
 
     return Scaffold(
       extendBody: true,
@@ -632,519 +623,533 @@ class _ChickenhealthState extends State<Chickenhealth> {
 
       body: SafeArea(
         child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
-          constraints: BoxConstraints(minHeight: screenHeight),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                EzHeader(pageTitle: widget.initialCoopId != null ? 'ตรวจสุขภาพไก่' : 'สุขภาพไก่ทั้งหมด'),
-                const SizedBox(height: 20),
-
-                InkWell(
-                  onTap: () => _selectDate(context),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: ezColors(context).inputFill,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: ezColors(context).border, width: 1),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              displayMonth,
-                              style: GoogleFonts.kanit(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: ezColors(context).textPrimary,
-                                letterSpacing: 1.0,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.keyboard_arrow_down,
-                              color: ezColors(context).textSecondary,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            Text(
-                              displayYear,
-                              style: GoogleFonts.kanit(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: ezColors(context).textPrimary,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: highlightColor),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Icon(
-                                Icons.calendar_today_outlined,
-                                color: highlightColor,
-                                size: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            constraints: BoxConstraints(minHeight: screenHeight),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  EzHeader(
+                    pageTitle: widget.initialCoopId != null
+                        ? 'ตรวจสุขภาพไก่'
+                        : 'สุขภาพไก่ทั้งหมด',
                   ),
-                ),
+                  const SizedBox(height: 20),
 
-                const SizedBox(height: 24),
-
-                // ✅ เปลี่ยนข้อความหัวข้อตามโหมด (ดูทั้งหมด / ดูกรองวัน)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      isFilteringByDate
-                          ? 'ประวัติวันที่ ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'
-                          : widget.initialCoopId != null
-                          ? 'ประวัติการตรวจสุขภาพคอก ${_coopNames[widget.initialCoopId] ?? widget.initialCoopId}'
-                          : 'ประวัติการตรวจสุขภาพทั้งหมด',
-                      style: GoogleFonts.kanit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: ezColors(context).textPrimary,
+                  // ตัวกรองตามวันที่ — บอกชัดเจนว่ากำลังดูข้อมูล "ทั้งหมด" หรือ
+                  // "เฉพาะวันที่เลือก" อยู่ และแตะเพื่อเปิดปฏิทินเลือกวันได้ตรงนี้เลย
+                  InkWell(
+                    onTap: () => _selectDate(context),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
                       ),
-                    ),
-
-                    // ✅ ถ้ากำลังกรองวันอยู่ ให้มีปุ่มกดเพื่อกลับไป "ดูทั้งหมด"
-                    if (isFilteringByDate)
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            isFilteringByDate = false;
-                            _filterDataByDate(); // เคลียร์ฟิลเตอร์
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
+                      decoration: BoxDecoration(
+                        color: isFilteringByDate
+                            ? highlightColor.withValues(alpha: 0.10)
+                            : ezColors(context).inputFill,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isFilteringByDate
+                              ? highlightColor
+                              : ezColors(context).border,
+                          width: isFilteringByDate ? 1.6 : 1.2,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            color: isFilteringByDate
+                                ? highlightColor
+                                : ezColors(context).textSecondary,
+                            size: 20,
                           ),
-                          decoration: BoxDecoration(
-                            color: ezColors(context).textPrimary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isFilteringByDate
+                                      ? 'กรองเฉพาะวันที่'
+                                      : 'กำลังดูข้อมูลทั้งหมด',
+                                  style: GoogleFonts.kanit(
+                                    fontSize: 11,
+                                    color: ezColors(context).textSecondary,
+                                  ),
+                                ),
+                                Text(
+                                  isFilteringByDate
+                                      ? thaiDate(_selectedDate)
+                                      : 'แตะเพื่อเลือกดูเฉพาะวันที่ต้องการ',
+                                  style: GoogleFonts.kanit(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: ezColors(context).textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.clear,
-                                color: Color(0xFFFF6E5C),
-                                size: 14,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'ดูทั้งหมด',
-                                style: GoogleFonts.kanit(
-                                  color: const Color(0xFFFF6E5C),
-                                  fontSize: 12,
+                          if (isFilteringByDate)
+                            InkWell(
+                              onTap: () {
+                                setState(() {
+                                  isFilteringByDate = false;
+                                  _filterDataByDate(); // เคลียร์ฟิลเตอร์
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(20),
+                              child: Padding(
+                                padding: const EdgeInsets.all(6),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  color: highlightColor,
+                                  size: 20,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
+                            )
+                          else
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: ezColors(context).textSecondary,
+                              size: 22,
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                    ),
+                  ),
 
-                isLoading
-                    ? const EzSkeletonList(count: 4, itemHeight: 90)
-                    : displayedHealthDataList.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(40.0),
-                          child: Text(
-                            isFilteringByDate
-                                ? 'ไม่พบข้อมูลการตรวจสุขภาพในวันนี้'
-                                : 'ยังไม่มีประวัติการตรวจสุขภาพเลย',
-                            style: GoogleFonts.kanit(
-                              fontSize: 16,
-                              color: Colors.grey.shade400,
+                  const SizedBox(height: 20),
+
+                  // ✅ เปลี่ยนข้อความหัวข้อตามโหมด (ดูทั้งหมด / ดูกรองวัน)
+                  Text(
+                    isFilteringByDate
+                        ? 'ประวัติวันที่ ${thaiDate(_selectedDate)}'
+                        : widget.initialCoopId != null
+                        ? 'ประวัติการตรวจสุขภาพคอก ${_coopNames[widget.initialCoopId] ?? widget.initialCoopId}'
+                        : 'ประวัติการตรวจสุขภาพทั้งหมด',
+                    style: GoogleFonts.kanit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: ezColors(context).textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'ทั้งหมด ${displayedHealthDataList.length} รายการ',
+                    style: GoogleFonts.kanit(
+                      fontSize: 12,
+                      color: ezColors(context).textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  isLoading
+                      ? const EzSkeletonList(count: 4, itemHeight: 90)
+                      : displayedHealthDataList.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(40.0),
+                            child: Text(
+                              isFilteringByDate
+                                  ? 'ไม่พบข้อมูลการตรวจสุขภาพในวันนี้'
+                                  : 'ยังไม่มีประวัติการตรวจสุขภาพเลย',
+                              style: GoogleFonts.kanit(
+                                fontSize: 16,
+                                color: Colors.grey.shade400,
+                              ),
                             ),
                           ),
-                        ),
-                      )
-                    : Column(
-                        children: displayedHealthDataList.asMap().entries.map((
-                          entry,
-                        ) {
-                          int index = entry.key;
-                          var data = entry.value;
+                        )
+                      : Column(
+                          children: displayedHealthDataList.asMap().entries.map((
+                            entry,
+                          ) {
+                            int index = entry.key;
+                            var data = entry.value;
 
-                          bool isLatest = (index == 0 && !isFilteringByDate);
-                          var dateInfo = _formatDateForCard(
-                            data['record_date']?.toString(),
-                          );
-                          String healthy = data['healthy']?.toString() ?? '0';
-                          String sick = data['poor_health']?.toString() ?? '0';
+                            bool isLatest = (index == 0 && !isFilteringByDate);
+                            var dateInfo = _formatDateForCard(
+                              data['record_date']?.toString(),
+                            );
+                            String healthy = data['healthy']?.toString() ?? '0';
+                            String sick =
+                                data['poor_health']?.toString() ?? '0';
 
-                          String rawCoopId =
-                              data['coop_id']?.toString() ??
-                              data['coop_number']?.toString() ??
-                              '-';
-                          String coopNumber =
-                              _coopNames[rawCoopId] ?? rawCoopId;
-                          String noteRaw = data['note']?.toString() ?? '';
-                          String note = noteRaw.trim().isEmpty
-                              ? 'ปกติ'
-                              : noteRaw;
+                            String rawCoopId =
+                                data['coop_id']?.toString() ??
+                                data['coop_number']?.toString() ??
+                                '-';
+                            String coopNumber =
+                                _coopNames[rawCoopId] ?? rawCoopId;
+                            String noteRaw = data['note']?.toString() ?? '';
+                            String note = noteRaw.trim().isEmpty
+                                ? 'ปกติ'
+                                : noteRaw;
 
-                          String uniqueKey =
-                              data['id']?.toString() ??
-                              data['ID']?.toString() ??
-                              data['health_id']?.toString() ??
-                              UniqueKey().toString();
-                          bool isAppointment = _isAppointmentRecord(
-                            data['record_date']?.toString(),
-                          );
+                            String uniqueKey =
+                                data['id']?.toString() ??
+                                data['ID']?.toString() ??
+                                data['health_id']?.toString() ??
+                                UniqueKey().toString();
+                            bool isAppointment = _isAppointmentRecord(
+                              data['record_date']?.toString(),
+                            );
 
-                          return Dismissible(
-                            key: Key(uniqueKey),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              margin: const EdgeInsets.only(bottom: 12.0),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade700,
-                                borderRadius: BorderRadius.circular(12),
+                            return Dismissible(
+                              key: Key(uniqueKey),
+                              direction: DismissDirection.endToStart,
+                              background: Container(
+                                margin: const EdgeInsets.only(bottom: 12.0),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade700,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 20),
+                                child: Icon(
+                                  Icons.delete,
+                                  color: ezColors(context).textPrimary,
+                                  size: 32,
+                                ),
                               ),
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              child: Icon(
-                                Icons.delete,
-                                color: ezColors(context).textPrimary,
-                                size: 32,
-                              ),
-                            ),
-                            confirmDismiss: (direction) async {
-                              bool? confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (BuildContext dialogContext) {
-                                  return AlertDialog(
-                                    backgroundColor: ezCardColor(context),
-                                    title: Text(
-                                      'ยืนยันการลบ',
-                                      style: GoogleFonts.kanit(
-                                        color: ezColors(context).textPrimary,
-                                      ),
-                                    ),
-                                    content: Text(
-                                      'คุณต้องการลบข้อมูลการตรวจสุขภาพนี้ใช่หรือไม่?',
-                                      style: GoogleFonts.kanit(
-                                        color: ezColors(context).textSecondary,
-                                      ),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.of(
-                                          dialogContext,
-                                        ).pop(false),
-                                        child: Text(
-                                          'ยกเลิก',
-                                          style: GoogleFonts.kanit(
-                                            color: ezColors(context).textSecondary,
-                                          ),
+                              confirmDismiss: (direction) async {
+                                bool? confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (BuildContext dialogContext) {
+                                    return AlertDialog(
+                                      backgroundColor: ezCardColor(context),
+                                      title: Text(
+                                        'ยืนยันการลบ',
+                                        style: GoogleFonts.kanit(
+                                          color: ezColors(context).textPrimary,
                                         ),
                                       ),
-                                      TextButton(
-                                        onPressed: () => Navigator.of(
-                                          dialogContext,
-                                        ).pop(true),
-                                        child: Text(
-                                          'ลบ',
-                                          style: GoogleFonts.kanit(
-                                            color: Colors.red,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-
-                              if (confirm == true) {
-                                var rawId =
-                                    data['id'] ??
-                                    data['ID'] ??
-                                    data['health_id'];
-
-                                if (rawId == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
                                       content: Text(
-                                        'เกิดข้อผิดพลาด: ไม่พบ ID ของข้อมูล',
-                                        style: GoogleFonts.kanit(),
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                  return false;
-                                }
-
-                                String idToDelete = rawId.toString();
-                                bool isDeleted = await _executeDeleteAPI(
-                                  idToDelete,
-                                );
-                                return isDeleted;
-                              }
-                              return false;
-                            },
-                            onDismissed: (direction) {
-                              setState(() {
-                                allHealthDataList.removeWhere(
-                                  (item) =>
-                                      (item['id']?.toString() ??
-                                          item['ID']?.toString()) ==
-                                      uniqueKey,
-                                );
-                                displayedHealthDataList.removeAt(index);
-                              });
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 12.0),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () {
-                                  _showHealthDataBottomSheet(
-                                    context,
-                                    existingData: data,
-                                  );
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: cardColor,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: isLatest
-                                        ? Border.all(
-                                            color: highlightColor,
-                                            width: 1.5,
-                                          )
-                                        : null,
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      SizedBox(
-                                        width: 75,
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              dateInfo['day']!,
-                                              style: GoogleFonts.kanit(
-                                                fontSize: 32,
-                                                fontWeight: FontWeight.bold,
-                                                color: ezColors(context).textPrimary,
-                                                height: 1.1,
-                                              ),
-                                            ),
-                                            Text(
-                                              dateInfo['monthYear']!,
-                                              style: GoogleFonts.kanit(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: ezColors(context).textSecondary,
-                                              ),
-                                            ),
-                                          ],
+                                        'คุณต้องการลบข้อมูลการตรวจสุขภาพนี้ใช่หรือไม่?',
+                                        style: GoogleFonts.kanit(
+                                          color: ezColors(
+                                            context,
+                                          ).textSecondary,
                                         ),
                                       ),
-
-                                      Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                            left: 12.0,
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(
+                                            dialogContext,
+                                          ).pop(false),
+                                          child: Text(
+                                            'ยกเลิก',
+                                            style: GoogleFonts.kanit(
+                                              color: ezColors(
+                                                context,
+                                              ).textSecondary,
+                                            ),
                                           ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.of(
+                                            dialogContext,
+                                          ).pop(true),
+                                          child: Text(
+                                            'ลบ',
+                                            style: GoogleFonts.kanit(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+
+                                if (confirm == true) {
+                                  var rawId =
+                                      data['id'] ??
+                                      data['ID'] ??
+                                      data['health_id'];
+
+                                  if (rawId == null) {
+                                    showEzTopBanner(
+                                      context,
+                                      'เกิดข้อผิดพลาด: ไม่พบ ID ของข้อมูล',
+                                      type: EzBannerType.error,
+                                    );
+                                    return false;
+                                  }
+
+                                  String idToDelete = rawId.toString();
+                                  bool isDeleted = await _executeDeleteAPI(
+                                    idToDelete,
+                                  );
+                                  return isDeleted;
+                                }
+                                return false;
+                              },
+                              onDismissed: (direction) {
+                                setState(() {
+                                  allHealthDataList.removeWhere(
+                                    (item) =>
+                                        (item['id']?.toString() ??
+                                            item['ID']?.toString()) ==
+                                        uniqueKey,
+                                  );
+                                  displayedHealthDataList.removeAt(index);
+                                });
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () {
+                                    _showHealthDataBottomSheet(
+                                      context,
+                                      existingData: data,
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: cardColor,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: isLatest
+                                          ? Border.all(
+                                              color: highlightColor,
+                                              width: 1.5,
+                                            )
+                                          : null,
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        SizedBox(
+                                          width: 75,
                                           child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
-                                              if (isAppointment)
-                                                Container(
-                                                  margin: const EdgeInsets
-                                                      .only(bottom: 8),
-                                                  padding:
-                                                      const EdgeInsets
-                                                          .symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 3,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(
-                                                      0xFF42A5F5,
-                                                    ).withOpacity(0.15),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                      6,
-                                                    ),
-                                                    border: Border.all(
-                                                      color: const Color(
-                                                        0xFF42A5F5,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      const Icon(
-                                                        Icons.event_available,
-                                                        size: 12,
-                                                        color: Color(
-                                                          0xFF42A5F5,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 4,
-                                                      ),
-                                                      Text(
-                                                        'นัดหมายล่วงหน้า',
-                                                        style:
-                                                            GoogleFonts.kanit(
-                                                          fontSize: 11,
-                                                          color: const Color(
-                                                            0xFF42A5F5,
-                                                          ),
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              Row(
-                                                children: [
-                                                  SizedBox(
-                                                    width: 85,
-                                                    child: Text(
-                                                      'คอกที่',
-                                                      style: GoogleFonts.kanit(
-                                                        fontSize: 14,
-                                                        color: ezColors(context).textSecondary,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    coopNumber,
-                                                    style: GoogleFonts.kanit(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: highlightColor,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Row(
-                                                children: [
-                                                  SizedBox(
-                                                    width: 85,
-                                                    child: Text(
-                                                      'สุขภาพดี',
-                                                      style: GoogleFonts.kanit(
-                                                        fontSize: 14,
-                                                        color: ezColors(context).textSecondary,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    '$healthy ตัว',
-                                                    style: GoogleFonts.kanit(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: greenTextColor,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Row(
-                                                children: [
-                                                  SizedBox(
-                                                    width: 85,
-                                                    child: Text(
-                                                      'สุขภาพไม่ดี',
-                                                      style: GoogleFonts.kanit(
-                                                        fontSize: 14,
-                                                        color: ezColors(context).textSecondary,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    '$sick ตัว',
-                                                    style: GoogleFonts.kanit(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: const Color(
-                                                        0xFFFF6E5C,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 10),
                                               Text(
-                                                'หมายเหตุ: $note',
+                                                dateInfo['day']!,
                                                 style: GoogleFonts.kanit(
-                                                  fontSize: 13,
-                                                  color: ezColors(context).textSecondary,
+                                                  fontSize: 32,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: ezColors(
+                                                    context,
+                                                  ).textPrimary,
+                                                  height: 1.1,
                                                 ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              Text(
+                                                dateInfo['monthYear']!,
+                                                style: GoogleFonts.kanit(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: ezColors(
+                                                    context,
+                                                  ).textSecondary,
+                                                ),
                                               ),
                                             ],
                                           ),
                                         ),
-                                      ),
 
-                                      Padding(
-                                        padding: EdgeInsets.only(left: 8.0),
-                                        child: Icon(
-                                          Icons.arrow_forward_ios,
-                                          color: ezColors(context).textSecondary,
-                                          size: 18,
+                                        Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(
+                                              left: 12.0,
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                if (isAppointment)
+                                                  Container(
+                                                    margin:
+                                                        const EdgeInsets.only(
+                                                          bottom: 8,
+                                                        ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 3,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(
+                                                        0xFF42A5F5,
+                                                      ).withOpacity(0.15),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            6,
+                                                          ),
+                                                      border: Border.all(
+                                                        color: const Color(
+                                                          0xFF42A5F5,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        const Icon(
+                                                          Icons.event_available,
+                                                          size: 12,
+                                                          color: Color(
+                                                            0xFF42A5F5,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 4,
+                                                        ),
+                                                        Text(
+                                                          'นัดหมายล่วงหน้า',
+                                                          style:
+                                                              GoogleFonts.kanit(
+                                                                fontSize: 11,
+                                                                color:
+                                                                    const Color(
+                                                                      0xFF42A5F5,
+                                                                    ),
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                Row(
+                                                  children: [
+                                                    SizedBox(
+                                                      width: 85,
+                                                      child: Text(
+                                                        'คอกที่',
+                                                        style:
+                                                            GoogleFonts.kanit(
+                                                              fontSize: 14,
+                                                              color: ezColors(
+                                                                context,
+                                                              ).textSecondary,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      coopNumber,
+                                                      style: GoogleFonts.kanit(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: highlightColor,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Row(
+                                                  children: [
+                                                    SizedBox(
+                                                      width: 85,
+                                                      child: Text(
+                                                        'สุขภาพดี',
+                                                        style:
+                                                            GoogleFonts.kanit(
+                                                              fontSize: 14,
+                                                              color: ezColors(
+                                                                context,
+                                                              ).textSecondary,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      '$healthy ตัว',
+                                                      style: GoogleFonts.kanit(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: greenTextColor,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Row(
+                                                  children: [
+                                                    SizedBox(
+                                                      width: 85,
+                                                      child: Text(
+                                                        'สุขภาพไม่ดี',
+                                                        style:
+                                                            GoogleFonts.kanit(
+                                                              fontSize: 14,
+                                                              color: ezColors(
+                                                                context,
+                                                              ).textSecondary,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      '$sick ตัว',
+                                                      style: GoogleFonts.kanit(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: const Color(
+                                                          0xFFFF6E5C,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 10),
+                                                Text(
+                                                  'หมายเหตุ: $note',
+                                                  style: GoogleFonts.kanit(
+                                                    fontSize: 13,
+                                                    color: ezColors(
+                                                      context,
+                                                    ).textSecondary,
+                                                  ),
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ],
+
+                                        Padding(
+                                          padding: EdgeInsets.only(left: 8.0),
+                                          child: Icon(
+                                            Icons.arrow_forward_ios,
+                                            color: ezColors(
+                                              context,
+                                            ).textSecondary,
+                                            size: 18,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                const SizedBox(height: 120),
-              ],
+                            );
+                          }).toList(),
+                        ),
+                  const SizedBox(height: 120),
+                ],
+              ),
             ),
           ),
-        ),
         ),
       ),
 
