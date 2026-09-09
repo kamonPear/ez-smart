@@ -9,6 +9,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'bottombar.dart';
 import '../widgets/ez_header.dart';
+import '../widgets/ez_skeleton.dart';
+import '../widgets/ez_egg_chart.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import '../services/backend_config.dart';
 
 class ShowChart extends StatefulWidget {
@@ -52,13 +55,12 @@ class _ShowChartState extends State<ShowChart> {
         List<dynamic> data = jsonDecode(response.body);
 
         setState(() {
-          availableCoops = data
-              .map((item) => item['coop_id'].toString())
-              .toSet()
-              .toList()
-            ..sort(
-              (a, b) => (int.tryParse(a) ?? 0).compareTo(int.tryParse(b) ?? 0),
-            );
+          availableCoops =
+              data.map((item) => item['coop_id'].toString()).toSet().toList()
+                ..sort(
+                  (a, b) =>
+                      (int.tryParse(a) ?? 0).compareTo(int.tryParse(b) ?? 0),
+                );
 
           _coopNames = {
             for (var item in data)
@@ -137,42 +139,6 @@ class _ShowChartState extends State<ShowChart> {
     });
   }
 
-  Future<void> _deleteEggData(int id) async {
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final response = await http.delete(
-        Uri.parse('$backendBaseUrl/api/eggs?id=$id'),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        _showSnackBar('ลบข้อมูลสำเร็จ', isSuccess: true);
-        _fetchEggData();
-      } else {
-        _showSnackBar('เกิดข้อผิดพลาดในการลบ: Error ${response.statusCode}');
-      }
-    } catch (e) {
-      _showSnackBar('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-      debugPrint("Delete error: $e");
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-
-  void _showSnackBar(String message, {bool isSuccess = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: GoogleFonts.kanit()),
-        backgroundColor: isSuccess ? Colors.green : Colors.redAccent,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
   double _calculateMaxYForData(List<double> data) {
     double max = 0;
     for (var val in data) {
@@ -195,66 +161,6 @@ class _ShowChartState extends State<ShowChart> {
       temp[yearStr]![date.month - 1] += amount;
     }
     return temp;
-  }
-
-  dynamic _latestRecordForCoop(String coopId) {
-    dynamic latest;
-    DateTime? latestDate;
-    for (var item in _rawEggData) {
-      if (item['coop_id']?.toString() != coopId) continue;
-      if (item['date_collect_egg'] == null) continue;
-
-      DateTime date = DateTime.parse(item['date_collect_egg']);
-      if (latestDate == null || date.isAfter(latestDate)) {
-        latestDate = date;
-        latest = item;
-      }
-    }
-    return latest;
-  }
-
-  void _showDeleteLatestConfirmDialog(String coopLabel, dynamic record) {
-    int id = record['id'] ?? record['egg_id'] ?? 0;
-    int amount = ((record['number_egg'] as num?) ?? 0).toInt();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1F2933),
-          title: Text(
-            'ยืนยันการลบ',
-            style: GoogleFonts.kanit(color: Colors.white),
-          ),
-          content: Text(
-            'ลบข้อมูลไข่ล่าสุดของคอก $coopLabel ($amount ฟอง) หรือไม่?',
-            style: GoogleFonts.kanit(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'ยกเลิก',
-                style: GoogleFonts.kanit(color: Colors.white54),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                _deleteEggData(id);
-              },
-              child: Text(
-                'ลบข้อมูล',
-                style: GoogleFonts.kanit(color: Colors.white),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void onTabSelected(int index) {
@@ -291,39 +197,49 @@ class _ShowChartState extends State<ShowChart> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
 
       body: SafeArea(
         child: SingleChildScrollView(
-        child: Container(
-          constraints: BoxConstraints(minHeight: screenHeight),
-          child: Column(
-            children: [
-              const EzHeader(pageTitle: 'กราฟข้อมูล'),
-              const SizedBox(height: 20),
+          child: Container(
+            constraints: BoxConstraints(minHeight: screenHeight),
+            child: Column(
+              children: [
+                const EzHeader(pageTitle: 'กราฟข้อมูล'),
+                const SizedBox(height: 20),
 
-              if (isLoading && _rawEggData.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(50.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-              else
-                Column(
-                  children: [
-                    _buildSummaryCard(),
-                    _buildToggleSwitch(),
-                    ...availableCoops.map(
-                      (coopId) => _buildCoopChartCard(coopId),
+                if (isLoading && _rawEggData.isEmpty)
+                  Skeletonizer(
+                    enabled: true,
+                    child: Column(
+                      children: [
+                        _buildSummaryCard(),
+                        _buildToggleSwitch(),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          child: EzSkeletonCard(height: 220),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  )
+                else
+                  Column(
+                    children: [
+                      _buildSummaryCard(),
+                      _buildToggleSwitch(),
+                      ...availableCoops.map(
+                        (coopId) => _buildCoopChartCard(coopId),
+                      ),
+                    ],
+                  ),
 
-              const SizedBox(height: 100),
-            ],
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
-        ),
         ),
       ),
 
@@ -347,14 +263,14 @@ class _ShowChartState extends State<ShowChart> {
         ? Icons.remove
         : (isUp ? Icons.arrow_upward : Icons.arrow_downward);
     Color trendColor = isEqual
-        ? Colors.white54
+        ? ezColors(context).textSecondary
         : (isUp ? const Color(0xFF4ADE80) : Colors.redAccent);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2933),
+        color: ezCardColor(context),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
@@ -366,7 +282,7 @@ class _ShowChartState extends State<ShowChart> {
             style: GoogleFonts.kanit(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: ezColors(context).textPrimary,
             ),
           ),
           const SizedBox(height: 5),
@@ -456,47 +372,44 @@ class _ShowChartState extends State<ShowChart> {
   Widget _buildCoopChartCard(String coopId) {
     Map<String, List<double>> monthlyData = _monthlyDataForCoop(coopId);
     String coopLabel = _coopNames[coopId] ?? coopId;
-    int thaiYear = int.parse(selectedYear) + 543;
 
-    List<double> currentData = isMonthly
-        ? (monthlyData[selectedYear] ?? List.filled(12, 0.0))
-        : availableYears
-              .map(
-                (y) => (monthlyData[y] ?? List.filled(12, 0.0)).reduce(
-                  (a, b) => a + b,
-                ),
-              )
-              .toList();
+    if (isMonthly) {
+      // 📊 มุมมองรายเดือน: ใช้ widget กราฟกลางที่แชร์กับหน้ารายละเอียดคอก
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: EzEggYearChart(coopLabel: coopLabel, eggData: monthlyData),
+      );
+    }
+
+    List<double> currentData = availableYears
+        .map(
+          (y) => (monthlyData[y] ?? List.filled(12, 0.0)).reduce(
+            (a, b) => a + b,
+          ),
+        )
+        .toList();
 
     double minVal = currentData.where((v) => v > 0).isEmpty
         ? 0
         : currentData.where((v) => v > 0).reduce((a, b) => a < b ? a : b);
     double chartMaxY = _calculateMaxYForData(currentData);
 
-    dynamic latestRecord = _latestRecordForCoop(coopId);
-
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2933),
+        color: ezCardColor(context),
         borderRadius: BorderRadius.circular(15),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  isMonthly
-                      ? 'บันทึกการเก็บไข่รายเดือนของคอกที่ $coopLabel ปี $thaiYear'
-                      : 'บันทึกการเก็บไข่รายปีของคอกที่ $coopLabel',
+          Text(
+            'บันทึกการเก็บไข่รายปีของคอกที่ $coopLabel',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.kanit(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: ezColors(context).textPrimary,
                   ),
                 ),
                 const SizedBox(height: 15),
@@ -532,7 +445,7 @@ class _ShowChartState extends State<ShowChart> {
                               return Text(
                                 value.toInt().toString(),
                                 style: GoogleFonts.kanit(
-                                  color: Colors.white54,
+                                  color: ezColors(context).textSecondary,
                                   fontSize: 10,
                                 ),
                                 textAlign: TextAlign.right,
@@ -545,34 +458,22 @@ class _ShowChartState extends State<ShowChart> {
                             showTitles: true,
                             reservedSize: 22,
                             getTitlesWidget: (value, meta) {
-                              List<String> months = [
-                                'ม.ค.',
-                                'ก.พ.',
-                                'มี.ค.',
-                                'เม.ย.',
-                                'พ.ค.',
-                                'มิ.ย.',
-                                'ก.ค.',
-                                'ส.ค.',
-                                'ก.ย.',
-                                'ต.ค.',
-                                'พ.ย.',
-                                'ธ.ค.',
-                              ];
                               String text = '';
-                              if (isMonthly && value >= 0 && value < 12) {
-                                text = months[value.toInt()];
-                              } else if (!isMonthly &&
-                                  value >= 0 &&
+                              if (value >= 0 &&
                                   value < availableYears.length) {
-                                text = availableYears[value.toInt()];
+                                final year = int.tryParse(
+                                  availableYears[value.toInt()],
+                                );
+                                text = year != null
+                                    ? '${year + 543}'
+                                    : availableYears[value.toInt()];
                               }
                               return Padding(
                                 padding: const EdgeInsets.only(top: 8.0),
                                 child: Text(
                                   text,
                                   style: GoogleFonts.kanit(
-                                    color: Colors.white54,
+                                    color: ezColors(context).textSecondary,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -589,7 +490,7 @@ class _ShowChartState extends State<ShowChart> {
                                 FlSpot(index.toDouble(), currentData[index]),
                           ),
                           isCurved: false,
-                          color: Colors.white,
+                          color: ezColors(context).textPrimary,
                           barWidth: 2,
                           isStrokeCapRound: true,
                           dotData: FlDotData(
@@ -607,18 +508,24 @@ class _ShowChartState extends State<ShowChart> {
                           ),
                         ),
                       ],
+                      lineTouchData: LineTouchData(
+                        touchTooltipData: LineTouchTooltipData(
+                          getTooltipItems: (touchedSpots) =>
+                              touchedSpots.map((spot) {
+                                return LineTooltipItem(
+                                  '${spot.y.toInt()} ฟอง',
+                                  GoogleFonts.kanit(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                );
+                              }).toList(),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          if (latestRecord != null)
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              onPressed: () =>
-                  _showDeleteLatestConfirmDialog(coopLabel, latestRecord),
-            ),
         ],
       ),
     );

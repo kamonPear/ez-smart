@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import '../bottombar.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
+import '../../utils/thai_date.dart';
 
 class EditNumbereggchicken extends StatefulWidget {
   final Map<String, dynamic> initialData;
@@ -306,7 +307,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
               style: GoogleFonts.kanit(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: ezColors(context).textPrimary,
               ),
             ),
           ),
@@ -314,7 +315,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
             child: Container(
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFF151C22),
+                color: ezColors(context).inputFill,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: Colors.blueAccent.withOpacity(0.4),
@@ -324,7 +325,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
               child: TextFormField(
                 controller: controller,
                 keyboardType: keyboardType,
-                style: GoogleFonts.kanit(fontSize: 15, color: Colors.white),
+                style: GoogleFonts.kanit(fontSize: 15, color: ezColors(context).inputText),
                 decoration: InputDecoration(
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
@@ -332,7 +333,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
                     vertical: 10,
                   ),
                   isDense: true,
-                  hintStyle: GoogleFonts.kanit(color: Colors.white54),
+                  hintStyle: GoogleFonts.kanit(color: ezColors(context).textSecondary),
                 ),
               ),
             ),
@@ -355,7 +356,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
         ? Icons.remove
         : (isUp ? Icons.arrow_upward : Icons.arrow_downward);
     Color trendColor = isEqual
-        ? Colors.white54
+        ? ezColors(context).textSecondary
         : (isUp ? const Color(0xFF4ADE80) : Colors.redAccent);
 
     return Column(
@@ -367,7 +368,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
           style: GoogleFonts.kanit(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: ezColors(context).textPrimary,
           ),
         ),
         const SizedBox(height: 4),
@@ -399,7 +400,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
               style: GoogleFonts.kanit(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: ezColors(context).textPrimary,
               ),
             ),
           ),
@@ -408,7 +409,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 15),
               decoration: BoxDecoration(
-                color: const Color(0xFF151C22),
+                color: ezColors(context).inputFill,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: Colors.blueAccent.withOpacity(0.4),
@@ -422,15 +423,15 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
                       : null,
                   isDense: true,
                   isExpanded: true,
-                  dropdownColor: const Color(0xFF1F2933),
+                  dropdownColor: ezCardColor(context),
                   hint: Text(
                     availableCoops.isEmpty ? 'กำลังโหลด..' : 'เลือกคอก',
                     style: GoogleFonts.kanit(
-                      color: Colors.white54,
+                      color: ezColors(context).textSecondary,
                       fontSize: 15,
                     ),
                   ),
-                  style: GoogleFonts.kanit(fontSize: 15, color: Colors.white),
+                  style: GoogleFonts.kanit(fontSize: 15, color: ezColors(context).inputText),
                   items: availableCoops.map((val) {
                     return DropdownMenuItem<String>(
                       value: val,
@@ -453,8 +454,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
   }
 
   Widget _buildDateFieldRow() {
-    String formattedDate =
-        "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+    String formattedDate = thaiDate(_selectedDate);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0, left: 20, right: 20),
@@ -468,7 +468,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
               style: GoogleFonts.kanit(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: ezColors(context).textPrimary,
               ),
             ),
           ),
@@ -479,7 +479,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
                 height: 40,
                 padding: const EdgeInsets.symmetric(horizontal: 15),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF151C22),
+                  color: ezColors(context).inputFill,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: Colors.blueAccent.withOpacity(0.4),
@@ -492,14 +492,14 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
                       child: Text(
                         formattedDate,
                         style: GoogleFonts.kanit(
-                          color: Colors.white,
+                          color: ezColors(context).textPrimary,
                           fontSize: 15,
                         ),
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.calendar_today_outlined,
-                      color: Colors.white70,
+                      color: ezColors(context).textSecondary,
                       size: 20,
                     ),
                   ],
@@ -538,14 +538,14 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.feed_outlined, color: Colors.white, size: 24),
+            Icon(Icons.feed_outlined, color: ezColors(context).textPrimary, size: 24),
             const SizedBox(width: 10),
             Text(
               "บันทึกการแก้ไข",
               style: GoogleFonts.kanit(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: ezColors(context).textPrimary,
               ),
             ),
           ],
@@ -558,7 +558,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
       body: SafeArea(
         child: Column(
           children: [
@@ -581,7 +581,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
                         const SizedBox(height: 20),
                         Container(
                           padding: const EdgeInsets.symmetric(vertical: 25),
-                          decoration: ezCardDecoration(radius: 15),
+                          decoration: ezCardDecoration(context, radius: 15),
                           child: Column(
                             children: [
                               _buildCoopFieldRow(),

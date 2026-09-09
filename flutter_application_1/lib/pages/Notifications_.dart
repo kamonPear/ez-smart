@@ -9,6 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'bottombar.dart';
 import '../../services/backend_config.dart';
 import '../widgets/ez_header.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import '../utils/thai_date.dart';
 
 class Notifications extends StatefulWidget {
   const Notifications({super.key});
@@ -39,7 +41,7 @@ class _NotificationsState extends State<Notifications> {
     DateTime today = DateTime.now();
     
     String timeNow = "${today.hour.toString().padLeft(2, '0')}:${today.minute.toString().padLeft(2, '0')}";
-    String dateNow = "${today.day.toString().padLeft(2, '0')}/${today.month.toString().padLeft(2, '0')}/${today.year + 543}";
+    String dateNow = thaiDate(today);
 
     // ---------------------------------------------------------
     // 1. แจ้งเตือนปริมาณอาหาร (ใกล้หมด / หมดแล้ว)
@@ -216,7 +218,7 @@ class _NotificationsState extends State<Notifications> {
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isUrgent ? const Color(0xFF3A2020) : ezCardColor,
+        color: isUrgent ? const Color(0xFF3A2020) : ezCardColor(context),
         borderRadius: BorderRadius.circular(20),
         border: isUrgent ? Border.all(color: Colors.redAccent.withOpacity(0.5), width: 1.5) : null,
         boxShadow: [
@@ -249,7 +251,7 @@ class _NotificationsState extends State<Notifications> {
                 style: GoogleFonts.kanit(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: ezColors(context).textPrimary,
                 ),
               ),
             ],
@@ -263,7 +265,7 @@ class _NotificationsState extends State<Notifications> {
                 style: GoogleFonts.kanit(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.white70,
+                  color: ezColors(context).textSecondary,
                 ),
               ),
               GestureDetector(
@@ -278,7 +280,7 @@ class _NotificationsState extends State<Notifications> {
                     buttonText,
                     style: GoogleFonts.kanit(
                       fontSize: 13,
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -297,7 +299,7 @@ class _NotificationsState extends State<Notifications> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
       body: SafeArea(
         child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -315,9 +317,22 @@ class _NotificationsState extends State<Notifications> {
 
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: isLoading 
-                      ? const Center(child: CircularProgressIndicator())
-                      : notificationsList.isEmpty 
+                    child: isLoading
+                      ? Skeletonizer(
+                          enabled: true,
+                          child: Column(
+                            children: List.generate(
+                              4,
+                              (i) => _buildNotificationCard({
+                                "title": "แจ้งเตือนตัวอย่าง",
+                                "time": "00:00",
+                                "date": "01/01/2026",
+                                "type": "task",
+                              }, i),
+                            ),
+                          ),
+                        )
+                      : notificationsList.isEmpty
                         ? Center(
                             child: Padding(
                               padding: const EdgeInsets.only(top: 30),

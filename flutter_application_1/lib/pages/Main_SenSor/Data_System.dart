@@ -13,6 +13,8 @@ import 'dart:async'; // 🔥 เพิ่มเข้ามาเพื่อร
 import '../bottombar.dart';
 import '../../widgets/ez_header.dart';
 import '../../services/backend_config.dart';
+import '../../utils/thai_date.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class DataSystem extends StatefulWidget {
   final String? initialCoopId;
@@ -134,12 +136,9 @@ class _DataSystemState extends State<DataSystem> {
     if (rawDate == '-' || rawDate.isEmpty) return '-';
     try {
       DateTime parsedDate = DateTime.parse(rawDate).toLocal();
-      String day = parsedDate.day.toString().padLeft(2, '0');
-      String month = parsedDate.month.toString().padLeft(2, '0');
-      String year = parsedDate.year.toString();
       String hour = parsedDate.hour.toString().padLeft(2, '0');
       String minute = parsedDate.minute.toString().padLeft(2, '0');
-      return '$day/$month/$year เวลา $hour:$minute น.';
+      return '${thaiDate(parsedDate)} เวลา $hour:$minute น.';
     } catch (e) {
       return rawDate;
     }
@@ -184,7 +183,7 @@ class _DataSystemState extends State<DataSystem> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
 
       body: SafeArea(
         child: SingleChildScrollView(
@@ -283,7 +282,7 @@ class _DataSystemState extends State<DataSystem> {
                           style: GoogleFonts.kanit(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: ezColors(context).textPrimary,
                           ),
                         ),
                       ],
@@ -294,7 +293,7 @@ class _DataSystemState extends State<DataSystem> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
+                        color: ezCardColor(context),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
@@ -305,9 +304,23 @@ class _DataSystemState extends State<DataSystem> {
                         ],
                       ),
                       child: isLoading
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
+                          ? Skeletonizer(
+                              enabled: true,
+                              child: GridView.count(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                crossAxisCount: 3,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                                childAspectRatio: 0.9,
+                                children: List.generate(
+                                  6,
+                                  (_) => _buildSensorCard({
+                                    'name': 'อุณหภูมิ',
+                                    'value': '25',
+                                    'status': 'online',
+                                  }),
+                                ),
                               ),
                             )
                           : devices.isEmpty
@@ -317,7 +330,7 @@ class _DataSystemState extends State<DataSystem> {
                                 child: Text(
                                   "ไม่พบอุปกรณ์ในคอกนี้",
                                   style: GoogleFonts.kanit(
-                                    color: Colors.white70,
+                                    color: ezColors(context).textSecondary,
                                     fontSize: 16,
                                   ),
                                 ),
@@ -407,14 +420,14 @@ class _DataSystemState extends State<DataSystem> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, color: Colors.white, size: 32),
+                  Icon(icon, color: ezColors(context).textPrimary, size: 32),
                   const SizedBox(height: 6),
                   Text(
                     name,
                     style: GoogleFonts.kanit(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -478,7 +491,7 @@ class _DataSystemState extends State<DataSystem> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: ezCardColor(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -556,9 +569,9 @@ class _DataSystemState extends State<DataSystem> {
               ),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.calendar_today_outlined,
-                    color: Colors.white,
+                    color: ezColors(context).textPrimary,
                     size: 18,
                   ),
                   const SizedBox(width: 6),
@@ -566,7 +579,7 @@ class _DataSystemState extends State<DataSystem> {
                     sensorTime,
                     style: GoogleFonts.kanit(
                       fontSize: 12,
-                      color: Colors.white70,
+                      color: ezColors(context).textSecondary,
                     ),
                   ),
                 ],
@@ -595,7 +608,7 @@ class _DataSystemState extends State<DataSystem> {
             style: GoogleFonts.kanit(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.white,
+              color: ezColors(context).textPrimary,
             ),
           ),
         ),
@@ -604,16 +617,16 @@ class _DataSystemState extends State<DataSystem> {
             height: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: const Color(0xFF131D2A),
+              color: ezColors(context).inputFill,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF2B3A4A), width: 1.5),
+              border: Border.all(color: ezColors(context).border, width: 1.5),
             ),
             child: Text(
               value,
               style: GoogleFonts.kanit(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: ezColors(context).textPrimary,
               ),
             ),
           ),

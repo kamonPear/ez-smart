@@ -14,6 +14,8 @@ import '../../models/coop.dart';
 import '../../services/api_service.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import '../../utils/thai_date.dart';
 
 class Adoptchicken extends StatefulWidget {
   const Adoptchicken({super.key});
@@ -31,16 +33,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
   final ApiService api = ApiService(baseUrl: backendBaseUrl);
 
   String _formatDateFromAPI(String? apiDate) {
-    if (apiDate == null || apiDate.isEmpty) return "-";
-    try {
-      DateTime parsedDate = DateTime.parse(apiDate);
-      String day = parsedDate.day.toString().padLeft(2, '0');
-      String month = parsedDate.month.toString().padLeft(2, '0');
-      String year = parsedDate.year.toString();
-      return "$year-$month-$day";
-    } catch (e) {
-      return apiDate;
-    }
+    return thaiDateFromIso(apiDate);
   }
 
   void onTabSelected(int index) {
@@ -112,7 +105,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
           children: [
             Text(
               'สุขภาพไก่ ',
-              style: GoogleFonts.kanit(color: Colors.white, fontSize: 13),
+              style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontSize: 13),
             ),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
@@ -187,7 +180,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
         children: [
           Text(
             '$label ',
-            style: GoogleFonts.kanit(color: Colors.white, fontSize: 13),
+            style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontSize: 13),
           ),
           Container(
             width: 110,
@@ -209,7 +202,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
                 child: Text(
                   value,
                   style: GoogleFonts.kanit(
-                    color: Colors.white,
+                    color: ezColors(context).textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -259,7 +252,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF263238),
+          color: ezCardColor(context),
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
@@ -281,7 +274,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
                     style: GoogleFonts.kanit(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -291,7 +284,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
                     'assets/images/chicken.png',
                     width: 65,
                     height: 65,
-                    color: Colors.white,
+                    color: ezColors(context).textPrimary,
                     errorBuilder: (context, error, stackTrace) {
                       return const Text('🐔', style: TextStyle(fontSize: 50));
                     },
@@ -315,7 +308,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
                         ' ตัว',
                         style: GoogleFonts.kanit(
                           fontSize: 16,
-                          color: Colors.white70,
+                          color: ezColors(context).textSecondary,
                         ),
                       ),
                     ],
@@ -330,11 +323,11 @@ class _AdoptchickenState extends State<Adoptchicken> {
                 children: [
                   Text(
                     'วันที่นำเข้า : $importDate',
-                    style: GoogleFonts.kanit(color: Colors.white, fontSize: 12),
+                    style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontSize: 12),
                   ),
                   Text(
                     'วันเกิดไก่ : $birthDate',
-                    style: GoogleFonts.kanit(color: Colors.white, fontSize: 12),
+                    style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontSize: 12),
                   ),
                   const SizedBox(height: 16),
                   _buildHealthBar(115, 5),
@@ -509,7 +502,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
       body: Stack(
         children: [
           Positioned(
@@ -537,9 +530,22 @@ class _AdoptchickenState extends State<Adoptchicken> {
                   const SizedBox(height: 20),
 
                   if (isLoading)
-                    const SizedBox(
-                      height: 40,
-                      child: Center(child: CircularProgressIndicator()),
+                    Skeletonizer(
+                      enabled: true,
+                      child: Column(
+                        children: List.generate(
+                          3,
+                          (index) => _buildCoopCard(
+                            index: index,
+                            id: 'placeholder-$index',
+                            name: 'คอกไก่',
+                            importDate: '19/08/2026',
+                            count: '200',
+                            birthDate: '31/07/2026',
+                            note: '-',
+                          ),
+                        ),
+                      ),
                     ),
                   if (errorMessage != null)
                     Padding(
@@ -565,9 +571,9 @@ class _AdoptchickenState extends State<Adoptchicken> {
                         ),
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.only(right: 20),
-                        child: const Icon(
+                        child: Icon(
                           Icons.delete,
-                          color: Colors.white,
+                          color: ezColors(context).textPrimary,
                           size: 32,
                         ),
                       ),

@@ -14,6 +14,7 @@ import 'package:flutter_application_1/models/coop.dart'; // 🌟 ปรับ pa
 
 // 🌟 URL ของ Backend
 import '../../services/backend_config.dart';
+import '../../utils/thai_date.dart';
 
 class AddDatachickenHealth extends StatefulWidget {
   final String? initialCoopId;
@@ -35,21 +36,6 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
   List<Coop> _coopList = [];
   String? _selectedCoopId;
   bool _isLoadingCoops = true;
-
-  final List<String> monthNames = [
-    'JANUARY',
-    'FEBRUARY',
-    'MARCH',
-    'APRIL',
-    'MAY',
-    'JUNE',
-    'JULY',
-    'AUGUST',
-    'SEPTEMBER',
-    'OCTOBER',
-    'NOVEMBER',
-    'DECEMBER',
-  ];
 
   final TextEditingController _healthyController = TextEditingController(
  
@@ -76,9 +62,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
   }
 
   String _getFormattedDate(DateTime date) {
-    String day = date.day.toString().padLeft(2, '0');
-    String month = monthNames[date.month - 1];
-    return "$day $month ${date.year}";
+    return thaiDate(date);
   }
 
   bool _isFutureDate(DateTime date) {
@@ -247,7 +231,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          backgroundColor: const Color(0xFF1B242D),
+          backgroundColor: ezCardColor(context),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -312,12 +296,12 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
   Widget build(BuildContext context) {
     double screenHeight = MediaQuery.of(context).size.height;
 
-    const Color bgDarkColor = ezBackgroundColor;
-    const Color cardColor = ezCardColor;
-    const Color inputFillColor = Color(0xFF151D24);
-    const Color borderColor = Colors.white24;
+    final Color bgDarkColor = ezBackgroundColor(context);
+    final Color cardColor = ezCardColor(context);
+    final Color inputFillColor = ezColors(context).inputFill;
+    final Color borderColor = ezColors(context).border;
     const Color highlightRed = Color(0xFFFF6E5C);
-    const Color cancelBtnColor = Color(0xFF3B4654);
+    final Color cancelBtnColor = ezColors(context).cardAlt;
 
     return Scaffold(
       extendBody: true,
@@ -342,18 +326,18 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                       Row(
                         children: [
                           Text(
-                            monthNames[selectedDate.month - 1],
+                            kThaiMonthsFull[selectedDate.month - 1],
                             style: GoogleFonts.kanit(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: ezColors(context).textPrimary,
                               letterSpacing: 1.0,
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const Icon(
+                          Icon(
                             Icons.keyboard_arrow_down,
-                            color: Colors.white54,
+                              color: ezColors(context).textSecondary,
                             size: 20,
                           ),
                         ],
@@ -361,23 +345,23 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                       Row(
                         children: [
                           Text(
-                            '${selectedDate.year}',
+                            '${selectedDate.year + 543}',
                             style: GoogleFonts.kanit(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: ezColors(context).textPrimary,
                             ),
                           ),
                           const SizedBox(width: 10),
                           Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.white54),
+                              border: Border.all(color: ezColors(context).border),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.calendar_today_outlined,
-                              color: Colors.white,
+                                color: ezColors(context).textPrimary,
                               size: 16,
                             ),
                           ),
@@ -416,14 +400,14 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                   style: GoogleFonts.kanit(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                    color: ezColors(context).textPrimary,
                                   ),
                                 ),
                               ],
                             ),
-                            const Icon(
+                            Icon(
                               Icons.calendar_view_week_outlined,
-                              color: Colors.white70,
+                                color: ezColors(context).textSecondary,
                               size: 24,
                             ),
                           ],
@@ -451,13 +435,13 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                   _getFormattedDate(selectedDate),
                                   style: GoogleFonts.kanit(
                                     fontSize: 14,
-                                    color: Colors.white,
+                                    color: ezColors(context).textPrimary,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                const Icon(
+                                Icon(
                                   Icons.calendar_today_outlined,
-                                  color: Colors.white54,
+                                    color: ezColors(context).textSecondary,
                                   size: 20,
                                 ),
                               ],
@@ -500,7 +484,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                         : Icons.check_box_outline_blank,
                                     color: _isAppointment
                                         ? const Color(0xFF42A5F5)
-                                        : Colors.white54,
+                                        : ezColors(context).textSecondary,
                                     size: 20,
                                   ),
                                   const SizedBox(width: 10),
@@ -509,7 +493,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                       'ตั้งเป็นนัดหมายล่วงหน้า (ยังไม่ตรวจตอนนี้ ระบบจะแจ้งเตือนเมื่อถึงวันที่)',
                                       style: GoogleFonts.kanit(
                                         fontSize: 12,
-                                        color: Colors.white,
+                                        color: ezColors(context).textPrimary,
                                         height: 1.3,
                                       ),
                                     ),
@@ -533,13 +517,13 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(color: borderColor),
                                 ),
-                                child: const Center(
+                                child: Center(
                                   child: SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Colors.white54,
+                                      color: ezColors(context).textSecondary,
                                     ),
                                   ),
                                 ),
@@ -561,16 +545,16 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                       child: Text(
                                         'ไม่พบข้อมูลคอก',
                                         style: GoogleFonts.kanit(
-                                          color: Colors.white54,
+                                          color: ezColors(context).textSecondary,
                                           fontSize: 14,
                                         ),
                                       ),
                                     ),
                                     InkWell(
                                       onTap: _fetchCoops,
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.refresh,
-                                        color: Colors.white54,
+                                          color: ezColors(context).textSecondary,
                                         size: 20,
                                       ),
                                     ),
@@ -594,16 +578,16 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                     hint: Text(
                                       'เลือกคอก',
                                       style: GoogleFonts.kanit(
-                                        color: Colors.white54,
+                                        color: ezColors(context).textSecondary,
                                       ),
                                     ),
                                     style: GoogleFonts.kanit(
-                                      color: Colors.white,
+                                      color: ezColors(context).textPrimary,
                                       fontSize: 14,
                                     ),
-                                    icon: const Icon(
+                                    icon: Icon(
                                       Icons.keyboard_arrow_down,
-                                      color: Colors.white54,
+                                        color: ezColors(context).textSecondary,
                                     ),
                                     items: _coopList.map((coop) {
                                       return DropdownMenuItem<String>(
@@ -637,7 +621,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                               Text(
                                 'ตัว',
                                 style: GoogleFonts.kanit(
-                                  color: Colors.white,
+                                  color: ezColors(context).textPrimary,
                                   fontSize: 14,
                                 ),
                               ),
@@ -658,7 +642,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                               Text(
                                 'ตัว',
                                 style: GoogleFonts.kanit(
-                                  color: Colors.white,
+                                  color: ezColors(context).textPrimary,
                                   fontSize: 14,
                                 ),
                               ),
@@ -680,7 +664,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                             color: Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: Colors.white30,
+                              color: ezColors(context).border,
                               width: 1,
                               style: BorderStyle.solid,
                             ),
@@ -688,9 +672,9 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.info,
-                                color: Colors.white54,
+                                  color: ezColors(context).textSecondary,
                                 size: 20,
                               ),
                               const SizedBox(width: 10),
@@ -701,7 +685,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                       : 'ระบบจะบันทึกข้อมูลวันที่ตรวจอัตโนมัติ\nเมื่อกดบันทึกข้อมูล',
                                   style: GoogleFonts.kanit(
                                     fontSize: 12,
-                                    color: Colors.white70,
+                                    color: ezColors(context).textSecondary,
                                     height: 1.4,
                                   ),
                                 ),
@@ -734,7 +718,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                     style: GoogleFonts.kanit(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      color: ezColors(context).textPrimary,
                                     ),
                                   ),
                                 ),
@@ -771,7 +755,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
                                           style: GoogleFonts.kanit(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.white,
+                                            color: ezColors(context).textPrimary,
                                           ),
                                         ),
                                 ),
@@ -801,7 +785,7 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         text,
-        style: GoogleFonts.kanit(fontSize: 14, color: Colors.white70),
+        style: GoogleFonts.kanit(fontSize: 14, color: ezColors(context).textSecondary),
       ),
     );
   }
@@ -815,17 +799,17 @@ class _AddDatachickenHealthState extends State<AddDatachickenHealth> {
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      style: GoogleFonts.kanit(color: Colors.white, fontSize: 14),
+      style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontSize: 14),
       decoration: InputDecoration(
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
         filled: true,
-        fillColor: const Color(0xFF151D24),
+        fillColor: ezColors(context).inputFill,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.white24),
+          borderSide: BorderSide(color: ezColors(context).border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),

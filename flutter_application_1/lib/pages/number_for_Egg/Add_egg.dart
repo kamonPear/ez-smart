@@ -10,6 +10,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../bottombar.dart';
 import '../../widgets/ez_header.dart';
+import '../../utils/thai_date.dart';
+import '../../widgets/ez_skeleton.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import '../../services/backend_config.dart';
 
 class AddEgg extends StatefulWidget {
@@ -274,7 +277,7 @@ class _AddEggState extends State<AddEgg> {
           backgroundColor: const Color(0xFF1F2933),
           title: Text(
             'ยืนยันการลบ',
-            style: GoogleFonts.kanit(color: Colors.white),
+            style: GoogleFonts.kanit(color: ezColors(context).inputText),
           ),
           content: Text(
             'คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลนี้?',
@@ -298,7 +301,7 @@ class _AddEggState extends State<AddEgg> {
               },
               child: Text(
                 'ลบข้อมูล',
-                style: GoogleFonts.kanit(color: Colors.white),
+                style: GoogleFonts.kanit(color: ezColors(context).inputText),
               ),
             ),
           ],
@@ -370,39 +373,51 @@ class _AddEggState extends State<AddEgg> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
 
       body: SafeArea(
         child: SingleChildScrollView(
-        child: Container(
-          constraints: BoxConstraints(minHeight: screenHeight),
-          child: Column(
-            children: [
-              const EzHeader(pageTitle: 'บันทึกการเก็บไข่'),
-              const SizedBox(height: 20),
+          child: Container(
+            constraints: BoxConstraints(minHeight: screenHeight),
+            child: Column(
+              children: [
+                const EzHeader(pageTitle: 'บันทึกการเก็บไข่'),
+                const SizedBox(height: 20),
 
-              if (isLoading && actualMonthlyData.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(50.0),
-                    child: CircularProgressIndicator(),
+                if (isLoading && actualMonthlyData.isEmpty)
+                  Skeletonizer(
+                    enabled: true,
+                    child: Column(
+                      children: [
+                        _buildSummaryCard(),
+                        _buildToggleSwitch(),
+                        _buildRecordFormCard(),
+                        _buildLineChartCard(),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                          child: EzSkeletonList(count: 3, itemHeight: 64),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Column(
+                    children: [
+                      _buildSummaryCard(),
+                      _buildToggleSwitch(),
+                      _buildRecordFormCard(),
+                      _buildLineChartCard(),
+                      _buildHistoryList(),
+                    ],
                   ),
-                )
-              else
-                Column(
-                  children: [
-                    _buildSummaryCard(),
-                    _buildToggleSwitch(),
-                    _buildRecordFormCard(),
-                    _buildLineChartCard(),
-                    _buildHistoryList(),
-                  ],
-                ),
 
-              const SizedBox(height: 100),
-            ],
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
-        ),
         ),
       ),
 
@@ -426,7 +441,7 @@ class _AddEggState extends State<AddEgg> {
         ? Icons.remove
         : (isUp ? Icons.arrow_upward : Icons.arrow_downward);
     Color trendColor = isEqual
-        ? Colors.white54
+        ? ezColors(context).textSecondary
         : (isUp ? const Color(0xFF4ADE80) : Colors.redAccent);
 
     return Padding(
@@ -440,7 +455,7 @@ class _AddEggState extends State<AddEgg> {
             style: GoogleFonts.kanit(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: ezColors(context).textPrimary,
             ),
           ),
           const SizedBox(height: 4),
@@ -532,7 +547,7 @@ class _AddEggState extends State<AddEgg> {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2933),
+        color: ezCardColor(context),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
@@ -561,27 +576,27 @@ class _AddEggState extends State<AddEgg> {
               ),
               onPressed: isSubmitting ? null : _submitEggData,
               child: isSubmitting
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
+                        color: ezColors(context).textPrimary,
                         strokeWidth: 2,
                       ),
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.add_circle_outline,
-                          color: Colors.white,
+                          color: ezColors(context).textPrimary,
                         ),
                         const SizedBox(width: 10),
                         Text(
                           'บันทึกยอดเก็บไข่ไก่',
                           style: GoogleFonts.kanit(
                             fontSize: 16,
-                            color: Colors.white,
+                            color: ezColors(context).textPrimary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -601,7 +616,10 @@ class _AddEggState extends State<AddEgg> {
           width: 80,
           child: Text(
             'ชื่อคอก',
-            style: GoogleFonts.kanit(fontSize: 14, color: Colors.white),
+            style: GoogleFonts.kanit(
+              fontSize: 14,
+              color: ezColors(context).textPrimary,
+            ),
           ),
         ),
         Expanded(
@@ -609,7 +627,7 @@ class _AddEggState extends State<AddEgg> {
             height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFF151C22),
+              color: ezColors(context).inputFill,
               borderRadius: BorderRadius.circular(5),
               border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
             ),
@@ -620,12 +638,18 @@ class _AddEggState extends State<AddEgg> {
                     : null,
                 isDense: true,
                 isExpanded: true,
-                dropdownColor: const Color(0xFF1F2933),
+                dropdownColor: ezCardColor(context),
                 hint: Text(
                   availableCoops.isEmpty ? 'กำลังโหลด..' : 'เลือกคอก',
-                  style: GoogleFonts.kanit(color: Colors.white54, fontSize: 14),
+                  style: GoogleFonts.kanit(
+                    color: ezColors(context).textSecondary,
+                    fontSize: 14,
+                  ),
                 ),
-                style: GoogleFonts.kanit(fontSize: 14, color: Colors.white),
+                style: GoogleFonts.kanit(
+                  fontSize: 14,
+                  color: ezColors(context).textPrimary,
+                ),
                 items: availableCoops.map((String val) {
                   return DropdownMenuItem<String>(
                     value: val,
@@ -647,8 +671,7 @@ class _AddEggState extends State<AddEgg> {
   }
 
   Widget _buildDateFieldRow() {
-    String formattedDate =
-        "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+    String formattedDate = thaiDate(_selectedDate);
 
     return Row(
       children: [
@@ -656,7 +679,10 @@ class _AddEggState extends State<AddEgg> {
           width: 80,
           child: Text(
             'วันที่',
-            style: GoogleFonts.kanit(fontSize: 14, color: Colors.white),
+            style: GoogleFonts.kanit(
+              fontSize: 14,
+              color: ezColors(context).textPrimary,
+            ),
           ),
         ),
         Expanded(
@@ -666,7 +692,7 @@ class _AddEggState extends State<AddEgg> {
               height: 36,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF151C22),
+                color: ezColors(context).inputFill,
                 borderRadius: BorderRadius.circular(5),
                 border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
               ),
@@ -676,14 +702,14 @@ class _AddEggState extends State<AddEgg> {
                     child: Text(
                       formattedDate,
                       style: GoogleFonts.kanit(
-                        color: Colors.white,
+                        color: ezColors(context).textPrimary,
                         fontSize: 14,
                       ),
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.calendar_today_outlined,
-                    color: Colors.white70,
+                    color: ezColors(context).textSecondary,
                     size: 18,
                   ),
                 ],
@@ -719,21 +745,24 @@ class _AddEggState extends State<AddEgg> {
           width: 80,
           child: Text(
             label,
-            style: GoogleFonts.kanit(fontSize: 14, color: Colors.white),
+            style: GoogleFonts.kanit(
+              fontSize: 14,
+              color: ezColors(context).textPrimary,
+            ),
           ),
         ),
         Expanded(
           child: Container(
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFF151C22),
+              color: ezColors(context).inputFill,
               borderRadius: BorderRadius.circular(5),
               border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
             ),
             child: TextField(
               controller: controller,
               keyboardType: inputType,
-              style: GoogleFonts.kanit(color: Colors.white),
+              style: GoogleFonts.kanit(color: ezColors(context).inputText),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
@@ -742,7 +771,9 @@ class _AddEggState extends State<AddEgg> {
                 ),
                 isDense: true,
                 hintText: hint,
-                hintStyle: GoogleFonts.kanit(color: Colors.white54),
+                hintStyle: GoogleFonts.kanit(
+                  color: ezColors(context).textSecondary,
+                ),
               ),
             ),
           ),
@@ -769,7 +800,7 @@ class _AddEggState extends State<AddEgg> {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2933),
+        color: ezCardColor(context),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
@@ -781,7 +812,7 @@ class _AddEggState extends State<AddEgg> {
             style: GoogleFonts.kanit(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: ezColors(context).textPrimary,
             ),
           ),
           const SizedBox(height: 15),
@@ -817,7 +848,7 @@ class _AddEggState extends State<AddEgg> {
                         return Text(
                           value.toInt().toString(),
                           style: GoogleFonts.kanit(
-                            color: Colors.white54,
+                            color: ezColors(context).textSecondary,
                             fontSize: 10,
                           ),
                           textAlign: TextAlign.right,
@@ -857,7 +888,7 @@ class _AddEggState extends State<AddEgg> {
                           child: Text(
                             text,
                             style: GoogleFonts.kanit(
-                              color: Colors.white54,
+                              color: ezColors(context).textSecondary,
                               fontSize: 10,
                             ),
                           ),
@@ -873,7 +904,7 @@ class _AddEggState extends State<AddEgg> {
                       (index) => FlSpot(index.toDouble(), currentData[index]),
                     ),
                     isCurved: false,
-                    color: Colors.white,
+                    color: ezColors(context).textPrimary,
                     barWidth: 2,
                     isStrokeCapRound: true,
                     dotData: FlDotData(
@@ -889,6 +920,20 @@ class _AddEggState extends State<AddEgg> {
                     ),
                   ),
                 ],
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
+                      return LineTooltipItem(
+                        '${spot.y.toInt()} ฟอง',
+                        GoogleFonts.kanit(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
             ),
           ),
@@ -904,7 +949,7 @@ class _AddEggState extends State<AddEgg> {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2933),
+        color: ezCardColor(context),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
@@ -913,20 +958,24 @@ class _AddEggState extends State<AddEgg> {
         children: [
           Row(
             children: [
-              const Icon(Icons.history, color: Colors.white70, size: 20),
+              Icon(
+                Icons.history,
+                color: ezColors(context).textSecondary,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 'ประวัติการบันทึก (ล่าสุด)',
                 style: GoogleFonts.kanit(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: ezColors(context).textPrimary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          const Divider(color: Colors.white24, thickness: 1),
+          Divider(color: ezColors(context).border, thickness: 1),
 
           MediaQuery.removePadding(
             context: context,
@@ -944,11 +993,10 @@ class _AddEggState extends State<AddEgg> {
                 String coopId = item['coop_id']?.toString() ?? '-';
                 String coop = _coopNames[coopId] ?? coopId;
 
-                String dateStr = item['date_collect_egg']?.toString() ?? '';
-                String formattedDate = '';
-                if (dateStr.isNotEmpty && dateStr.length >= 10) {
-                  formattedDate = dateStr.substring(0, 10);
-                }
+                String formattedDate = thaiDateFromIso(
+                  item['date_collect_egg']?.toString(),
+                  fallback: '',
+                );
 
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -958,12 +1006,15 @@ class _AddEggState extends State<AddEgg> {
                   ),
                   title: Text(
                     'คอกที่ $coop : $amount ฟอง',
-                    style: GoogleFonts.kanit(color: Colors.white, fontSize: 15),
+                    style: GoogleFonts.kanit(
+                      color: ezColors(context).textPrimary,
+                      fontSize: 15,
+                    ),
                   ),
                   subtitle: Text(
                     'วันที่: $formattedDate',
                     style: GoogleFonts.kanit(
-                      color: Colors.white54,
+                      color: ezColors(context).textSecondary,
                       fontSize: 13,
                     ),
                   ),

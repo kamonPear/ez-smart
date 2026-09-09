@@ -15,6 +15,7 @@ import '../bottombar.dart';
 import '../main_dash.dart';
 import '../../widgets/ez_header.dart';
 import '../../services/backend_config.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class MainVaccine extends StatefulWidget {
   final String? initialCoopId;
@@ -180,7 +181,7 @@ class _MainVaccineState extends State<MainVaccine> {
             flex: 2,
             child: Text(
               label,
-              style: GoogleFonts.kanit(color: Colors.white70, fontSize: 15),
+              style: GoogleFonts.kanit(color: ezColors(context).textSecondary, fontSize: 15),
             ),
           ),
           Expanded(
@@ -188,7 +189,7 @@ class _MainVaccineState extends State<MainVaccine> {
             child: Text(
               value,
               style: GoogleFonts.kanit(
-                color: Colors.white,
+                color: ezColors(context).textPrimary,
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
               ),
@@ -203,7 +204,7 @@ class _MainVaccineState extends State<MainVaccine> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        backgroundColor: const Color(0xFF1E2730),
+        backgroundColor: ezCardColor(context),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(25.0),
@@ -215,7 +216,7 @@ class _MainVaccineState extends State<MainVaccine> {
                 child: Text(
                   "ข้อมูลวัคซีน",
                   style: GoogleFonts.kanit(
-                    color: Colors.white,
+                    color: ezColors(context).textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
@@ -259,7 +260,7 @@ class _MainVaccineState extends State<MainVaccine> {
                       child: Text(
                         "ปิด",
                         style: GoogleFonts.kanit(
-                          color: Colors.white,
+                          color: ezColors(context).textPrimary,
                           fontSize: 16,
                         ),
                       ),
@@ -282,7 +283,7 @@ class _MainVaccineState extends State<MainVaccine> {
                       child: Text(
                         "ลบข้อมูล",
                         style: GoogleFonts.kanit(
-                          color: Colors.white,
+                          color: ezColors(context).textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -526,7 +527,7 @@ class _MainVaccineState extends State<MainVaccine> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
       body: Stack(
         children: [
           Positioned(
@@ -540,9 +541,9 @@ class _MainVaccineState extends State<MainVaccine> {
                 child: EzHeader(
                   pageTitle: 'ตารางวัคซีน',
                   trailing: IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.calendar_today_outlined,
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                       size: 24,
                     ),
                     onPressed: () {
@@ -572,7 +573,7 @@ class _MainVaccineState extends State<MainVaccine> {
                       child: Text(
                         'ตารางวัคซีนคอก ${_coopNames[widget.initialCoopId] ?? widget.initialCoopId}',
                         style: GoogleFonts.kanit(
-                          color: Colors.white,
+                          color: ezColors(context).textPrimary,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -592,14 +593,28 @@ class _MainVaccineState extends State<MainVaccine> {
                   ),
                   const SizedBox(height: 25),
                   _isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(color: Colors.white),
+                      ? Skeletonizer(
+                          enabled: true,
+                          child: Column(
+                            children: List.generate(
+                              2,
+                              (_) => buildAlertCard({
+                                'vaccine_name': 'วัคซีนตัวอย่าง',
+                                'coop_id': '1',
+                                'injection_type': 'หยอดตา',
+                                'chicken_age': '7',
+                                'description': '-',
+                                'is_completed': false,
+                                'is_overdue': false,
+                              }),
+                            ),
+                          ),
                         )
                       : alertsForSelectedDay.isEmpty
                       ? Text(
                           "ไม่มีคิวฉีดวัคซีนในวันนี้",
                           style: GoogleFonts.kanit(
-                            color: Colors.white,
+                            color: ezColors(context).textPrimary,
                             fontSize: 16,
                           ),
                         )
@@ -631,7 +646,7 @@ class _MainVaccineState extends State<MainVaccine> {
           },
           backgroundColor: const Color(0xFFE53935),
           shape: const CircleBorder(),
-          child: const Icon(Icons.add, color: Colors.white, size: 36),
+          child: Icon(Icons.add, color: Colors.white, size: 36),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -656,7 +671,7 @@ class _MainVaccineState extends State<MainVaccine> {
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E2730),
+        color: ezCardColor(context),
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
@@ -679,7 +694,7 @@ class _MainVaccineState extends State<MainVaccine> {
                   child: Text(
                     "แจ้งเตือน: $vaccineName",
                     style: GoogleFonts.kanit(
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -771,7 +786,7 @@ class _MainVaccineState extends State<MainVaccine> {
                   child: Text(
                     "คอก",
                     style: GoogleFonts.kanit(
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -782,7 +797,7 @@ class _MainVaccineState extends State<MainVaccine> {
                   child: Text(
                     "อายุไก่",
                     style: GoogleFonts.kanit(
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -793,7 +808,7 @@ class _MainVaccineState extends State<MainVaccine> {
                   child: Text(
                     "ประเภทการให้",
                     style: GoogleFonts.kanit(
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -818,7 +833,7 @@ class _MainVaccineState extends State<MainVaccine> {
                   child: Text(
                     coopId,
                     style: GoogleFonts.kanit(
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
@@ -829,7 +844,7 @@ class _MainVaccineState extends State<MainVaccine> {
                   child: Text(
                     "$chickenAge วัน",
                     style: GoogleFonts.kanit(
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
@@ -840,7 +855,7 @@ class _MainVaccineState extends State<MainVaccine> {
                   child: Text(
                     injectionType,
                     style: GoogleFonts.kanit(
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
@@ -857,13 +872,13 @@ class _MainVaccineState extends State<MainVaccine> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF131D2A),
+                color: ezColors(context).inputFill,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 "หมายเหตุ: $remark",
                 style: GoogleFonts.kanit(
-                  color: Colors.white70,
+                  color: ezColors(context).textSecondary,
                   fontSize: 13,
                   height: 1.4,
                 ),
@@ -876,13 +891,13 @@ class _MainVaccineState extends State<MainVaccine> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF131D2A),
+                color: ezColors(context).inputFill,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 "หมายเหตุ: ไม่มีหมายเหตุ",
                 style: GoogleFonts.kanit(
-                  color: Colors.white70,
+                  color: ezColors(context).textSecondary,
                   fontSize: 13,
                   height: 1.4,
                 ),
@@ -917,14 +932,14 @@ class _MainVaccineState extends State<MainVaccine> {
                 children: [
                   Icon(
                     isCompleted ? Icons.check_circle : Icons.vaccines,
-                    color: Colors.white,
+                    color: ezColors(context).textPrimary,
                     size: 22,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     isCompleted ? "ให้วัคซีนแล้ว" : "เสร็จสิ้น (ให้วัคซีน)",
                     style: GoogleFonts.kanit(
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),

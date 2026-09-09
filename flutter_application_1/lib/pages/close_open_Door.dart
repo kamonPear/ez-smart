@@ -92,7 +92,7 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
 
       body: Stack(
         children: [
@@ -122,9 +122,9 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
                       ),
                       GestureDetector(
                         onTap: _addNewDoor,
-                        child: const Icon(
+                        child: Icon(
                           Icons.add_circle_outline,
-                          color: Colors.white,
+                          color: ezColors(context).textPrimary,
                           size: 30,
                         ),
                       ),

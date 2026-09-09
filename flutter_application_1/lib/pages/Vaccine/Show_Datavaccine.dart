@@ -11,6 +11,9 @@ import 'dart:convert';
 import '../bottombar.dart';
 import '../main_dash.dart';
 import '../../widgets/ez_header.dart';
+import '../../widgets/ez_form_field.dart';
+import '../../widgets/ez_top_banner.dart';
+import '../../utils/thai_date.dart';
 import '../../services/backend_config.dart';
 
 class ShowDatavaccine extends StatefulWidget {
@@ -56,6 +59,15 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
   TextEditingController maxAgeCtrl = TextEditingController(text: "");
   TextEditingController remarkCtrl = TextEditingController(text: "");
 
+  // ค่าที่ผู้ใช้เลือกจากไดอะล็อก "ตั้งค่าการแจ้งเตือน" (ยังไม่ได้ผูกกับ backend จริง
+  // แค่เก็บไว้แสดงผลในหน้านี้)
+  bool _hasReminder = false;
+  bool _reminderAllDay = false;
+  DateTime _reminderStartDate = DateTime.now();
+  TimeOfDay _reminderStartTime = const TimeOfDay(hour: 8, minute: 0);
+  DateTime _reminderEndDate = DateTime.now().add(const Duration(days: 1));
+  TimeOfDay _reminderEndTime = const TimeOfDay(hour: 8, minute: 0);
+
   @override
   void initState() {
     super.initState();
@@ -75,14 +87,9 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
         minAgeCtrl.text.isEmpty ||
         maxAgeCtrl.text.isEmpty ||
         remarkCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.orangeAccent,
-          content: Text(
-            'กรุณากรอกข้อมูล ชื่อยา, วิธีการให้, เงื่อนไขอายุ และ "หมายเหตุ" ให้ครบถ้วนก่อนบันทึก',
-            style: GoogleFonts.kanit(color: Colors.white),
-          ),
-        ),
+      showEzTopBanner(
+        context,
+        'กรุณากรอกข้อมูล ชื่อยา, วิธีการให้, เงื่อนไขอายุ และ "หมายเหตุ" ให้ครบถ้วนก่อนบันทึก',
       );
       return; // สั่งหยุดการทำงานตรงนี้ ไม่ให้รันโค้ดบันทึกด้านล่างต่อ
     }
@@ -114,14 +121,10 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF55C759),
-            content: Text(
-              'บันทึกกำหนดการยา/วัคซีนสำเร็จ!',
-              style: GoogleFonts.kanit(),
-            ),
-          ),
+        showEzTopBanner(
+          context,
+          'บันทึกกำหนดการยา/วัคซีนสำเร็จ!',
+          isError: false,
         );
 
         // ล้างข้อมูลช่องกรอก
@@ -131,6 +134,7 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
         remarkCtrl.clear();
         setState(() {
           selectedMethod = null;
+          _hasReminder = false;
         });
 
         // รีเฟรชตารางข้อมูล
@@ -139,15 +143,7 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
         throw Exception('Failed with status: ${response.statusCode}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.redAccent,
-          content: Text(
-            'เกิดข้อผิดพลาดในการบันทึกข้อมูล: $e',
-            style: GoogleFonts.kanit(),
-          ),
-        ),
-      );
+      showEzTopBanner(context, 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: $e');
     } finally {
       setState(() {
         isSaving = false;
@@ -231,7 +227,9 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
           displayCoopId = jsonResponse['coop_id']?.toString() ?? selectedCoop;
 
           if (jsonResponse['birthday'] != null) {
-            displayBirthday = jsonResponse['birthday'].toString().split('T')[0];
+            displayBirthday = thaiDateFromIso(
+              jsonResponse['birthday'].toString(),
+            );
           }
         } else {
           schedules = jsonResponse['schedules'] ?? [];
@@ -302,232 +300,43 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
     }
   }
 
-  void _showReminderBottomSheet() {
-    showModalBottomSheet(
+  Future<void> _openReminderDialog() async {
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
-            bool isAllDay = false;
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Container(
-                margin: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        top: 24,
-                        left: 24,
-                        right: 24,
-                        bottom: 10,
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            "เตือน",
-                            style: GoogleFonts.kanit(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "ตลอดวัน",
-                                style: GoogleFonts.kanit(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Switch(
-                                value: isAllDay,
-                                onChanged: (val) {
-                                  setModalState(() {
-                                    isAllDay = val;
-                                  });
-                                },
-                                activeColor: Colors.white,
-                                activeTrackColor: Colors.greenAccent,
-                                inactiveThumbColor: Colors.white,
-                                inactiveTrackColor: Colors.grey,
-                              ),
-                            ],
-                          ),
-                          const Divider(color: Colors.white24, thickness: 1.5),
-                          _buildReminderDateRow("WEDNES . 4 . DECEMBER . 2026"),
-                          const Divider(color: Colors.white24, thickness: 1.5),
-                          _buildReminderDateRow("WEDNES . 4 . DECEMBER . 2026"),
-                          const Divider(color: Colors.white24, thickness: 1.5),
-                          const SizedBox(height: 16),
-                          const Icon(
-                            Icons.notifications_active_outlined,
-                            color: Colors.redAccent,
-                            size: 45,
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () {
-                        Navigator.pop(context);
-                        saveVaccineData();
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF55C759),
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(16),
-                            bottomRight: Radius.circular(16),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.add_circle_outline,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              "บันทึกการให้วัคซีน",
-                              style: GoogleFonts.kanit(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      builder: (context) => _VaccineReminderDialog(
+        initialAllDay: _reminderAllDay,
+        initialStartDate: _reminderStartDate,
+        initialStartTime: _reminderStartTime,
+        initialEndDate: _reminderEndDate,
+        initialEndTime: _reminderEndTime,
+      ),
     );
+    if (result == null) return; // กดยกเลิก หรือแตะพื้นหลังปิดไดอะล็อก
+    setState(() {
+      _hasReminder = true;
+      _reminderAllDay = result['isAllDay'] as bool;
+      _reminderStartDate = result['startDate'] as DateTime;
+      _reminderStartTime = result['startTime'] as TimeOfDay;
+      _reminderEndDate = result['endDate'] as DateTime;
+      _reminderEndTime = result['endTime'] as TimeOfDay;
+    });
   }
 
-  Widget _buildReminderDateRow(String dateText) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            dateText,
-            style: GoogleFonts.kanit(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          Column(
-            children: [
-              Text(
-                "เวลา",
-                style: GoogleFonts.kanit(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  _buildTimeBox(),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: Colors.redAccent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          width: 4,
-                          height: 4,
-                          decoration: const BoxDecoration(
-                            color: Colors.redAccent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  _buildTimeBox(),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  String _formatTime(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
-  Widget _buildTimeBox() {
-    return Container(
-      width: 35,
-      height: 35,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: TextField(
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        maxLength: 2,
-        style: GoogleFonts.kanit(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.black,
-        ),
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-          counterText: "",
-          contentPadding: EdgeInsets.zero,
-        ),
-      ),
-    );
+  String get _reminderSummaryText {
+    if (_reminderAllDay) {
+      return 'ตลอดวัน · ${thaiDate(_reminderStartDate)} – ${thaiDate(_reminderEndDate)}';
+    }
+    return '${thaiDate(_reminderStartDate)} ${_formatTime(_reminderStartTime)} – ${thaiDate(_reminderEndDate)} ${_formatTime(_reminderEndTime)}';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
       body: Stack(
         children: [
           // เนื้อหา UI
@@ -558,12 +367,13 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
   }
 
   Widget _buildVaccineFormWidget() {
-    String formattedDate =
-        "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+    final ez = ezColors(context);
+    String formattedDate = thaiDate(_selectedDate);
+    final bool coopSelected = coopList.contains(selectedCoop);
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: ezCardColor(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -580,108 +390,233 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
             child: Column(
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    PopupMenuButton<String>(
-                      onSelected: (String value) {
-                        setState(() {
-                          selectedCoop = value;
-                        });
-                        fetchVaccineData();
-                      },
-                      color: Colors.white,
-                      offset: const Offset(0, 45),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              coopNames[selectedCoop] ?? selectedCoop,
-                              style: GoogleFonts.kanit(
-                                fontSize: 14,
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.keyboard_arrow_down,
-                              color: Colors.black,
-                              size: 18,
-                            ),
-                          ],
-                        ),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: ez.gold.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      itemBuilder: (BuildContext context) =>
-                          coopList.map((String coopId) {
-                            return PopupMenuItem<String>(
-                              value: coopId,
-                              child: Text(
-                                coopNames[coopId] ?? coopId,
-                                style: GoogleFonts.kanit(),
-                              ),
-                            );
-                          }).toList(),
+                      child: Icon(
+                        Icons.vaccines_outlined,
+                        color: ez.gold,
+                        size: 18,
+                      ),
                     ),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today_outlined,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          formattedDate,
-                          style: GoogleFonts.kanit(
-                            fontSize: 16,
-                            color: Colors.white,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'กรอกข้อมูลการให้วัคซีน/ยา',
+                            style: GoogleFonts.kanit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: ez.textPrimary,
+                            ),
                           ),
-                        ),
-                      ],
+                          Text(
+                            'ช่องที่มี * ต้องกรอกให้ครบก่อนบันทึก',
+                            style: GoogleFonts.kanit(
+                              fontSize: 10,
+                              color: ez.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ez.gold.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            color: ez.gold,
+                            size: 13,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            formattedDate,
+                            style: GoogleFonts.kanit(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: ez.gold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
 
-                // ฟอร์มกรอกข้อมูล
-                _buildInputRow("ชื่อยา", medNameCtrl),
-                const SizedBox(height: 12),
-                _buildMethodDropdownRow(),
-                const SizedBox(height: 12),
-                _buildInputRow(
-                  "อายุต่ำสุด (วัน)",
-                  minAgeCtrl,
-                  keyboardType: TextInputType.number,
+                // ฟอร์มกรอกข้อมูล — ดีไซน์เดียวกันทุกช่อง
+                EzFormDropdown<String>(
+                  label: "เลือกคอก",
+                  isRequired: true,
+                  value: coopSelected ? selectedCoop : null,
+                  hint: "เลือกคอก",
+                  items: coopList
+                      .map(
+                        (id) => DropdownMenuItem(
+                          value: id,
+                          child: Text(
+                            coopNames[id] ?? id,
+                            style: GoogleFonts.kanit(),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (val) {
+                    if (val == null) return;
+                    setState(() {
+                      selectedCoop = val;
+                    });
+                    fetchVaccineData();
+                  },
                 ),
                 const SizedBox(height: 12),
-                _buildInputRow(
-                  "อายุสูงสุด (วัน)",
-                  maxAgeCtrl,
-                  keyboardType: TextInputType.number,
+                EzFormTextField(
+                  label: "ชื่อยา",
+                  isRequired: true,
+                  controller: medNameCtrl,
+                  hintText: "เช่น นิวคาสเซิล",
                 ),
                 const SizedBox(height: 12),
-                _buildInputRow("หมายเหตุ", remarkCtrl),
+                EzFormDropdown<String>(
+                  label: "วิธีการให้",
+                  isRequired: true,
+                  value: selectedMethod,
+                  hint: "เลือกวิธีการให้",
+                  items: methodOptions
+                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                      .toList(),
+                  onChanged: (val) {
+                    setState(() {
+                      selectedMethod = val;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                EzFormTextField(
+                  label: "อายุต่ำสุด",
+                  isRequired: true,
+                  controller: minAgeCtrl,
+                  keyboardType: TextInputType.number,
+                  hintText: "เช่น 1",
+                  suffixText: "วัน",
+                ),
+                const SizedBox(height: 12),
+                EzFormTextField(
+                  label: "อายุสูงสุด",
+                  isRequired: true,
+                  controller: maxAgeCtrl,
+                  keyboardType: TextInputType.number,
+                  hintText: "เช่น 7",
+                  suffixText: "วัน",
+                ),
+                const SizedBox(height: 12),
+                EzFormTextField(
+                  label: "หมายเหตุ",
+                  isRequired: true,
+                  controller: remarkCtrl,
+                  hintText: "รายละเอียดเพิ่มเติม",
+                ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
-                GestureDetector(
-                  onTap: _showReminderBottomSheet,
-                  child: const Icon(
-                    Icons.notifications_active_outlined,
-                    color: Colors.redAccent,
-                    size: 36,
+                // ปุ่มรอง: ตั้งเตือน — ทำเป็นปุ่มมีกรอบให้เห็นชัดว่ากดได้
+                SizedBox(
+                  width: double.infinity,
+                  child: InkWell(
+                    onTap: _openReminderDialog,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ez.danger.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: ez.danger.withValues(alpha: 0.35),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.notifications_active_outlined,
+                            color: ez.danger,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'ตั้งเตือนการให้วัคซีน',
+                              style: GoogleFonts.kanit(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: ez.danger,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: ez.danger,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                if (_hasReminder)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ez.gold.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.notifications_active,
+                            size: 16,
+                            color: ez.gold,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _reminderSummaryText,
+                              style: GoogleFonts.kanit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: ez.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 4),
               ],
             ),
           ),
@@ -732,98 +667,337 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
       ),
     );
   }
+}
 
-  Widget _buildMethodDropdownRow() {
-    return Row(
-      children: [
-        SizedBox(
-          width: 90,
-          child: Text(
-            "วิธีการให้",
-            style: GoogleFonts.kanit(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.white,
+/// ไดอะล็อกตั้งค่าการแจ้งเตือนการให้วัคซีน — กึ่งกลางจอ เลือกช่วงวันและเวลา
+/// เริ่มต้น/สิ้นสุดได้จริง (หรือตั้งเป็น "ตลอดวัน") พร้อมตรวจว่าวันเริ่มต้อง
+/// น้อยกว่าวันสิ้นสุดก่อนกดยืนยัน
+class _VaccineReminderDialog extends StatefulWidget {
+  final bool initialAllDay;
+  final DateTime initialStartDate;
+  final TimeOfDay initialStartTime;
+  final DateTime initialEndDate;
+  final TimeOfDay initialEndTime;
+
+  const _VaccineReminderDialog({
+    required this.initialAllDay,
+    required this.initialStartDate,
+    required this.initialStartTime,
+    required this.initialEndDate,
+    required this.initialEndTime,
+  });
+
+  @override
+  State<_VaccineReminderDialog> createState() =>
+      _VaccineReminderDialogState();
+}
+
+class _VaccineReminderDialogState extends State<_VaccineReminderDialog> {
+  late bool isAllDay = widget.initialAllDay;
+  late DateTime startDate = widget.initialStartDate;
+  late TimeOfDay startTime = widget.initialStartTime;
+  late DateTime endDate = widget.initialEndDate;
+  late TimeOfDay endTime = widget.initialEndTime;
+  String? errorText;
+
+  DateTime get _startDateTime => DateTime(
+    startDate.year,
+    startDate.month,
+    startDate.day,
+    startTime.hour,
+    startTime.minute,
+  );
+
+  DateTime get _endDateTime => DateTime(
+    endDate.year,
+    endDate.month,
+    endDate.day,
+    endTime.hour,
+    endTime.minute,
+  );
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: isStart ? startDate : endDate,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isStart) {
+        startDate = picked;
+      } else {
+        endDate = picked;
+      }
+      errorText = null;
+    });
+  }
+
+  Future<void> _pickTime({required bool isStart}) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: isStart ? startTime : endTime,
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isStart) {
+        startTime = picked;
+      } else {
+        endTime = picked;
+      }
+      errorText = null;
+    });
+  }
+
+  void _confirm() {
+    final isValid = isAllDay
+        ? !endDate.isBefore(startDate)
+        : _endDateTime.isAfter(_startDateTime);
+    if (!isValid) {
+      setState(
+        () => errorText = 'วันและเวลาเริ่มต้นต้องน้อยกว่าวันและเวลาสิ้นสุด',
+      );
+      return;
+    }
+    Navigator.pop(context, {
+      'isAllDay': isAllDay,
+      'startDate': startDate,
+      'startTime': startTime,
+      'endDate': endDate,
+      'endTime': endTime,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ez = ezColors(context);
+    return Dialog(
+      backgroundColor: ezCardColor(context),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.notifications_active_outlined,
+                  color: Colors.redAccent,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'ตั้งค่าการแจ้งเตือน',
+                    style: GoogleFonts.kanit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: ez.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "ตลอดวัน",
+                  style: GoogleFonts.kanit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: ez.textPrimary,
+                  ),
+                ),
+                Switch(
+                  value: isAllDay,
+                  onChanged: (val) => setState(() {
+                    isAllDay = val;
+                    errorText = null;
+                  }),
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: ez.gold,
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: ez.border,
+                ),
+              ],
+            ),
+            Divider(color: ez.border, height: 24),
+            _buildDateTimeSection(
+              label: 'วันและเวลาเริ่มต้น',
+              date: startDate,
+              time: startTime,
+              onDateTap: () => _pickDate(isStart: true),
+              onTimeTap: () => _pickTime(isStart: true),
+            ),
+            const SizedBox(height: 16),
+            _buildDateTimeSection(
+              label: 'วันและเวลาสิ้นสุด',
+              date: endDate,
+              time: endTime,
+              onDateTap: () => _pickDate(isStart: false),
+              onTimeTap: () => _pickTime(isStart: false),
+            ),
+            if (errorText != null) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Icon(Icons.error_outline, size: 16, color: ez.danger),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      errorText!,
+                      style: GoogleFonts.kanit(fontSize: 12, color: ez.danger),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: BorderSide(color: ez.border, width: 1.3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'ยกเลิก',
+                      style: GoogleFonts.kanit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: ez.textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _confirm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF55C759),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'ยืนยัน',
+                      style: GoogleFonts.kanit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateTimeSection({
+    required String label,
+    required DateTime date,
+    required TimeOfDay time,
+    required VoidCallback onDateTap,
+    required VoidCallback onTimeTap,
+  }) {
+    final ez = ezColors(context);
+    final timeText =
+        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.kanit(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: ez.textSecondary,
           ),
         ),
-        Expanded(
-          child: Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF131D2A),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF2B3A4A), width: 1.5),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: selectedMethod,
-                isExpanded: true,
-                dropdownColor: const Color(0xFF1E293B),
-                hint: Text(
-                  "เลือกวิธีการให้",
-                  style: GoogleFonts.kanit(color: Colors.white38, fontSize: 14),
-                ),
-                style: GoogleFonts.kanit(color: Colors.white, fontSize: 14),
-                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white54),
-                items: methodOptions
-                    .map(
-                      (m) => DropdownMenuItem(value: m, child: Text(m)),
-                    )
-                    .toList(),
-                onChanged: (val) {
-                  setState(() {
-                    selectedMethod = val;
-                  });
-                },
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: _pickerBox(
+                icon: Icons.calendar_today_outlined,
+                text: thaiDate(date),
+                onTap: onDateTap,
               ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: _pickerBox(
+                icon: Icons.access_time_rounded,
+                text: isAllDay ? 'ทั้งวัน' : timeText,
+                onTap: isAllDay ? null : onTimeTap,
+                dimmed: isAllDay,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildInputRow(
-    String label,
-    TextEditingController controller, {
-    TextInputType? keyboardType,
+  Widget _pickerBox({
+    required IconData icon,
+    required String text,
+    required VoidCallback? onTap,
+    bool dimmed = false,
   }) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 90,
-          child: Text(
-            label,
-            style: GoogleFonts.kanit(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.white,
-            ),
-          ),
+    final ez = ezColors(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: ez.inputFill.withValues(alpha: dimmed ? 0.5 : 1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: ez.border, width: 1.2),
         ),
-        Expanded(
-          child: Container(
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFF131D2A),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF2B3A4A), width: 1.5),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: dimmed ? ez.textSecondary : ez.gold,
             ),
-            child: TextField(
-              controller: controller,
-              textAlign: TextAlign.center,
-              keyboardType: keyboardType,
-              style: GoogleFonts.kanit(color: Colors.white, fontSize: 14),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 10),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                text,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.kanit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: dimmed ? ez.textSecondary : ez.textPrimary,
+                ),
               ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

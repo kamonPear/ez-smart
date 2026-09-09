@@ -267,7 +267,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: ezCardColor,
+        color: ezCardColor(context),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -282,12 +282,12 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
                     _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
                   });
                 },
-                child: const Icon(Icons.chevron_left, color: Colors.white, size: 24),
+                child: Icon(Icons.chevron_left, color: ezColors(context).textPrimary, size: 24),
               ),
               Text(
                 DateFormat('MMMM yyyy').format(_focusedMonth).toUpperCase(),
-                style: GoogleFonts.inter(
-                  color: Colors.white,
+                style: GoogleFonts.kanit(
+                  color: ezColors(context).textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.0,
@@ -299,7 +299,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
                     _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
                   });
                 },
-                child: const Icon(Icons.chevron_right, color: Colors.white, size: 24),
+                child: Icon(Icons.chevron_right, color: ezColors(context).textPrimary, size: 24),
               ),
             ],
           ),
@@ -312,8 +312,8 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
               child: Center(
                 child: Text(
                   day,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
+                  style: GoogleFonts.kanit(
+                    color: ezColors(context).textPrimary,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
@@ -365,7 +365,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
                   child: Center(
                     child: Text(
                       day.toString(),
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.kanit(
                         color: isSelected ? const Color(0xFF6FE975) : Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -384,8 +384,8 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
   Widget _buildDarkTextFieldRow(String label, TextEditingController controller, {String? suffixText, bool isDate = false, VoidCallback? onTap}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white54, width: 1.5)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: ezColors(context).textSecondary, width: 1.5)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -395,7 +395,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
             style: GoogleFonts.kanit(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: ezColors(context).textPrimary,
             ),
           ),
           const SizedBox(width: 10),
@@ -410,7 +410,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
                   style: GoogleFonts.kanit(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: ezColors(context).textPrimary,
                   ),
                   decoration: InputDecoration(
                     border: InputBorder.none,
@@ -425,11 +425,11 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
                               style: GoogleFonts.kanit(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                                color: ezColors(context).textPrimary,
                               ),
                             ),
                           )
-                        : (isDate ? const Padding(padding: EdgeInsets.only(left: 10), child: Icon(Icons.calendar_today, color: Colors.white, size: 20)) : null),
+                        : (isDate ? Padding(padding: EdgeInsets.only(left: 10), child: Icon(Icons.calendar_today, color: ezColors(context).textPrimary, size: 20)) : null),
                   ),
                 ),
               ),
@@ -444,7 +444,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -465,7 +465,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
                         // กล่องข้อมูลไก่ (Data Container)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-                          decoration: ezCardDecoration(),
+                          decoration: ezCardDecoration(context),
                           child: Column(
                             children: [
                               Text(
@@ -473,7 +473,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
                                 style: GoogleFonts.kanit(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: ezColors(context).textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 25),
@@ -514,7 +514,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
                                 style: GoogleFonts.kanit(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: ezColors(context).textPrimary,
                                 ),
                               ),
                             ),

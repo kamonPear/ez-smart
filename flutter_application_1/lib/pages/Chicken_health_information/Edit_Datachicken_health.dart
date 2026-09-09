@@ -196,7 +196,7 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
         children: [
           Text(
             label,
-            style: GoogleFonts.kanit(fontSize: 14, color: Colors.white70),
+            style: GoogleFonts.kanit(fontSize: 14, color: ezColors(context).textSecondary),
           ),
           const SizedBox(height: 8),
           TextFormField(
@@ -205,17 +205,17 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
             onTap: onTap,
             keyboardType: keyboardType,
             maxLines: maxLines,
-            style: GoogleFonts.kanit(fontSize: 16, color: Colors.white),
+            style: GoogleFonts.kanit(fontSize: 16, color: ezColors(context).textPrimary),
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.transparent,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               suffixText: suffixText,
-              suffixStyle: GoogleFonts.kanit(fontSize: 16, color: Colors.white),
+              suffixStyle: GoogleFonts.kanit(fontSize: 16, color: ezColors(context).textPrimary),
               suffixIcon: suffixIcon,
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                borderSide: BorderSide(color: ezColors(context).border),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -232,7 +232,7 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true, // ทำให้พื้นหลังไหลทะลุไปใต้ BottomNavigationBar ได้
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
       body: SafeArea(
         child: Container(
         width: double.infinity,
@@ -254,7 +254,7 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
               Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF1C2733), 
+              color: ezCardColor(context), 
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -287,12 +287,12 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
                           style: GoogleFonts.kanit(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: ezColors(context).textPrimary,
                           ),
                         ),
                       ],
                     ),
-                    const Icon(Icons.calendar_month, color: Colors.white70),
+                    Icon(Icons.calendar_month, color: ezColors(context).textSecondary),
                   ],
                 ),
                 const SizedBox(height: 25),
@@ -301,7 +301,7 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
                 _buildInputField(
                   label: "วันที่ตรวจไก่", 
                   controller: _inspectionDateController,
-                  suffixIcon: const Icon(Icons.calendar_today, color: Colors.white70, size: 20),
+                  suffixIcon: Icon(Icons.calendar_today, color: ezColors(context).textSecondary, size: 20),
                   readOnly: true,
                   onTap: () => _selectDate(context),
                 ),
@@ -329,16 +329,16 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                    border: Border.all(color: ezColors(context).border),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info, color: Colors.white54, size: 20),
+                      Icon(Icons.info, color: ezColors(context).textSecondary, size: 20),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           "ระบบจะบันทึกข้อมูลวันที่ตรวจอัตโนมัติ\nเมื่อกดบันทึกข้อมูล",
-                          style: GoogleFonts.kanit(fontSize: 12, color: Colors.white54),
+                          style: GoogleFonts.kanit(fontSize: 12, color: ezColors(context).textSecondary),
                         ),
                       ),
                     ],
@@ -360,7 +360,7 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
                         ),
                         child: Text(
                           "ยกเลิก", 
-                          style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)
+                          style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)
                         ),
                       ),
                     ),
@@ -375,7 +375,7 @@ class _EditckickenhealthState extends State<Editckickenhealth> {
                         ),
                         child: Text(
                           "บันทึกข้อมูล", 
-                          style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)
+                          style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)
                         ),
                       ),
                     ),

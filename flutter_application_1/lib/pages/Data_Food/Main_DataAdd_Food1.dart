@@ -203,7 +203,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
               padding: const EdgeInsets.only(right: 10.0),
               child: Text(
                 label,
-                style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.normal, color: Colors.white), 
+                style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.normal, color: ezColors(context).textPrimary), 
                 textAlign: TextAlign.end, 
               ),
             ),
@@ -215,16 +215,16 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
                   child: Container(
                     height: 36, 
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1F2933).withOpacity(0.5), 
+                      color: ezColors(context).inputFill, 
                       borderRadius: BorderRadius.circular(5),
-                      border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.0), 
+                      border: Border.all(color: ezColors(context).border, width: 1.0), 
                     ),
                     child: TextField(
                       controller: controller,
                       readOnly: readOnly,
                       onTap: onTap,
                       keyboardType: keyboardType, // 🌟 ใช้งาน keyboardType
-                      style: GoogleFonts.kanit(fontSize: 16, color: Colors.white, fontWeight: FontWeight.normal),
+                      style: GoogleFonts.kanit(fontSize: 16, color: ezColors(context).textPrimary, fontWeight: FontWeight.normal),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -237,7 +237,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
                   const SizedBox(width: 5),
                   GestureDetector(
                     onTap: onTap,
-                    child: const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 22),
+                    child: Icon(Icons.calendar_today_outlined, color: ezColors(context).textPrimary, size: 22),
                   ),
                 ],
               ],
@@ -252,7 +252,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
       resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: Column(
@@ -270,12 +270,12 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
                   Container(
                     width: 340,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-                    decoration: ezCardDecoration(radius: 15),
+                    decoration: ezCardDecoration(context, radius: 15),
                     child: Column(
                       children: [
                         Text(
                           "เพิ่มข้อมูลคลังอาหาร",
-                          style: GoogleFonts.kanit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white) 
+                          style: GoogleFonts.kanit(fontSize: 22, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary) 
                         ),
                         const SizedBox(height: 25), 
 

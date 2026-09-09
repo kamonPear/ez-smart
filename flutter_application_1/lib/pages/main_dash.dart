@@ -10,7 +10,7 @@ import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood
 import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:percent_indicator/percent_indicator.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'bottombar.dart';
 import 'close_open_Door.dart';
 import 'main_dash_AddData.dart';
@@ -18,6 +18,9 @@ import 'Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'Data_AdoptChicken/Main_CoopDetail.dart';
 import '../../services/backend_config.dart';
 import '../widgets/ez_header.dart';
+import '../widgets/ez_gauge.dart';
+import '../theme/app_theme.dart';
+import '../utils/thai_date.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -27,9 +30,21 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int selectedIndex = 0;
   bool isLoading = true;
   List<Map<String, dynamic>> coopList = [];
+  String _searchQuery = '';
+
+  List<Map<String, dynamic>> get _visibleCoopList {
+    if (_searchQuery.trim().isEmpty) return coopList;
+    final query = _searchQuery.trim().toLowerCase();
+    return coopList.where((coop) {
+      final name = (coop['name'] ?? '').toString().toLowerCase();
+      final number = (coop['number'] ?? '').toString().toLowerCase();
+      return name.contains(query) || number.contains(query);
+    }).toList();
+  }
 
   @override
   void initState() {
@@ -140,26 +155,16 @@ class _MainScreenState extends State<MainScreen> {
                 : "0";
 
             // 💡 1. จัดการวันที่นำเข้า
-            var rawImport = item['date_adopt_animals'];
-            String importDate = "ไม่ระบุ";
-            if (rawImport != null) {
-              String dateStr = rawImport.toString().split('T')[0];
-              if (dateStr != "0001-01-01") {
-                // เช็คเพื่อกรองค่าว่างของ Go ทิ้ง
-                importDate = dateStr;
-              }
-            }
+            String importDate = thaiDateFromIso(
+              item['date_adopt_animals']?.toString(),
+              fallback: "ไม่ระบุ",
+            );
 
             // 💡 2. จัดการวันเกิดไก่ (ใช้ 'Birthday' ตัว B พิมพ์ใหญ่ และ 'birthday')
-            var rawBirth = item['Birthday'] ?? item['birthday'];
-            String birthDate = "ไม่ระบุ";
-            if (rawBirth != null) {
-              String dateStr = rawBirth.toString().split('T')[0];
-              if (dateStr != "0001-01-01") {
-                // เช็คเพื่อกรองค่าว่างของ Go ทิ้ง
-                birthDate = dateStr;
-              }
-            }
+            String birthDate = thaiDateFromIso(
+              (item['Birthday'] ?? item['birthday'])?.toString(),
+              fallback: "ไม่ระบุ",
+            );
 
             return {
               "id": currentCoopId,
@@ -251,8 +256,10 @@ class _MainScreenState extends State<MainScreen> {
     double screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
+      key: _scaffoldKey,
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
+      drawer: _buildAppDrawer(context),
       body: SingleChildScrollView(
         child: Container(
           constraints: BoxConstraints(minHeight: screenHeight),
@@ -260,13 +267,23 @@ class _MainScreenState extends State<MainScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 15),
-                Text(
-                  'EZ - SMART FARM',
-                  style: GoogleFonts.oswald(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: ezGoldColor,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(width: 40),
+                    Expanded(
+                      child: Text(
+                        'EZ - SMART FARM',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.kanit(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: ezGoldColor(context),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 40),
+                  ],
                 ),
                 const SizedBox(height: 15),
 
@@ -274,83 +291,14 @@ class _MainScreenState extends State<MainScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20.0),
                   child: Row(
                     children: [
-                      Theme(
-                        data: Theme.of(context).copyWith(
-                          dividerTheme: const DividerThemeData(
-                            color: Colors.white24,
-                            thickness: 1,
-                          ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.menu,
+                          color: ezColors(context).textPrimary,
+                          size: 32,
                         ),
-                        child: PopupMenuButton<String>(
-                          icon: const Icon(
-                            Icons.menu,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                          color: ezCardColor,
-                          offset: const Offset(0, 50),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          onSelected: (String value) {
-                            if (value == 'คอกไก่') {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const Adoptchicken(),
-                                ),
-                              );
-                            } else if (value == 'ตรวจสุขภาพ') {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const Chickenhealth(),
-                                ),
-                              );
-                            } else if (value == 'การให้วัคซีน') {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const ShowDatavaccine(
-                                    vaccineTypeFilter: '',
-                                  ),
-                                ),
-                              );
-                            } else if (value == 'อุปกรณ์') {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const DataSystem(),
-                                ),
-                              );
-                            } else if (value == 'สต็อกอาหาร') {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const MainShowDataFood(),
-                                ),
-                              );
-                            }
-                          },
-                          itemBuilder: (BuildContext context) => [
-                            _buildDropdownItem('คอกไก่'),
-                            const PopupMenuDivider(height: 1),
-                            _buildDropdownItem('ปฏิทินรวม'),
-                            const PopupMenuDivider(height: 1),
-                            _buildDropdownItem('การแจ้งเตือน'),
-                            const PopupMenuDivider(height: 1),
-                            _buildDropdownItem('ตรวจสุขภาพ'),
-                            const PopupMenuDivider(height: 1),
-                            _buildDropdownItem('การให้วัคซีน'),
-                            const PopupMenuDivider(height: 1),
-                            _buildDropdownItem('อุปกรณ์'),
-                            const PopupMenuDivider(height: 1),
-                            _buildDropdownItem('เซนเซอร์'),
-                            const PopupMenuDivider(height: 1),
-                            _buildDropdownItem('สต็อกอาหาร'),
-                          ],
-                        ),
+                        onPressed: () =>
+                            _scaffoldKey.currentState?.openDrawer(),
                       ),
                       const SizedBox(width: 15),
                       Expanded(
@@ -359,14 +307,18 @@ class _MainScreenState extends State<MainScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(25),
+                            border: Border.all(color: ezColors(context).border),
                           ),
                           child: TextField(
                             textAlignVertical: TextAlignVertical.center,
+                            style: GoogleFonts.kanit(color: Colors.black87),
+                            onChanged: (value) =>
+                                setState(() => _searchQuery = value),
                             decoration: InputDecoration(
-                              hintText: 'SEARCH',
+                              hintText: 'ค้นหาคอกไก่ (ชื่อคอก, เลขคอก)',
                               hintStyle: GoogleFonts.kanit(
                                 color: Colors.grey.shade400,
-                                fontSize: 15,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
                               border: InputBorder.none,
@@ -395,11 +347,11 @@ class _MainScreenState extends State<MainScreen> {
                         borderRadius: BorderRadius.circular(
                           20,
                         ), // เพิ่มเอฟเฟกต์ตอนกดให้เป็นวงกลม
-                        child: const Padding(
-                          padding: EdgeInsets.all(4.0),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
                           child: Icon(
                             Icons.notifications_none,
-                            color: Colors.white,
+                            color: ezColors(context).textPrimary,
                             size: 32,
                           ),
                         ),
@@ -417,22 +369,22 @@ class _MainScreenState extends State<MainScreen> {
                     horizontal: 15,
                   ),
                   decoration: BoxDecoration(
-                    color: ezCardColor,
+                    color: ezCardColor(context),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildTopCircularGauge(
-                        title: "อุณหภูมิ",
+                      EzGaugeCard(
+                        icon: Icons.thermostat_outlined,
                         value: "25",
                         unit: "°",
                         subTitle: "อุณหภูมิที่ตั้งไว้คงที่",
                         color: Colors.cyan,
                         percent: 0.6,
                       ),
-                      _buildTopCircularGauge(
-                        title: "ปริมาณแอมโมเนีย",
+                      EzGaugeCard(
+                        icon: Icons.air_outlined,
                         value: "35",
                         unit: "PPM",
                         subTitle: "ปริมาณแอมโมเนียที่ตั้งไว้คงที่",
@@ -452,8 +404,8 @@ class _MainScreenState extends State<MainScreen> {
                       Expanded(
                         child: _buildStatCard(
                           emoji: '🐔',
-                          bgColor: const Color(0xFFCFE8D9),
-                          textColor: Colors.black87,
+                          bgColor: ezColors(context).chipGreenBg,
+                          textColor: ezColors(context).chipGreenText,
                           label: 'จำนวนไก่ทั้งหมด',
                           value: '$_totalChickenCount ตัว',
                         ),
@@ -462,8 +414,8 @@ class _MainScreenState extends State<MainScreen> {
                       Expanded(
                         child: _buildStatCard(
                           emoji: '🥚',
-                          bgColor: const Color(0xFFF3DCC2),
-                          textColor: Colors.black87,
+                          bgColor: ezColors(context).chipOrangeBg,
+                          textColor: ezColors(context).chipOrangeText,
                           label: 'จำนวนไข่ทั้งหมด',
                           value: '$_totalEggCount ฟอง',
                         ),
@@ -472,8 +424,8 @@ class _MainScreenState extends State<MainScreen> {
                       Expanded(
                         child: _buildStatCard(
                           emoji: '🌾',
-                          bgColor: const Color(0xFF232E3D),
-                          textColor: Colors.white,
+                          bgColor: ezColors(context).chipDarkBg,
+                          textColor: ezColors(context).chipDarkText,
                           label: 'อาหารคงเหลือ',
                           value: '250 กิโลกรัม',
                         ),
@@ -487,18 +439,28 @@ class _MainScreenState extends State<MainScreen> {
                 Text(
                   'คอกไก่ทั้งหมด',
                   style: GoogleFonts.kanit(
-                    fontSize: 32,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFFE5BA93),
+                    color: ezGoldColor(context),
                   ),
                 ),
 
                 const SizedBox(height: 15),
 
                 if (isLoading)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 50),
-                    child: CircularProgressIndicator(),
+                  Skeletonizer(
+                    enabled: true,
+                    child: Column(
+                      children: List.generate(
+                        3,
+                        (_) => _buildCoopCard(const {
+                          "name": "ก้านกล้วย",
+                          "amount": "200",
+                          "import_date": "2026-08-19",
+                          "birth_date": "2026-07-31",
+                        }),
+                      ),
+                    ),
                   )
                 else if (coopList.isEmpty)
                   Padding(
@@ -507,12 +469,23 @@ class _MainScreenState extends State<MainScreen> {
                       "ไม่มีข้อมูลคอกไก่",
                       style: GoogleFonts.kanit(
                         fontSize: 18,
-                        color: Colors.grey,
+                        color: ezColors(context).textSecondary,
+                      ),
+                    ),
+                  )
+                else if (_visibleCoopList.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 50),
+                    child: Text(
+                      "ไม่พบคอกไก่ที่ค้นหา",
+                      style: GoogleFonts.kanit(
+                        fontSize: 18,
+                        color: ezColors(context).textSecondary,
                       ),
                     ),
                   )
                 else
-                  ...coopList.map((coop) => _buildCoopCard(coop)).toList(),
+                  ..._visibleCoopList.map((coop) => _buildCoopCard(coop)),
 
                 const SizedBox(height: 80),
               ],
@@ -548,12 +521,12 @@ class _MainScreenState extends State<MainScreen> {
             label,
             textAlign: TextAlign.center,
             style: GoogleFonts.kanit(
-              fontSize: 11,
+              fontSize: 12,
               color: textColor,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 5),
           Text(
             value,
             textAlign: TextAlign.center,
@@ -565,79 +538,6 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildTopCircularGauge({
-    required String title,
-    required String value,
-    required String unit,
-    required String subTitle,
-    required Color color,
-    required double percent,
-  }) {
-    return Column(
-      children: [
-        CircularPercentIndicator(
-          radius: 55.0,
-          lineWidth: 12.0,
-          animation: true,
-          percent: percent,
-          center: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (unit == "PPM")
-                Text(
-                  "PPM",
-                  style: GoogleFonts.kanit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    style: GoogleFonts.kanit(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (unit == "°")
-                    Text(
-                      "°",
-                      style: GoogleFonts.kanit(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                ],
-              ),
-              Text(
-                title,
-                style: GoogleFonts.kanit(fontSize: 11, color: Colors.white70),
-              ),
-            ],
-          ),
-          circularStrokeCap: CircularStrokeCap.round,
-          backgroundColor: Colors.grey.shade800,
-          progressColor: color,
-        ),
-        const SizedBox(height: 10),
-        Text(
-          subTitle,
-          style: GoogleFonts.kanit(
-            fontSize: 12,
-            color: Colors.white,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-      ],
     );
   }
 
@@ -661,7 +561,7 @@ class _MainScreenState extends State<MainScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
           decoration: BoxDecoration(
-            color: const Color(0xFF19232F),
+            color: ezCardColor(context),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -671,7 +571,7 @@ class _MainScreenState extends State<MainScreen> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
+                  color: ezColors(context).textPrimary.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
@@ -687,7 +587,7 @@ class _MainScreenState extends State<MainScreen> {
                       style: GoogleFonts.kanit(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: ezColors(context).textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -697,7 +597,7 @@ class _MainScreenState extends State<MainScreen> {
                         Text(
                           cleanAmount,
                           style: GoogleFonts.kanit(
-                            color: const Color(0xFFFCA5A5),
+                            color: ezColors(context).danger,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             height: 1,
@@ -707,7 +607,7 @@ class _MainScreenState extends State<MainScreen> {
                         Text(
                           "ตัว",
                           style: GoogleFonts.kanit(
-                            color: Colors.white,
+                            color: ezColors(context).textPrimary,
                             fontSize: 13,
                           ),
                         ),
@@ -723,7 +623,7 @@ class _MainScreenState extends State<MainScreen> {
                   Text(
                     "วันที่นำเข้า : ${data["import_date"]}",
                     style: GoogleFonts.kanit(
-                      color: Colors.white70,
+                      color: ezColors(context).textSecondary,
                       fontSize: 12,
                     ),
                   ),
@@ -731,7 +631,7 @@ class _MainScreenState extends State<MainScreen> {
                   Text(
                     "วันเกิดไก่ : ${data["birth_date"]}",
                     style: GoogleFonts.kanit(
-                      color: Colors.white70,
+                      color: ezColors(context).textSecondary,
                       fontSize: 12,
                     ),
                   ),
@@ -744,20 +644,142 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  PopupMenuItem<String> _buildDropdownItem(String title) {
-    return PopupMenuItem<String>(
-      value: title,
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 25),
-      child: Center(
-        child: Text(
-          title,
-          style: GoogleFonts.kanit(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
-          ),
+  Widget _buildAppDrawer(BuildContext context) {
+    return Drawer(
+      backgroundColor: ezCardColor(context),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+              child: Column(
+                children: [
+                  Icon(Icons.egg_alt_rounded, color: ezGoldColor(context), size: 42),
+                  const SizedBox(height: 10),
+                  Text(
+                    'EZ - SMART FARM',
+                    style: GoogleFonts.kanit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: ezGoldColor(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Divider(color: ezColors(context).border, height: 1),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                children: [
+                  // เรียงตามลำดับตัวอักษรไทย (ก ขึ้นก่อน)
+                  _buildDrawerItem(Icons.notifications_none, 'การแจ้งเตือน', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Notifications()),
+                    );
+                  }),
+                  _buildDrawerItem(Icons.vaccines_outlined, 'การให้วัคซีน', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const ShowDatavaccine(vaccineTypeFilter: ''),
+                      ),
+                    );
+                  }),
+                  _buildDrawerItem(Icons.pets, 'คอกไก่', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Adoptchicken()),
+                    );
+                  }),
+                  _buildDrawerItem(Icons.sensors, 'เซนเซอร์', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const DataSystem()),
+                    );
+                  }),
+                  _buildDrawerItem(Icons.health_and_safety_outlined, 'ตรวจสุขภาพ', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const Chickenhealth()),
+                    );
+                  }),
+                  _buildDrawerItem(Icons.calendar_month_outlined, 'ปฏิทินรวม', () {
+                    Navigator.pop(context);
+                  }),
+                  _buildDrawerItem(Icons.inventory_2_outlined, 'สต็อกอาหาร', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MainShowDataFood()),
+                    );
+                  }),
+                  _buildDrawerItem(Icons.developer_board_outlined, 'อุปกรณ์', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const DataSystem()),
+                    );
+                  }),
+                  Divider(color: ezColors(context).border, height: 24),
+                  _buildThemeToggleItem(context),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildThemeToggleItem(BuildContext context) {
+    return ListenableBuilder(
+      listenable: themeController,
+      builder: (context, _) {
+        final isDark = themeController.isDark;
+        return ListTile(
+          leading: Icon(
+            isDark ? Icons.dark_mode : Icons.light_mode,
+            color: ezGoldColor(context),
+          ),
+          title: Text(
+            isDark ? 'โหมดมืด' : 'โหมดสว่าง',
+            style: GoogleFonts.kanit(
+              color: ezColors(context).textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          trailing: Switch(
+            value: isDark,
+            onChanged: (_) => themeController.toggle(),
+          ),
+          onTap: () => themeController.toggle(),
+        );
+      },
+    );
+  }
+
+  Widget _buildDrawerItem(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: ezGoldColor(context)),
+      title: Text(
+        title,
+        style: GoogleFonts.kanit(
+          color: ezColors(context).textPrimary,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      onTap: onTap,
     );
   }
 }

@@ -67,7 +67,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
     return Container(
       // 🌟 แก้ไข 1: ลด padding vertical จาก 20 เหลือ 15 เพื่อเพิ่มพื้นที่ให้ปฏิทิน
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-      decoration: ezCardDecoration(),
+      decoration: ezCardDecoration(context),
       child: Column(
         mainAxisSize: MainAxisSize
             .min, // 🌟 แก้ไข 2: เพิ่มบรรทัดนี้เพื่อให้ Column สูงพอดีกับเนื้อหาด้านใน
@@ -83,16 +83,16 @@ class _CustomCalendarState extends State<CustomCalendar> {
                     1,
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.chevron_left,
-                  color: Colors.white,
+                  color: ezColors(context).textPrimary,
                   size: 28,
                 ),
               ),
               Text(
                 '${_getMonthName(currentMonth.month)} ${currentMonth.year}',
                 style: GoogleFonts.kanit(
-                  color: Colors.white,
+                  color: ezColors(context).textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -105,9 +105,9 @@ class _CustomCalendarState extends State<CustomCalendar> {
                     1,
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.chevron_right,
-                  color: Colors.white,
+                  color: ezColors(context).textPrimary,
                   size: 28,
                 ),
               ),
@@ -123,7 +123,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
                       child: Text(
                         day,
                         style: GoogleFonts.kanit(
-                          color: Colors.white,
+                          color: ezColors(context).textPrimary,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),

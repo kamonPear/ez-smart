@@ -13,7 +13,9 @@ import '../bottombar.dart';
 import 'Edit_Datachicken_health.dart';
 import 'Add_Datachicken_health.dart';
 import '../../widgets/ez_header.dart';
+import '../../widgets/ez_skeleton.dart';
 import '../../services/backend_config.dart';
+import '../../utils/thai_date.dart';
 
 class Chickenhealth extends StatefulWidget {
   final String? initialCoopId;
@@ -166,22 +168,9 @@ class _ChickenhealthState extends State<Chickenhealth> {
     try {
       final dateTime = DateTime.parse(dateStr).toLocal();
       final day = dateTime.day.toString().padLeft(2, '0');
-      const months = [
-        'JAN',
-        'FEB',
-        'MAR',
-        'APR',
-        'MAY',
-        'JUN',
-        'JUL',
-        'AUG',
-        'SEP',
-        'OCT',
-        'NOV',
-        'DEC',
-      ];
-      final month = months[dateTime.month - 1];
-      return {'day': day, 'monthYear': '$month ${dateTime.year}'};
+      final month = kThaiMonthsShort[dateTime.month - 1];
+      final thaiYear = dateTime.year + 543;
+      return {'day': day, 'monthYear': '$month $thaiYear'};
     } catch (e) {
       return {'day': '??', 'monthYear': '??'};
     }
@@ -341,40 +330,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
       }
     }
 
-    final dayStr = targetDate.day.toString().padLeft(2, '0');
-    final yearStr = targetDate.year.toString();
-
-    const monthsEN = [
-      'JANUARY',
-      'FEBRUARY',
-      'MARCH',
-      'APRIL',
-      'MAY',
-      'JUNE',
-      'JULY',
-      'AUGUST',
-      'SEPTEMBER',
-      'OCTOBER',
-      'NOVEMBER',
-      'DECEMBER',
-    ];
-    const monthsTH = [
-      'มกราคม',
-      'กุมภาพันธ์',
-      'มีนาคม',
-      'เมษายน',
-      'พฤษภาคม',
-      'มิถุนายน',
-      'กรกฎาคม',
-      'สิงหาคม',
-      'กันยายน',
-      'ตุลาคม',
-      'พฤศจิกายน',
-      'ธันวาคม',
-    ];
-
-    String displayDateEN = '$dayStr ${monthsEN[targetDate.month - 1]} $yearStr';
-    String displayDateTH = '$dayStr ${monthsTH[targetDate.month - 1]} $yearStr';
+    String displayDate = thaiDate(targetDate);
 
     showModalBottomSheet(
       context: context,
@@ -383,8 +339,8 @@ class _ChickenhealthState extends State<Chickenhealth> {
       builder: (BuildContext context) {
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-          decoration: const BoxDecoration(
-            color: Color(0xFF1B242D),
+          decoration: BoxDecoration(
+            color: ezCardColor(context),
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
@@ -393,12 +349,12 @@ class _ChickenhealthState extends State<Chickenhealth> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2A3644),
+                  color: ezColors(context).cardAlt,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.monitor_heart,
-                  color: Colors.white70,
+                  color: ezColors(context).textSecondary,
                   size: 28,
                 ),
               ),
@@ -407,7 +363,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
               Text(
                 'ตรวจสุขภาพประจำวัน',
                 style: GoogleFonts.kanit(
-                  color: Colors.white,
+                  color: ezColors(context).textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -432,23 +388,23 @@ class _ChickenhealthState extends State<Chickenhealth> {
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white24),
+                  border: Border.all(color: ezColors(context).border),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.calendar_today_outlined,
-                      color: Colors.white70,
+                      color: ezColors(context).textSecondary,
                       size: 20,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Center(
                         child: Text(
-                          displayDateEN,
+                          displayDate,
                           style: GoogleFonts.kanit(
-                            color: Colors.white,
+                            color: ezColors(context).textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                           ),
@@ -472,7 +428,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                   Text(
                     'ข้อมูลประจำวันที่',
                     style: GoogleFonts.kanit(
-                      color: Colors.white,
+                      color: ezColors(context).textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -480,7 +436,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                 ],
               ),
               Text(
-                displayDateTH,
+                displayDate,
                 style: GoogleFonts.kanit(
                   color: Colors.greenAccent,
                   fontSize: 14,
@@ -488,7 +444,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
               ),
               const SizedBox(height: 24),
 
-              const Divider(color: Colors.white10, thickness: 1),
+              Divider(color: ezColors(context).border, thickness: 1),
               const SizedBox(height: 16),
 
               Row(
@@ -563,15 +519,15 @@ class _ChickenhealthState extends State<Chickenhealth> {
                       Text(
                         existingData != null ? 'แก้ไขข้อมูล' : 'บันทึกข้อมูล',
                         style: GoogleFonts.kanit(
-                          color: Colors.white,
+                          color: ezColors(context).textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Icon(
+                      Icon(
                         Icons.arrow_forward_ios,
-                        color: Colors.white,
+                        color: ezColors(context).textPrimary,
                         size: 16,
                       ),
                     ],
@@ -604,7 +560,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
           children: [
             Text(
               title,
-              style: GoogleFonts.kanit(color: Colors.white70, fontSize: 11),
+              style: GoogleFonts.kanit(color: ezColors(context).textSecondary, fontSize: 11),
             ),
             const SizedBox(height: 8),
             Text(
@@ -617,7 +573,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
             ),
             Text(
               unit,
-              style: GoogleFonts.kanit(color: Colors.white70, fontSize: 12),
+              style: GoogleFonts.kanit(color: ezColors(context).textSecondary, fontSize: 12),
             ),
           ],
         ),
@@ -630,26 +586,12 @@ class _ChickenhealthState extends State<Chickenhealth> {
     double screenHeight = MediaQuery.of(context).size.height;
 
     const Color highlightColor = Color(0xFFFF6E5C);
-    const Color cardColor = ezCardColor;
+    final Color cardColor = ezCardColor(context);
     const Color greenTextColor = Color(0xFF4ADE80);
-    const Color bgDarkColor = ezBackgroundColor;
+    final Color bgDarkColor = ezBackgroundColor(context);
 
-    const monthsEN = [
-      'JANUARY',
-      'FEBRUARY',
-      'MARCH',
-      'APRIL',
-      'MAY',
-      'JUNE',
-      'JULY',
-      'AUGUST',
-      'SEPTEMBER',
-      'OCTOBER',
-      'NOVEMBER',
-      'DECEMBER',
-    ];
-    String displayMonth = monthsEN[_selectedDate.month - 1];
-    String displayYear = _selectedDate.year.toString();
+    String displayMonth = kThaiMonthsFull[_selectedDate.month - 1];
+    String displayYear = (_selectedDate.year + 543).toString();
 
     return Scaffold(
       extendBody: true,
@@ -676,11 +618,11 @@ class _ChickenhealthState extends State<Chickenhealth> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),
           ),
-          icon: const Icon(Icons.add, color: Colors.white, size: 28),
+          icon: Icon(Icons.add, color: ezColors(context).textPrimary, size: 28),
           label: Text(
             'ตรวจสุขภาพ',
             style: GoogleFonts.kanit(
-              color: Colors.white,
+              color: ezColors(context).textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -710,9 +652,9 @@ class _ChickenhealthState extends State<Chickenhealth> {
                       vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF151D24),
+                      color: ezColors(context).inputFill,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white10, width: 1),
+                      border: Border.all(color: ezColors(context).border, width: 1),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -724,14 +666,14 @@ class _ChickenhealthState extends State<Chickenhealth> {
                               style: GoogleFonts.kanit(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                color: ezColors(context).textPrimary,
                                 letterSpacing: 1.0,
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(
+                            Icon(
                               Icons.keyboard_arrow_down,
-                              color: Colors.white54,
+                              color: ezColors(context).textSecondary,
                               size: 20,
                             ),
                           ],
@@ -743,7 +685,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                               style: GoogleFonts.kanit(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                color: ezColors(context).textPrimary,
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -781,7 +723,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                       style: GoogleFonts.kanit(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: ezColors(context).textPrimary,
                       ),
                     ),
 
@@ -800,7 +742,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: ezColors(context).textPrimary.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -827,12 +769,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                 const SizedBox(height: 16),
 
                 isLoading
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(40.0),
-                          child: CircularProgressIndicator(color: Colors.green),
-                        ),
-                      )
+                    ? const EzSkeletonList(count: 4, itemHeight: 90)
                     : displayedHealthDataList.isEmpty
                     ? Center(
                         child: Padding(
@@ -893,9 +830,9 @@ class _ChickenhealthState extends State<Chickenhealth> {
                               ),
                               alignment: Alignment.centerRight,
                               padding: const EdgeInsets.only(right: 20),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.delete,
-                                color: Colors.white,
+                                color: ezColors(context).textPrimary,
                                 size: 32,
                               ),
                             ),
@@ -904,17 +841,17 @@ class _ChickenhealthState extends State<Chickenhealth> {
                                 context: context,
                                 builder: (BuildContext dialogContext) {
                                   return AlertDialog(
-                                    backgroundColor: const Color(0xFF2A3644),
+                                    backgroundColor: ezCardColor(context),
                                     title: Text(
                                       'ยืนยันการลบ',
                                       style: GoogleFonts.kanit(
-                                        color: Colors.white,
+                                        color: ezColors(context).textPrimary,
                                       ),
                                     ),
                                     content: Text(
                                       'คุณต้องการลบข้อมูลการตรวจสุขภาพนี้ใช่หรือไม่?',
                                       style: GoogleFonts.kanit(
-                                        color: Colors.white70,
+                                        color: ezColors(context).textSecondary,
                                       ),
                                     ),
                                     actions: [
@@ -925,7 +862,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                                         child: Text(
                                           'ยกเลิก',
                                           style: GoogleFonts.kanit(
-                                            color: Colors.white54,
+                                            color: ezColors(context).textSecondary,
                                           ),
                                         ),
                                       ),
@@ -1021,7 +958,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                                               style: GoogleFonts.kanit(
                                                 fontSize: 32,
                                                 fontWeight: FontWeight.bold,
-                                                color: Colors.white,
+                                                color: ezColors(context).textPrimary,
                                                 height: 1.1,
                                               ),
                                             ),
@@ -1030,7 +967,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                                               style: GoogleFonts.kanit(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
-                                                color: Colors.white70,
+                                                color: ezColors(context).textSecondary,
                                               ),
                                             ),
                                           ],
@@ -1107,7 +1044,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                                                       'คอกที่',
                                                       style: GoogleFonts.kanit(
                                                         fontSize: 14,
-                                                        color: Colors.white70,
+                                                        color: ezColors(context).textSecondary,
                                                       ),
                                                     ),
                                                   ),
@@ -1131,7 +1068,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                                                       'สุขภาพดี',
                                                       style: GoogleFonts.kanit(
                                                         fontSize: 14,
-                                                        color: Colors.white70,
+                                                        color: ezColors(context).textSecondary,
                                                       ),
                                                     ),
                                                   ),
@@ -1155,7 +1092,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                                                       'สุขภาพไม่ดี',
                                                       style: GoogleFonts.kanit(
                                                         fontSize: 14,
-                                                        color: Colors.white70,
+                                                        color: ezColors(context).textSecondary,
                                                       ),
                                                     ),
                                                   ),
@@ -1177,7 +1114,7 @@ class _ChickenhealthState extends State<Chickenhealth> {
                                                 'หมายเหตุ: $note',
                                                 style: GoogleFonts.kanit(
                                                   fontSize: 13,
-                                                  color: Colors.white70,
+                                                  color: ezColors(context).textSecondary,
                                                 ),
                                                 maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
@@ -1187,11 +1124,11 @@ class _ChickenhealthState extends State<Chickenhealth> {
                                         ),
                                       ),
 
-                                      const Padding(
+                                      Padding(
                                         padding: EdgeInsets.only(left: 8.0),
                                         child: Icon(
                                           Icons.arrow_forward_ios,
-                                          color: Colors.white54,
+                                          color: ezColors(context).textSecondary,
                                           size: 18,
                                         ),
                                       ),

@@ -37,7 +37,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
     // ตั้งค่าเริ่มต้นของวันที่นำเข้าเป็นวันนี้
     selectedDate = DateTime.now();
     currentMonth = DateTime(selectedDate!.year, selectedDate!.month, 1);
-    importDateController.text = "${selectedDate!.day.toString().padLeft(2, '0')}/${selectedDate!.month.toString().padLeft(2, '0')}/${selectedDate!.year}";
+    importDateController.text = "${selectedDate!.day.toString().padLeft(2, '0')}/${selectedDate!.month.toString().padLeft(2, '0')}/${selectedDate!.year + 543}";
   }
 
   // แปลงวันที่ให้ตรงกับที่ Backend (Go) ต้องการเป๊ะๆ
@@ -47,9 +47,12 @@ class _AddDataadoptState extends State<AddDataadopt> {
     if (parts.length != 3) return '';
     final day = parts[0].padLeft(2, '0');
     final month = parts[1].padLeft(2, '0');
-    final year = parts[2];
-    
-    return '$year-$month-${day}T00:00:00Z'; 
+    // ตัวควบคุมข้อความแสดงปี พ.ศ. (ดู importDateController/birthDateController)
+    // ต้องแปลงกลับเป็น ค.ศ. ก่อนส่งให้ backend
+    final buddhistYear = int.tryParse(parts[2]) ?? 0;
+    final year = (buddhistYear - 543).toString();
+
+    return '$year-$month-${day}T00:00:00Z';
   }
 
   void onTabSelected(int index) {
@@ -95,7 +98,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
     if (picked != null) {
       setState(() {
         controller.text =
-            "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
+            "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year + 543}";
       });
     }
   }
@@ -220,7 +223,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
       children: [
         Row(
           children: [
-            Text(label, style: GoogleFonts.kanit(color: Colors.white, fontSize: 16)),
+            Text(label, style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontSize: 16)),
             const SizedBox(width: 15),
             Expanded(
               child: TextFormField(
@@ -229,20 +232,20 @@ class _AddDataadoptState extends State<AddDataadopt> {
                 onTap: onTap,
                 keyboardType: keyboardType,
                 textAlign: TextAlign.right,
-                style: GoogleFonts.kanit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
                 decoration: InputDecoration(
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
                   hintText: '',
-                  hintStyle: const TextStyle(color: Colors.white54),
+                  hintStyle: TextStyle(color: ezColors(context).textSecondary),
                 ),
               ),
             ),
             if (suffixText != null)
               Padding(
                 padding: const EdgeInsets.only(left: 8.0),
-                child: Text(suffixText, style: GoogleFonts.kanit(color: Colors.white, fontSize: 16)),
+                child: Text(suffixText, style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontSize: 16)),
               ),
             if (suffixIcon != null)
               Padding(
@@ -267,7 +270,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -282,7 +285,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF19232F),
+                    color: ezCardColor(context),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
@@ -292,15 +295,15 @@ class _AddDataadoptState extends State<AddDataadopt> {
                         children: [
                           GestureDetector(
                             onTap: () => setState(() => currentMonth = DateTime(currentMonth.year, currentMonth.month - 1, 1)),
-                            child: const Icon(Icons.chevron_left, color: Colors.white, size: 28),
+                            child: Icon(Icons.chevron_left, color: ezColors(context).textPrimary, size: 28),
                           ),
                           Text(
                             '${_getMonthName(currentMonth.month)} ${currentMonth.year}',
-                            style: GoogleFonts.kanit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           GestureDetector(
                             onTap: () => setState(() => currentMonth = DateTime(currentMonth.year, currentMonth.month + 1, 1)),
-                            child: const Icon(Icons.chevron_right, color: Colors.white, size: 28),
+                            child: Icon(Icons.chevron_right, color: ezColors(context).textPrimary, size: 28),
                           ),
                         ],
                       ),
@@ -310,7 +313,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
                         children: ['MON', 'TUES', 'WEDNES', 'THURS', 'FRI', 'SATUR', 'SUN'].map((day) => 
                           Expanded(
                             child: Center(
-                              child: Text(day, style: GoogleFonts.kanit(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))
+                              child: Text(day, style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontSize: 10, fontWeight: FontWeight.bold))
                             ),
                           )
                         ).toList(),
@@ -335,7 +338,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
                             onTap: () {
                               setState(() {
                                 selectedDate = DateTime(currentMonth.year, currentMonth.month, day);
-                                importDateController.text = "${day.toString().padLeft(2, '0')}/${currentMonth.month.toString().padLeft(2, '0')}/${currentMonth.year}";
+                                importDateController.text = "${day.toString().padLeft(2, '0')}/${currentMonth.month.toString().padLeft(2, '0')}/${currentMonth.year + 543}";
                               });
                             },
                             child: Container(
@@ -348,7 +351,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
                                 child: Text(
                                   day.toString(),
                                   style: GoogleFonts.kanit(
-                                    color: isSelected ? Colors.black : Colors.white,
+                                    color: isSelected ? Colors.black : ezColors(context).textPrimary,
                                     fontSize: 16,
                                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                   ),
@@ -367,14 +370,14 @@ class _AddDataadoptState extends State<AddDataadopt> {
                 Container(
                   padding: const EdgeInsets.all(25),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF19232F),
+                    color: ezCardColor(context),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
                     children: [
                       Text(
                         'ข้อมูลไก่',
-                        style: GoogleFonts.kanit(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.kanit(fontSize: 22, color: ezColors(context).textPrimary, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 25),
                       _buildModernInputRow(
@@ -388,7 +391,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
                         controller: birthDateController,
                         readOnly: true,
                         onTap: () => _selectDate(context, birthDateController),
-                        suffixIcon: const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 24),
+                        suffixIcon: Icon(Icons.calendar_today_outlined, color: ezColors(context).textPrimary, size: 24),
                       ),
                       _buildModernInputRow(
                         label: 'หมายเหตุ',
@@ -413,7 +416,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
                     ),
                     child: Text(
                       'เพิ่มคอก',
-                      style: GoogleFonts.kanit(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: GoogleFonts.kanit(fontSize: 24, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary),
                     ),
                   ),
                 ),

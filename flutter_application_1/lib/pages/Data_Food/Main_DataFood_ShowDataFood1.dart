@@ -13,7 +13,9 @@ import '../bottombar.dart';
 import '../close_open_Door.dart';           
 import 'Main_EditData_ShowFood1.dart';  
 import '../../services/backend_config.dart';
+import '../../utils/thai_date.dart';
 import '../../widgets/ez_header.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class MainShowDataFood extends StatefulWidget {
   const MainShowDataFood({super.key});
@@ -268,9 +270,9 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF1E2832),
-              title: Text("ยืนยันการลบข้อมูล", style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold)),
-              content: Text("คุณต้องการลบข้อมูลคลังอาหารสัตว์ทั้งหมดในฐานข้อมูลใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนคืนได้", style: GoogleFonts.kanit(color: Colors.white70)),
+              backgroundColor: ezCardColor(context),
+              title: Text("ยืนยันการลบข้อมูล", style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontWeight: FontWeight.bold)),
+              content: Text("คุณต้องการลบข้อมูลคลังอาหารสัตว์ทั้งหมดในฐานข้อมูลใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนคืนได้", style: GoogleFonts.kanit(color: ezColors(context).textSecondary)),
               actions: [
                 TextButton(
                   child: Text("ยกเลิก", style: GoogleFonts.kanit(color: Colors.grey)),
@@ -326,9 +328,9 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF1E2832),
-              title: Text("ยืนยันการตัดสต็อก", style: GoogleFonts.kanit(color: Colors.white, fontWeight: FontWeight.bold)),
-              content: Text("คุณต้องการตัดสต็อกอาหาร 20 กิโลกรัม ใช่หรือไม่?", style: GoogleFonts.kanit(color: Colors.white70)),
+              backgroundColor: ezCardColor(context),
+              title: Text("ยืนยันการตัดสต็อก", style: GoogleFonts.kanit(color: ezColors(context).textPrimary, fontWeight: FontWeight.bold)),
+              content: Text("คุณต้องการตัดสต็อกอาหาร 20 กิโลกรัม ใช่หรือไม่?", style: GoogleFonts.kanit(color: ezColors(context).textSecondary)),
               actions: [
                 TextButton(
                   child: Text("ยกเลิก", style: GoogleFonts.kanit(color: Colors.grey)),
@@ -384,30 +386,18 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   }
 
   String _formatDateSimple(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return "-";
-    try {
-      DateTime dt = DateTime.parse(isoString).toLocal();
-      return "${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}";
-    } catch (e) {
-      return "-";
-    }
+    return thaiDateFromIso(isoString);
   }
 
   String _formatDate(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return "-";
-    try {
-      DateTime dt = DateTime.parse(isoString).toLocal();
-      return "${dt.day.toString().padLeft(2, '0')} / ${dt.month.toString().padLeft(2, '0')} / ${dt.year + 543}";
-    } catch (e) {
-      return "-";
-    }
+    return thaiDateFromIso(isoString);
   }
 
   String _formatDateTime(String? isoString) {
     if (isoString == null || isoString.isEmpty) return "-";
     try {
       DateTime dt = DateTime.parse(isoString).toLocal();
-      return "${dt.day.toString().padLeft(2, '0')} / ${dt.month.toString().padLeft(2, '0')} / ${dt.year + 543} เวลา ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} น.";
+      return "${thaiDate(dt)} เวลา ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} น.";
     } catch (e) {
       return "-";
     }
@@ -435,7 +425,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E2832),
+        color: ezCardColor(context),
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
@@ -473,7 +463,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
             style: GoogleFonts.kanit(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: ezColors(context).textPrimary,
             ),
           ),
         ),
@@ -485,7 +475,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
       body: Stack(
         children: [
           Positioned(
@@ -511,9 +501,57 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
               child: Column(
                 children: [
                   if (isLoading)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 50.0),
-                      child: Center(child: CircularProgressIndicator()),
+                    Skeletonizer(
+                      enabled: true,
+                      child: Column(
+                        children: [
+                          _buildDarkCard(
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 220,
+                                  height: 18,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 20),
+                                Container(
+                                  width: 200,
+                                  height: 100,
+                                  color: Colors.grey,
+                                ),
+                              ],
+                            ),
+                          ),
+                          _buildDarkCard(
+                            child: Column(
+                              children: List.generate(
+                                3,
+                                (_) => Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Container(
+                                        width: 80,
+                                        height: 16,
+                                        color: Colors.grey,
+                                      ),
+                                      Container(
+                                        width: 100,
+                                        height: 16,
+                                        color: Colors.grey,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     )
                   else ...[
                     _buildDarkCard(
@@ -521,7 +559,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                         children: [
                           Text(
                             "ปริมาณคงเหลือปัจจุบัน: ${foodData?['amount'] ?? '0'} กิโลกรัม",
-                            style: GoogleFonts.kanit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                            style: GoogleFonts.kanit(fontSize: 18, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary),
                           ),
                           const SizedBox(height: 20),
                           
@@ -539,16 +577,16 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                                   bottom: 10,
                                   child: Text(
                                     "${currentPercent.toInt()} %", 
-                                    style: GoogleFonts.kanit(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                                    style: GoogleFonts.kanit(fontSize: 28, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary),
                                   ),
                                 ),
                                 Positioned(
                                   bottom: 0, left: 0,
-                                  child: Text("MIN", style: GoogleFonts.kanit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                                  child: Text("MIN", style: GoogleFonts.kanit(fontSize: 12, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
                                 ),
                                 Positioned(
                                   bottom: 0, right: 0,
-                                  child: Text("MAX", style: GoogleFonts.kanit(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                                  child: Text("MAX", style: GoogleFonts.kanit(fontSize: 12, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
                                 ),
                               ],
                             ),
@@ -569,16 +607,16 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              Text("ปริมาณ (กก.)", style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                              Text("วันที่นำอาหารเข้า", style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                              Text("ปริมาณ (กก.)", style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
+                              Text("วันที่นำอาหารเข้า", style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
                             ],
                           ),
-                          const Divider(color: Colors.white30, thickness: 1, height: 20),
+                          Divider(color: ezColors(context).border, thickness: 1, height: 20),
                           
                           if (foodHistory.isEmpty)
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 20),
-                              child: Text("ไม่มีข้อมูลประวัติ", style: GoogleFonts.kanit(color: Colors.white54)),
+                              child: Text("ไม่มีข้อมูลประวัติ", style: GoogleFonts.kanit(color: ezColors(context).textSecondary)),
                             )
                           else
                             ...foodHistory.map((data) {
@@ -601,21 +639,21 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text("ปริมาณที่อัพเดต", style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                              Text("ปริมาณที่อัพเดต", style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
                               Row(
                                 children: [
                                   Container(
                                     height: 35,
                                     width: 80,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF141D26),
+                                      color: ezColors(context).inputFill,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(color: Colors.blueAccent.withOpacity(0.5)),
                                     ),
                                     child: TextField(
                                       controller: _updateQtyController, 
                                       textAlign: TextAlign.center,
-                                      style: GoogleFonts.kanit(color: Colors.white),
+                                      style: GoogleFonts.kanit(color: ezColors(context).inputText),
                                       keyboardType: TextInputType.number,
                                       decoration: const InputDecoration(
                                         border: InputBorder.none,
@@ -630,7 +668,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                                       Icons.calendar_today_outlined,
                                       color: _selectedUpdateExpiryDate != null
                                           ? const Color(0xFF6FE975)
-                                          : Colors.white,
+                                          : ezColors(context).textSecondary,
                                       size: 24,
                                     ),
                                   ),
@@ -644,7 +682,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                               alignment: Alignment.centerRight,
                               child: Text(
                                 "วันหมดอายุ: ${_formatDate(_selectedUpdateExpiryDate!.toIso8601String())}",
-                                style: GoogleFonts.kanit(fontSize: 12, color: Colors.white70),
+                                style: GoogleFonts.kanit(fontSize: 12, color: ezColors(context).textSecondary),
                               ),
                             ),
                           ],
@@ -709,12 +747,12 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Text(amount, style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-              Text(date, style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text(amount, style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
+              Text(date, style: GoogleFonts.kanit(fontSize: 16, fontWeight: FontWeight.bold, color: ezColors(context).textPrimary)),
             ],
           ),
         ),
-        const Divider(color: Colors.white30, thickness: 1, height: 5),
+        Divider(color: ezColors(context).border, thickness: 1, height: 5),
       ],
     );
   }

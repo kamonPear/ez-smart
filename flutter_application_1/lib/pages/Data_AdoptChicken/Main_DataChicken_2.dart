@@ -14,6 +14,8 @@ import '../bottombar.dart';
 import '../main_dash.dart';
 import '../../widgets/ez_header.dart';
 import '../../services/backend_config.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import '../../utils/thai_date.dart';
 
 class Mainchicken extends StatefulWidget {
   const Mainchicken({super.key});
@@ -23,7 +25,7 @@ class Mainchicken extends StatefulWidget {
 }
 
 class _MainchickenState extends State<Mainchicken> {
-  int selectedIndex = 0;
+  int selectedIndex = 3;
 
   // --- เพิ่มตัวแปรสำหรับเก็บข้อมูลและเช็คสถานะโหลด ---
   List<Map<String, dynamic>> coopData = [];
@@ -51,8 +53,9 @@ class _MainchickenState extends State<Mainchicken> {
         final List<dynamic> jsonData = json.decode(response.body);
 
         final List<Map<String, dynamic>> fetchedData = jsonData.map((data) {
-          String rawDate = data["date_adopt_animals"]?.toString() ?? "-";
-          String displayDate = rawDate != "-" ? rawDate.split('T')[0] : "-";
+          String displayDate = thaiDateFromIso(
+            data["date_adopt_animals"]?.toString(),
+          );
 
           String coopId = data["coop_id"]?.toString() ?? "-";
           String coopName = data["name_coop"]?.toString().trim() ?? "";
@@ -116,8 +119,8 @@ class _MainchickenState extends State<Mainchicken> {
   Widget _buildTableRow(String col1, String col2, String col3) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.white24, width: 1)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: ezColors(context).border, width: 1)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -127,7 +130,7 @@ class _MainchickenState extends State<Mainchicken> {
               col1,
               textAlign: TextAlign.center,
               style: GoogleFonts.kanit(
-                color: Colors.white,
+                color: ezColors(context).textPrimary,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -138,7 +141,7 @@ class _MainchickenState extends State<Mainchicken> {
               col2,
               textAlign: TextAlign.center,
               style: GoogleFonts.kanit(
-                color: Colors.white,
+                color: ezColors(context).textPrimary,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -150,7 +153,7 @@ class _MainchickenState extends State<Mainchicken> {
               col3,
               textAlign: TextAlign.center,
               style: GoogleFonts.kanit(
-                color: Colors.white,
+                color: ezColors(context).textPrimary,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -174,7 +177,7 @@ class _MainchickenState extends State<Mainchicken> {
         width: width,
         height: 110,
         decoration: BoxDecoration(
-          color: const Color(0xFF1E2730), // สีพื้นหลังปุ่มแบบในรูป
+          color: ezCardColor(context), // สีพื้นหลังปุ่มแบบในรูป
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
@@ -187,14 +190,14 @@ class _MainchickenState extends State<Mainchicken> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 45),
+            Icon(icon, color: ezColors(context).textPrimary, size: 45),
             const SizedBox(height: 10),
             Text(
               title,
               style: GoogleFonts.kanit(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: Colors.white,
+                color: ezColors(context).textPrimary,
               ),
             ),
           ],
@@ -207,7 +210,7 @@ class _MainchickenState extends State<Mainchicken> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: ezBackgroundColor,
+      backgroundColor: ezBackgroundColor(context),
       body: Stack(
         children: [
           Positioned(
@@ -239,7 +242,7 @@ class _MainchickenState extends State<Mainchicken> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E2730), // สีพื้นหลังกล่องข้อมูล
+                      color: ezCardColor(context), // สีพื้นหลังกล่องข้อมูล
                       borderRadius: BorderRadius.circular(15),
                       boxShadow: [
                         BoxShadow(
@@ -255,7 +258,7 @@ class _MainchickenState extends State<Mainchicken> {
                         Text(
                           "คอกรวม",
                           style: GoogleFonts.kanit(
-                            color: Colors.white,
+                            color: ezColors(context).textPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -264,10 +267,10 @@ class _MainchickenState extends State<Mainchicken> {
                         // Header ตาราง
                         Container(
                           padding: const EdgeInsets.only(bottom: 8),
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             border: Border(
                               bottom: BorderSide(
-                                color: Colors.white54,
+                                color: ezColors(context).textSecondary,
                                 width: 1.5,
                               ),
                             ),
@@ -280,7 +283,7 @@ class _MainchickenState extends State<Mainchicken> {
                                   "คอกที่",
                                   textAlign: TextAlign.center,
                                   style: GoogleFonts.kanit(
-                                    color: Colors.white,
+                                    color: ezColors(context).textPrimary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -290,7 +293,7 @@ class _MainchickenState extends State<Mainchicken> {
                                   "จำนวนไก่",
                                   textAlign: TextAlign.center,
                                   style: GoogleFonts.kanit(
-                                    color: Colors.white,
+                                    color: ezColors(context).textPrimary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -301,7 +304,7 @@ class _MainchickenState extends State<Mainchicken> {
                                   "วันที่รับมาเลี้ยง",
                                   textAlign: TextAlign.center,
                                   style: GoogleFonts.kanit(
-                                    color: Colors.white,
+                                    color: ezColors(context).textPrimary,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -312,11 +315,16 @@ class _MainchickenState extends State<Mainchicken> {
 
                         // --- ส่วนที่แสดงผลข้อมูลที่ได้จาก API ---
                         isLoading
-                            ? const Padding(
-                                padding: EdgeInsets.all(20.0),
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    color: Colors.green,
+                            ? Skeletonizer(
+                                enabled: true,
+                                child: Column(
+                                  children: List.generate(
+                                    3,
+                                    (_) => _buildTableRow(
+                                      'คอกไก่',
+                                      '200',
+                                      '2026-08-19',
+                                    ),
                                   ),
                                 ),
                               )
@@ -327,7 +335,7 @@ class _MainchickenState extends State<Mainchicken> {
                                   child: Text(
                                     "ไม่มีข้อมูล",
                                     style: GoogleFonts.kanit(
-                                      color: Colors.white70,
+                                      color: ezColors(context).textSecondary,
                                     ),
                                   ),
                                 ),
