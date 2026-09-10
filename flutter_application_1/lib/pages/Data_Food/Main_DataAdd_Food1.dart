@@ -10,6 +10,7 @@ import 'dart:convert';
 import '../bottombar.dart';
 import '../close_open_Door.dart';
 import '../../widgets/ez_header.dart';
+import '../../widgets/ez_form_field.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_top_banner.dart';
 
@@ -86,11 +87,26 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     // importfood และบวกเพิ่มใน foodstock ให้อัตโนมัติ) — /api/foods รับแค่ GET/PUT/DELETE
     final url = Uri.parse('$backendBaseUrl/api/importfoods');
 
-    // ตรวจสอบก่อนส่งว่ากรอกข้อมูลวันที่หรือยัง
-    if (_selectedImportDate == null || _selectedExpiryDate == null) {
+    if (_selectedImportDate == null) {
       showEzTopBanner(
         context,
-        'กรุณาเลือกวันที่รับเข้าและวันหมดอายุให้ครบถ้วน',
+        'กรุณาเลือกวันที่นำอาหารเข้า',
+        type: EzBannerType.warning,
+      );
+      return;
+    }
+    if (_amountController.text.trim().isEmpty) {
+      showEzTopBanner(
+        context,
+        'กรุณากรอกปริมาณที่นำเข้า',
+        type: EzBannerType.warning,
+      );
+      return;
+    }
+    if (_selectedExpiryDate == null) {
+      showEzTopBanner(
+        context,
+        'กรุณาเลือกวันที่อาหารใกล้หมด',
         type: EzBannerType.warning,
       );
       return;
@@ -180,18 +196,9 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
       initialDate: initialDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF6FE975),
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      helpText: 'เลือกวันที่',
+      cancelText: 'ยกเลิก',
+      confirmText: 'ตกลง',
     );
 
     if (picked != null) {
@@ -215,207 +222,139 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     }
   }
 
-  // 🌟 เพิ่มพารามิเตอร์ keyboardType เข้ามา เพื่อให้กำหนดเป็นตัวเลขได้
-  Widget _buildTextField({
-    required String label,
-    required TextEditingController controller,
-    bool readOnly = false,
-    VoidCallback? onTap,
-    bool showCalendarIcon = false,
-    TextInputType? keyboardType,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 140,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 10.0),
-              child: Text(
-                label,
-                style: GoogleFonts.kanit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.normal,
-                  color: ezColors(context).textPrimary,
-                ),
-                textAlign: TextAlign.end,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: ezColors(context).inputFill,
-                      borderRadius: BorderRadius.circular(5),
-                      border: Border.all(
-                        color: ezColors(context).border,
-                        width: 1.0,
-                      ),
-                    ),
-                    child: TextField(
-                      controller: controller,
-                      readOnly: readOnly,
-                      onTap: onTap,
-                      keyboardType: keyboardType, // 🌟 ใช้งาน keyboardType
-                      style: GoogleFonts.kanit(
-                        fontSize: 16,
-                        color: ezColors(context).textPrimary,
-                        fontWeight: FontWeight.normal,
-                      ),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                ),
-                if (showCalendarIcon) ...[
-                  const SizedBox(width: 5),
-                  GestureDetector(
-                    onTap: onTap,
-                    child: Icon(
-                      Icons.calendar_today_outlined,
-                      color: ezColors(context).textPrimary,
-                      size: 22,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final ez = ezColors(context);
+
     return Scaffold(
       extendBody: true,
       backgroundColor: ezBackgroundColor(context),
-      resizeToAvoidBottomInset: false,
       body: SafeArea(
-        child: Column(
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: EzHeader(pageTitle: 'เพิ่มสต็อกอาหาร'),
-            ),
-            Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 340,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 25,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: [
+              const EzHeader(pageTitle: 'เพิ่มสต็อกอาหาร'),
+              const SizedBox(height: 20),
+
+              // ฟอร์มข้อมูลการนำเข้า — ใช้ช่องกรอกมาตรฐานเดียวกับหน้าอื่นในแอป
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: ezCardColor(context),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: ez.gold.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.inventory_2_outlined,
+                            color: ez.gold,
+                            size: 18,
+                          ),
                         ),
-                        decoration: ezCardDecoration(context, radius: 15),
-                        child: Column(
-                          children: [
-                            Text(
-                              "เพิ่มข้อมูลคลังอาหาร",
-                              style: GoogleFonts.kanit(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: ezColors(context).textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 25),
-
-                            _buildTextField(
-                              label: "วันที่นำอาหารเข้า",
-                              controller: _dateReceivedController,
-                              readOnly: true,
-                              onTap: () => _selectDate(
-                                context,
-                                _dateReceivedController,
-                                true,
-                              ),
-                              showCalendarIcon: true,
-                            ),
-                            // 🌟 เพิ่ม keyboardType ให้ขึ้นแป้นพิมพ์ตัวเลข
-                            _buildTextField(
-                              label: "ปริมาณที่นำเข้า",
-                              controller: _amountController,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                            ),
-                            // 🌟 เพิ่ม keyboardType ให้ขึ้นแป้นพิมพ์ตัวเลข
-                            _buildTextField(
-                              label: "กำหนดปริมาณใกล้หมด",
-                              controller: _thresholdController,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                            ),
-                            _buildTextField(
-                              label: "วันที่อาหารใกล้หมด",
-                              controller: _expireDateController,
-                              readOnly: true,
-                              // ยังคงปุ่มเปิดปฏิทินไว้ เผื่อแอดมินต้องการแก้ไขวันที่คำนวณอัตโนมัติ
-                              onTap: () => _selectDate(
-                                context,
-                                _expireDateController,
-                                false,
-                              ),
-                              showCalendarIcon: true,
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            GestureDetector(
-                              onTap: () => _saveFoodData(),
-                              child: Container(
-                                width: double.infinity,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF6FE975),
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      offset: const Offset(0, 3),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    "เข้าสต็อกอาหาร",
-                                    style: GoogleFonts.kanit(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'เพิ่มข้อมูลคลังอาหาร',
+                                style: GoogleFonts.kanit(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: ez.textPrimary,
                                 ),
                               ),
-                            ),
-                          ],
+                              Text(
+                                'ช่องที่มี * ต้องกรอกให้ครบก่อนบันทึก',
+                                style: GoogleFonts.kanit(
+                                  fontSize: 10,
+                                  color: ez.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    EzFormDateField(
+                      label: 'วันที่นำอาหารเข้า',
+                      isRequired: true,
+                      controller: _dateReceivedController,
+                      onTap: () =>
+                          _selectDate(context, _dateReceivedController, true),
+                    ),
+                    const SizedBox(height: 12),
+                    EzFormTextField(
+                      label: 'ปริมาณที่นำเข้า',
+                      isRequired: true,
+                      controller: _amountController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
                       ),
-                    ],
+                      hintText: 'เช่น 100',
+                      suffixText: 'กก.',
+                    ),
+                    const SizedBox(height: 12),
+                    EzFormTextField(
+                      label: 'กำหนดปริมาณใกล้หมด',
+                      controller: _thresholdController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      hintText: 'เช่น 20',
+                      suffixText: 'กก.',
+                    ),
+                    const SizedBox(height: 12),
+                    EzFormDateField(
+                      label: 'วันที่อาหารใกล้หมด',
+                      isRequired: true,
+                      controller: _expireDateController,
+                      hintText: 'คำนวณอัตโนมัติจากปริมาณ',
+                      // ยังคงปุ่มเปิดปฏิทินไว้ เผื่อแอดมินต้องการแก้ไขวันที่คำนวณอัตโนมัติ
+                      onTap: () =>
+                          _selectDate(context, _expireDateController, false),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  onPressed: _saveFoodData,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6FE975),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    'เข้าสต็อกอาหาร',
+                    style: GoogleFonts.kanit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 100),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: CustomBottomBar(

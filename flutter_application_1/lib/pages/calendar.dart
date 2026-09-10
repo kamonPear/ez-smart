@@ -32,6 +32,95 @@ class _CustomCalendarState extends State<CustomCalendar> {
     currentMonth = DateTime(selectedDate!.year, selectedDate!.month, 1);
   }
 
+  Widget _buildDayCell(int day) {
+    bool isSelected =
+        selectedDate != null &&
+        selectedDate!.year == currentMonth.year &&
+        selectedDate!.month == currentMonth.month &&
+        selectedDate!.day == day;
+
+    // 🌟 3. ตรวจสอบว่าวันในช่องนี้ ตรงกับหนึ่งในวันที่ที่ถูกมาร์กมาหรือไม่
+    bool hasMarker =
+        widget.markedDates?.any(
+          (markedDate) =>
+              markedDate.year == currentMonth.year &&
+              markedDate.month == currentMonth.month &&
+              markedDate.day == day,
+        ) ??
+        false;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          DateTime newSelected = DateTime(
+            currentMonth.year,
+            currentMonth.month,
+            day,
+          );
+          setState(() {
+            selectedDate = newSelected;
+          });
+          // ส่งค่าวันที่ที่เลือกกลับไปให้หน้าหลัก
+          widget.onDateSelected(newSelected);
+        },
+        child: SizedBox(
+          height: 36,
+          child: Center(
+            child: Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFF66E07A)
+                    : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              child: Column(
+                // 🌟 4. เปลี่ยนจาก Center เป็น Column เพื่อให้ใส่จุดใต้ตัวเลขได้
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    day.toString(),
+                    style: GoogleFonts.kanit(
+                      // เดิมใช้ Colors.white ตายตัว ตัวเลขเลยมองไม่เห็นเวลาการ์ด
+                      // เป็นพื้นสว่าง (โหมดสว่าง) ต้องอิงสีตามธีมแทน
+                      color: isSelected
+                          ? Colors.black
+                          : ezColors(context).textPrimary,
+                      fontSize: 13,
+                      height: 1.0,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  // 🌟 5. แสดงจุดมาร์กสีเขียวเฉพาะวันที่มีข้อมูล
+                  if (hasMarker)
+                    Container(
+                      margin: const EdgeInsets.only(top: 1),
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        // ถ้าวันนั้นกำลังถูกเลือกอยู่ ให้จุดเปลี่ยนเป็นสีดำเพื่อให้ตัดกับพื้นหลังสีเขียวของปุ่ม
+                        color: isSelected
+                            ? Colors.black
+                            : const Color(0xFF66E07A),
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                  else
+                    const SizedBox(
+                      height: 5,
+                    ), // เผื่อพื้นที่ว่างไว้เท่ากัน เพื่อให้ตัวเลขอยู่ในระดับระนาบเดียวกันตลอด
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     int daysInMonth = DateTime(
@@ -45,6 +134,12 @@ class _CustomCalendarState extends State<CustomCalendar> {
       1,
     ).weekday;
     int offset = firstWeekday - 1;
+    int totalCells = offset + daysInMonth;
+    // 🌟 สร้างเป็น Column ของ Row เอง แทน GridView.builder(shrinkWrap:true)
+    // เพราะ shrinkWrap GridView ที่ซ้อนอยู่ใน SingleChildScrollView หลายชั้นของหน้าที่เรียกใช้
+    // คำนวณความสูงเกินจริง (เหลือพื้นที่ว่างเยอะผิดปกติไม่ว่าจะมีกี่แถว) ส่วน Column/Row
+    // จะสูงเท่ากับเนื้อหาจริงเสมอ ไม่มีปัญหานี้
+    int rowCount = (totalCells / 7).ceil();
 
     return Container(
       // 🌟 แก้ไข 1: ลด padding vertical จาก 20 เหลือ 15 เพื่อเพิ่มพื้นที่ให้ปฏิทิน
@@ -116,99 +211,19 @@ class _CustomCalendarState extends State<CustomCalendar> {
                 .toList(),
           ),
           const SizedBox(height: 4),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: offset + daysInMonth,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              childAspectRatio: 1.0,
-            ),
-            itemBuilder: (context, index) {
-              if (index < offset) return const SizedBox();
-              int day = index - offset + 1;
-
-              // ... โค้ดส่วนอื่นๆ คงเดิม ...
-
-              bool isSelected =
-                  selectedDate != null &&
-                  selectedDate!.year == currentMonth.year &&
-                  selectedDate!.month == currentMonth.month &&
-                  selectedDate!.day == day;
-
-              // 🌟 3. ตรวจสอบว่าวันในช่องนี้ ตรงกับหนึ่งในวันที่ที่ถูกมาร์กมาหรือไม่
-              bool hasMarker =
-                  widget.markedDates?.any(
-                    (markedDate) =>
-                        markedDate.year == currentMonth.year &&
-                        markedDate.month == currentMonth.month &&
-                        markedDate.day == day,
-                  ) ??
-                  false;
-
-              return GestureDetector(
-                onTap: () {
-                  DateTime newSelected = DateTime(
-                    currentMonth.year,
-                    currentMonth.month,
-                    day,
-                  );
-                  setState(() {
-                    selectedDate = newSelected;
-                  });
-                  // ส่งค่าวันที่ที่เลือกกลับไปให้หน้าหลัก
-                  widget.onDateSelected(newSelected);
-                },
-                child: Container(
-                  margin: const EdgeInsets.all(1.5),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF66E07A)
-                        : Colors.transparent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Column(
-                    // 🌟 4. เปลี่ยนจาก Center เป็น Column เพื่อให้ใส่จุดใต้ตัวเลขได้
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        day.toString(),
-                        style: GoogleFonts.kanit(
-                          // เดิมใช้ Colors.white ตายตัว ตัวเลขเลยมองไม่เห็นเวลาการ์ด
-                          // เป็นพื้นสว่าง (โหมดสว่าง) ต้องอิงสีตามธีมแทน
-                          color: isSelected
-                              ? Colors.black
-                              : ezColors(context).textPrimary,
-                          fontSize: 14,
-                          height: 1.0,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                      ),
-                      // 🌟 5. แสดงจุดมาร์กสีเขียวเฉพาะวันที่มีข้อมูล
-                      if (hasMarker)
-                        Container(
-                          margin: const EdgeInsets.only(top: 2),
-                          width: 4,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            // ถ้าวันนั้นกำลังถูกเลือกอยู่ ให้จุดเปลี่ยนเป็นสีดำเพื่อให้ตัดกับพื้นหลังสีเขียวของปุ่ม
-                            color: isSelected
-                                ? Colors.black
-                                : const Color(0xFF66E07A),
-                            shape: BoxShape.circle,
-                          ),
-                        )
-                      else
-                        const SizedBox(
-                          height: 6,
-                        ), // เผื่อพื้นที่ว่างไว้เท่ากัน เพื่อให้ตัวเลขอยู่ในระดับระนาบเดียวกันตลอด
-                    ],
-                  ),
-                ),
+          Column(
+            children: List.generate(rowCount, (rowIndex) {
+              return Row(
+                children: List.generate(7, (colIndex) {
+                  int cellIndex = rowIndex * 7 + colIndex;
+                  if (cellIndex < offset || cellIndex >= totalCells) {
+                    return const Expanded(child: SizedBox(height: 36));
+                  }
+                  int day = cellIndex - offset + 1;
+                  return _buildDayCell(day);
+                }),
               );
-            },
+            }),
           ),
         ],
       ),

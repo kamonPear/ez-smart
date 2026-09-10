@@ -14,6 +14,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
 import '../main_dash.dart';
 import '../../widgets/ez_header.dart';
+import '../../widgets/ez_form_field.dart';
+import '../../widgets/ez_top_banner.dart';
+import '../../widgets/ez_confirm_dialog.dart';
+import '../../theme/app_theme.dart';
 import '../../services/backend_config.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -204,99 +208,135 @@ class _MainVaccineState extends State<MainVaccine> {
   void showVaccineDetailDialog(Map<String, dynamic> alert) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: ezCardColor(context),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(25.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Text(
-                  "ข้อมูลวัคซีน",
-                  style: GoogleFonts.kanit(
-                    color: ezColors(context).textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const Divider(
-                color: Color(0xFF62A199),
-                thickness: 1.5,
-                height: 30,
-              ),
-              _buildDetailRow(
-                "ชื่อวัคซีน:",
-                alert['vaccine_name'] ?? 'ไม่ระบุชื่อ',
-              ),
-              _buildDetailRow(
-                "คอกเป้าหมาย:",
-                "คอก ${_coopNames[alert['coop_id']?.toString()] ?? alert['coop_id'] ?? '-'}",
-              ),
-              _buildDetailRow("อายุไก่:", "${alert['chicken_age'] ?? '-'} วัน"),
-              _buildDetailRow("ประเภทการให้:", alert['injection_type'] ?? '-'),
-              _buildDetailRow(
-                "หมายเหตุ:",
-                alert['description'] != null &&
-                        alert['description'].toString().isNotEmpty
-                    ? alert['description']
-                    : 'ไม่มีหมายเหตุ',
-              ),
-              const SizedBox(height: 30),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey.shade700,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+      builder: (dialogContext) {
+        final ez = ezColors(dialogContext);
+        return Dialog(
+          backgroundColor: ezCardColor(dialogContext),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: ez.gold.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        "ปิด",
-                        style: GoogleFonts.kanit(
-                          color: ezColors(context).textPrimary,
-                          fontSize: 16,
-                        ),
+                      child: Icon(
+                        Icons.vaccines_rounded,
+                        color: ez.gold,
+                        size: 20,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        deleteVaccineAlertData(alert['id']?.toString() ?? '');
-                      },
+                    const SizedBox(width: 10),
+                    Expanded(
                       child: Text(
-                        "ลบข้อมูล",
+                        "ข้อมูลวัคซีน",
                         style: GoogleFonts.kanit(
-                          color: ezColors(context).textPrimary,
-                          fontSize: 16,
+                          color: ez.textPrimary,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Divider(color: ez.border, thickness: 1, height: 1),
+                ),
+                _buildDetailRow(
+                  "ชื่อวัคซีน:",
+                  alert['vaccine_name'] ?? 'ไม่ระบุชื่อ',
+                ),
+                _buildDetailRow(
+                  "คอกเป้าหมาย:",
+                  "คอก ${_coopNames[alert['coop_id']?.toString()] ?? alert['coop_id'] ?? '-'}",
+                ),
+                _buildDetailRow(
+                  "อายุไก่:",
+                  "${alert['chicken_age'] ?? '-'} วัน",
+                ),
+                _buildDetailRow(
+                  "ประเภทการให้:",
+                  alert['injection_type'] ?? '-',
+                ),
+                _buildDetailRow(
+                  "หมายเหตุ:",
+                  alert['description'] != null &&
+                          alert['description'].toString().isNotEmpty
+                      ? alert['description']
+                      : 'ไม่มีหมายเหตุ',
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: ez.border),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: Text(
+                          "ปิด",
+                          style: GoogleFonts.kanit(
+                            color: ez.textSecondary,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ez.danger,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(dialogContext);
+                          final confirmed = await showEzDeleteConfirm(
+                            context,
+                            message:
+                                'ต้องการลบข้อมูลวัคซีน "${alert['vaccine_name'] ?? 'รายการนี้'}" ใช่หรือไม่?',
+                          );
+                          if (confirmed) {
+                            deleteVaccineAlertData(
+                              alert['id']?.toString() ?? '',
+                            );
+                          }
+                        },
+                        child: Text(
+                          "ลบข้อมูล",
+                          style: GoogleFonts.kanit(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -345,141 +385,164 @@ class _MainVaccineState extends State<MainVaccine> {
 
   void showEditVaccineDialog(Map<String, dynamic> alert) {
     TextEditingController nameController = TextEditingController(
-      text: alert['vaccine_name'],
+      text: alert['vaccine_name']?.toString() ?? '',
     );
     TextEditingController ageController = TextEditingController(
-      text: alert['chicken_age']?.toString(),
+      text: alert['chicken_age']?.toString() ?? '',
     );
     TextEditingController typeController = TextEditingController(
-      text: alert['injection_type'],
+      text: alert['injection_type']?.toString() ?? '',
     );
     TextEditingController noteController = TextEditingController(
-      text: alert['description'],
+      text: alert['description']?.toString() ?? '',
     );
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E2730),
-        title: Text(
-          "แก้ไขข้อมูลวัคซีน",
-          style: GoogleFonts.kanit(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+      builder: (dialogContext) {
+        final ez = ezColors(dialogContext);
+        return Dialog(
+          backgroundColor: ezCardColor(dialogContext),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                style: GoogleFonts.kanit(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: "ชื่อวัคซีน",
-                  labelStyle: GoogleFonts.kanit(color: Colors.grey),
-                  enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey),
+          child: Padding(
+            padding: const EdgeInsets.all(22.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: ez.gold.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.edit_note_rounded,
+                          color: ez.gold,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "แก้ไขข้อมูลวัคซีน",
+                          style: GoogleFonts.kanit(
+                            color: ez.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  focusedBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF62A199)),
+                  const SizedBox(height: 20),
+                  EzFormTextField(
+                    label: 'ชื่อวัคซีน',
+                    isRequired: true,
+                    controller: nameController,
+                    hintText: 'เช่น นิวคาสเซิล',
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  EzFormTextField(
+                    label: 'อายุไก่',
+                    isRequired: true,
+                    controller: ageController,
+                    keyboardType: TextInputType.number,
+                    hintText: 'เช่น 7',
+                    suffixText: 'วัน',
+                  ),
+                  const SizedBox(height: 12),
+                  EzFormTextField(
+                    label: 'ประเภทการให้',
+                    controller: typeController,
+                    hintText: 'เช่น หยอดตา, ฉีด',
+                  ),
+                  const SizedBox(height: 12),
+                  EzFormTextField(
+                    label: 'หมายเหตุ',
+                    controller: noteController,
+                    hintText: 'ไม่บังคับ',
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            side: BorderSide(color: ez.border),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: Text(
+                            "ยกเลิก",
+                            style: GoogleFonts.kanit(
+                              color: ez.textSecondary,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ez.accentGreen,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () {
+                            if (nameController.text.trim().isEmpty) {
+                              showEzTopBanner(
+                                dialogContext,
+                                'กรุณากรอกชื่อวัคซีน',
+                                type: EzBannerType.warning,
+                              );
+                              return;
+                            }
+
+                            // ลบตัวอักษรอื่นออก เหลือแต่ตัวเลข ป้องกัน user พิมพ์คำว่า 'วัน' ติดมา
+                            String numericString = ageController.text
+                                .trim()
+                                .replaceAll(RegExp(r'[^0-9]'), '');
+                            int parsedAge = int.tryParse(numericString) ?? 0;
+
+                            Navigator.pop(dialogContext);
+                            editVaccineAlertData(
+                              oldName: alert['vaccine_name'] ?? '',
+                              newName: nameController.text.trim(),
+                              age: parsedAge,
+                              type: typeController.text.trim(),
+                              note: noteController.text.trim(),
+                            );
+                          },
+                          child: Text(
+                            "บันทึก",
+                            style: GoogleFonts.kanit(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: ageController,
-                keyboardType: TextInputType.number,
-                style: GoogleFonts.kanit(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: "อายุไก่ (วัน)",
-                  labelStyle: GoogleFonts.kanit(color: Colors.grey),
-                  enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey),
-                  ),
-                  focusedBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF62A199)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: typeController,
-                style: GoogleFonts.kanit(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: "ประเภทการให้",
-                  labelStyle: GoogleFonts.kanit(color: Colors.grey),
-                  enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey),
-                  ),
-                  focusedBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF62A199)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: noteController,
-                style: GoogleFonts.kanit(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: "หมายเหตุ",
-                  labelStyle: GoogleFonts.kanit(color: Colors.grey),
-                  enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey),
-                  ),
-                  focusedBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF62A199)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("ยกเลิก", style: GoogleFonts.kanit(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF34C759),
             ),
-            onPressed: () {
-              Navigator.pop(context);
-
-              // 🌟 1. ดึงข้อความออกมาแล้วตัดช่องว่างรอบๆ ทิ้ง
-              String rawAgeText = ageController.text.trim();
-
-              // 🌟 2. ลบตัวอักษรอื่นๆ ออกให้เหลือแค่ตัวเลข 0-9 เท่านั้น (ป้องกัน user พิมพ์คำว่า 'วัน' ติดมา)
-              String numericString = rawAgeText.replaceAll(
-                RegExp(r'[^0-9]'),
-                '',
-              );
-
-              // 🌟 3. ค่อยแปลงเป็น int (ถ้าว่างเปล่าให้ค่าเริ่มต้นเป็น 0)
-              int parsedAge = int.tryParse(numericString) ?? 0;
-
-              // เช็คเพื่อความชัวร์ใน Debug Console ของ Flutter
-              print("อายุที่จะส่งไปอัปเดต: $parsedAge");
-
-              editVaccineAlertData(
-                oldName: alert['vaccine_name'] ?? '',
-                newName: nameController.text.trim(),
-                age: parsedAge, // ส่งตัวเลขที่แปลงสำเร็จแล้ว
-                type: typeController.text.trim(),
-                note: noteController.text.trim(),
-              );
-            },
-            child: Text(
-              "บันทึก",
-              style: GoogleFonts.kanit(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -529,107 +592,89 @@ class _MainVaccineState extends State<MainVaccine> {
     return Scaffold(
       extendBody: true,
       backgroundColor: ezBackgroundColor(context),
-      body: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: EzHeader(
-                  pageTitle: 'ตารางวัคซีน',
-                  trailing: IconButton(
-                    icon: Icon(
-                      Icons.calendar_today_outlined,
-                      color: ezColors(context).textPrimary,
-                      size: 24,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _selectedDay = DateTime.now();
-                      });
-                    },
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: EzHeader(
+                pageTitle: widget.initialCoopId != null
+                    ? 'วัคซีนคอก ${_coopNames[widget.initialCoopId] ?? widget.initialCoopId}'
+                    : 'ตารางวัคซีน',
+                trailing: IconButton(
+                  icon: Icon(
+                    Icons.calendar_today_outlined,
+                    color: ezColors(context).textPrimary,
+                    size: 24,
                   ),
+                  onPressed: () {
+                    setState(() {
+                      _selectedDay = DateTime.now();
+                    });
+                  },
                 ),
               ),
             ),
-          ),
-          Positioned(
-            top: 110,
-            left: 0,
-            right: 0,
-            bottom: 90,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-                  if (widget.initialCoopId != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        'ตารางวัคซีนคอก ${_coopNames[widget.initialCoopId] ?? widget.initialCoopId}',
-                        style: GoogleFonts.kanit(
-                          color: ezColors(context).textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    CustomCalendar(
+                      key: ValueKey(
+                        _selectedDay.toString() +
+                            _markedDates.length.toString(),
                       ),
+                      initialDate: _selectedDay,
+                      markedDates: _markedDates,
+                      onDateSelected: (selectedDay) {
+                        setState(() {
+                          _selectedDay = selectedDay;
+                        });
+                      },
                     ),
-                  CustomCalendar(
-                    key: ValueKey(
-                      _selectedDay.toString() + _markedDates.length.toString(),
-                    ),
-                    initialDate: _selectedDay,
-                    markedDates: _markedDates,
-                    onDateSelected: (selectedDay) {
-                      setState(() {
-                        _selectedDay = selectedDay;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 25),
-                  _isLoading
-                      ? Skeletonizer(
-                          enabled: true,
-                          child: Column(
-                            children: List.generate(
-                              2,
-                              (_) => buildAlertCard({
-                                'vaccine_name': 'วัคซีนตัวอย่าง',
-                                'coop_id': '1',
-                                'injection_type': 'หยอดตา',
-                                'chicken_age': '7',
-                                'description': '-',
-                                'is_completed': false,
-                                'is_overdue': false,
-                              }),
+                    const SizedBox(height: 25),
+                    _isLoading
+                        ? Skeletonizer(
+                            enabled: true,
+                            child: Column(
+                              children: List.generate(
+                                2,
+                                (_) => buildAlertCard({
+                                  'vaccine_name': 'วัคซีนตัวอย่าง',
+                                  'coop_id': '1',
+                                  'injection_type': 'หยอดตา',
+                                  'chicken_age': '7',
+                                  'description': '-',
+                                  'is_completed': false,
+                                  'is_overdue': false,
+                                }),
+                              ),
                             ),
+                          )
+                        : alertsForSelectedDay.isEmpty
+                        ? Text(
+                            "ไม่มีคิวฉีดวัคซีนในวันนี้",
+                            style: GoogleFonts.kanit(
+                              color: ezColors(context).textPrimary,
+                              fontSize: 16,
+                            ),
+                          )
+                        : Column(
+                            children: alertsForSelectedDay.map((alert) {
+                              return buildAlertCard(alert);
+                            }).toList(),
                           ),
-                        )
-                      : alertsForSelectedDay.isEmpty
-                      ? Text(
-                          "ไม่มีคิวฉีดวัคซีนในวันนี้",
-                          style: GoogleFonts.kanit(
-                            color: ezColors(context).textPrimary,
-                            fontSize: 16,
-                          ),
-                        )
-                      : Column(
-                          children: alertsForSelectedDay.map((alert) {
-                            return buildAlertCard(alert);
-                          }).toList(),
-                        ),
-                  const SizedBox(height: 40),
-                ],
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 20.0, right: 5.0),
@@ -658,255 +703,223 @@ class _MainVaccineState extends State<MainVaccine> {
     );
   }
 
+  Widget _buildMiniInfo(
+    EzColors ez, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: ez.textSecondary),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.kanit(fontSize: 10.5, color: ez.textSecondary),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: GoogleFonts.kanit(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: ez.textPrimary,
+          ),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
   Widget buildAlertCard(Map<String, dynamic> alert) {
+    final ez = ezColors(context);
     bool isCompleted = alert['is_completed'] ?? false;
     bool isOverdue = alert['is_overdue'] ?? false;
     String rawCoopId = alert['coop_id']?.toString() ?? '-';
     String coopId = _coopNames[rawCoopId] ?? rawCoopId;
     String vaccineName = alert['vaccine_name'] ?? 'ไม่ระบุชื่อวัคซีน';
-    String injectionType = alert['injection_type'] ?? '-';
+    String injectionType =
+        (alert['injection_type']?.toString().isNotEmpty ?? false)
+        ? alert['injection_type']
+        : '-';
     String chickenAge = alert['chicken_age']?.toString() ?? '-';
-    String remark = alert['description'] ?? '';
+    String remark = alert['description']?.toString() ?? '';
+
+    late final Color statusBg;
+    late final Color statusFg;
+    late final String statusLabel;
+    late final IconData statusIcon;
+    if (isCompleted) {
+      statusBg = ez.chipGreenBg;
+      statusFg = ez.chipGreenText;
+      statusLabel = 'ให้วัคซีนแล้ว';
+      statusIcon = Icons.check_circle_rounded;
+    } else if (isOverdue) {
+      statusBg = ez.danger.withValues(alpha: 0.15);
+      statusFg = ez.danger;
+      statusLabel = 'เลยกำหนดฉีด';
+      statusIcon = Icons.warning_amber_rounded;
+    } else {
+      statusBg = ez.chipOrangeBg;
+      statusFg = ez.chipOrangeText;
+      statusLabel = 'รอฉีดวัคซีน';
+      statusIcon = Icons.schedule_rounded;
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: ezCardColor(context),
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(18),
+      decoration: ezCardDecoration(context, radius: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 🌟 แถวสำหรับแสดงชื่อวัคซีน + ปุ่มแก้ไข + ปุ่มดูข้อมูล
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(width: 72), // ชดเชยพื้นที่เพื่อให้ Title ตรงกลาง
-              Expanded(
-                child: Center(
-                  child: Text(
-                    "แจ้งเตือน: $vaccineName",
-                    style: GoogleFonts.kanit(
-                      color: ezColors(context).textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(
-                      Icons.edit,
-                      color: Colors.orangeAccent,
-                      size: 24,
-                    ),
-                    onPressed: () =>
-                        showEditVaccineDialog(alert), // 🌟 เปิดหน้าแก้ไข
-                  ),
-                  const SizedBox(width: 12),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: const Icon(
-                      Icons.info_outline,
-                      color: Colors.blueAccent,
-                      size: 26,
-                    ),
-                    onPressed: () => showVaccineDetailDialog(
-                      alert,
-                    ), // เปิดหน้าดูข้อมูลแบบเดิม
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 15),
-
-          if (isOverdue && !isCompleted)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
+              Container(
+                padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: Colors.redAccent.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.redAccent),
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Icon(Icons.vaccines_rounded, color: statusFg, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.warning_amber_rounded,
-                      size: 14,
-                      color: Colors.redAccent,
+                    Text(
+                      vaccineName,
+                      style: GoogleFonts.kanit(
+                        color: ez.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        "เลยกำหนดฉีดแล้ว (ก่อนวันรับเข้าคอก)",
-                        style: GoogleFonts.kanit(
-                          fontSize: 12,
-                          color: Colors.redAccent,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusBg,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(statusIcon, size: 12, color: statusFg),
+                          const SizedBox(width: 4),
+                          Text(
+                            statusLabel,
+                            style: GoogleFonts.kanit(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: statusFg,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(
+                  Icons.edit_outlined,
+                  color: ez.textSecondary,
+                  size: 20,
+                ),
+                tooltip: 'แก้ไข',
+                onPressed: () => showEditVaccineDialog(alert),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(
+                  Icons.info_outline,
+                  color: ez.textSecondary,
+                  size: 20,
+                ),
+                tooltip: 'ดูรายละเอียด',
+                onPressed: () => showVaccineDetailDialog(alert),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
 
           Container(
-            padding: const EdgeInsets.only(bottom: 6),
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Color(0xFF62A199), width: 1.5),
-              ),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: ez.inputFill,
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    "คอก",
-                    style: GoogleFonts.kanit(
-                      color: ezColors(context).textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.start,
+                  child: _buildMiniInfo(
+                    ez,
+                    icon: Icons.home_work_outlined,
+                    label: 'คอก',
+                    value: coopId,
                   ),
                 ),
+                Container(width: 1, height: 32, color: ez.border),
                 Expanded(
-                  child: Text(
-                    "อายุไก่",
-                    style: GoogleFonts.kanit(
-                      color: ezColors(context).textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
+                  child: _buildMiniInfo(
+                    ez,
+                    icon: Icons.cake_outlined,
+                    label: 'อายุไก่',
+                    value: '$chickenAge วัน',
                   ),
                 ),
+                Container(width: 1, height: 32, color: ez.border),
                 Expanded(
-                  child: Text(
-                    "ประเภทการให้",
-                    style: GoogleFonts.kanit(
-                      color: ezColors(context).textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.end,
+                  child: _buildMiniInfo(
+                    ez,
+                    icon: Icons.medical_services_outlined,
+                    label: 'วิธีให้',
+                    value: injectionType,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 12),
 
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Color(0xFF62A199), width: 1.0),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.sticky_note_2_outlined,
+                size: 14,
+                color: ez.textSecondary,
               ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    coopId,
-                    style: GoogleFonts.kanit(
-                      color: ezColors(context).textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.start,
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  remark.isNotEmpty ? remark : 'ไม่มีหมายเหตุ',
+                  style: GoogleFonts.kanit(
+                    color: ez.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.4,
+                    fontStyle: remark.isNotEmpty
+                        ? FontStyle.normal
+                        : FontStyle.italic,
                   ),
                 ),
-                Expanded(
-                  child: Text(
-                    "$chickenAge วัน",
-                    style: GoogleFonts.kanit(
-                      color: ezColors(context).textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    injectionType,
-                    style: GoogleFonts.kanit(
-                      color: ezColors(context).textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.end,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-
-          if (remark.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: ezColors(context).inputFill,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                "หมายเหตุ: $remark",
-                style: GoogleFonts.kanit(
-                  color: ezColors(context).textSecondary,
-                  fontSize: 13,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ],
-          if (remark.isEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: ezColors(context).inputFill,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                "หมายเหตุ: ไม่มีหมายเหตุ",
-                style: GoogleFonts.kanit(
-                  color: ezColors(context).textSecondary,
-                  fontSize: 13,
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           InkWell(
             onTap: () {
@@ -917,15 +930,14 @@ class _MainVaccineState extends State<MainVaccine> {
               });
               updateCompletionStatus(alert, newValue);
             },
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: isCompleted
-                    ? Colors.grey.shade700
-                    : const Color(0xFF34C759),
-                borderRadius: BorderRadius.circular(8),
+                color: isCompleted ? ez.cardAlt : ez.accentGreen,
+                borderRadius: BorderRadius.circular(10),
+                border: isCompleted ? Border.all(color: ez.border) : null,
               ),
               alignment: Alignment.center,
               child: Row(
@@ -933,15 +945,17 @@ class _MainVaccineState extends State<MainVaccine> {
                 children: [
                   Icon(
                     isCompleted ? Icons.check_circle : Icons.vaccines,
-                    color: ezColors(context).textPrimary,
-                    size: 22,
+                    color: isCompleted ? ez.textSecondary : Colors.white,
+                    size: 20,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    isCompleted ? "ให้วัคซีนแล้ว" : "เสร็จสิ้น (ให้วัคซีน)",
+                    isCompleted
+                        ? "ให้วัคซีนแล้ว (แตะเพื่อยกเลิก)"
+                        : "เสร็จสิ้น (ให้วัคซีน)",
                     style: GoogleFonts.kanit(
-                      color: ezColors(context).textPrimary,
-                      fontSize: 16,
+                      color: isCompleted ? ez.textSecondary : Colors.white,
+                      fontSize: 14.5,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

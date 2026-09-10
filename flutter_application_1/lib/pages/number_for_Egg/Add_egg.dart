@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/close_open_Door.dart';
@@ -10,6 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../bottombar.dart';
 import '../../widgets/ez_header.dart';
+import '../../widgets/ez_egg_chart.dart';
+import '../../widgets/ez_form_field.dart';
 import '../../utils/thai_date.dart';
 import '../../widgets/ez_skeleton.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -29,9 +30,6 @@ class AddEgg extends StatefulWidget {
 class _AddEggState extends State<AddEgg> {
   int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
 
-  bool isMonthly = true;
-  String selectedYear = DateTime.now().year.toString();
-
   bool isLoading = true;
   bool isSubmitting = false;
 
@@ -39,13 +37,15 @@ class _AddEggState extends State<AddEgg> {
   int yesterdayTotalEggs = 0;
 
   Map<String, List<double>> actualMonthlyData = {};
-  List<String> availableYears = [];
 
   List<dynamic> eggHistoryList = [];
   List<dynamic> _rawEggData = [];
 
   final TextEditingController _eggCountController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController(
+    text: thaiDate(DateTime.now()),
+  );
 
   String? _selectedCoop;
   DateTime _selectedDate = DateTime.now();
@@ -65,6 +65,7 @@ class _AddEggState extends State<AddEgg> {
   void dispose() {
     _eggCountController.dispose();
     _noteController.dispose();
+    _dateController.dispose();
     super.dispose();
   }
 
@@ -163,21 +164,9 @@ class _AddEggState extends State<AddEgg> {
 
     setState(() {
       actualMonthlyData = tempMonthlyData;
-      availableYears = tempMonthlyData.keys.toList()..sort();
-
       todayTotalEggs = tempTodayTotal;
       yesterdayTotalEggs = tempYesterdayTotal;
-
       eggHistoryList = List.from(data.reversed);
-
-      if (availableYears.isNotEmpty) {
-        selectedYear = availableYears.last;
-      } else {
-        String currentYear = DateTime.now().year.toString();
-        availableYears = [currentYear];
-        actualMonthlyData[currentYear] = List.filled(12, 0.0);
-        selectedYear = currentYear;
-      }
     });
   }
 
@@ -229,7 +218,10 @@ class _AddEggState extends State<AddEgg> {
         _showBanner('บันทึกข้อมูลสำเร็จ', type: EzBannerType.success);
         _eggCountController.clear();
         _noteController.clear();
-        setState(() => _selectedDate = DateTime.now());
+        setState(() {
+          _selectedDate = DateTime.now();
+          _dateController.text = thaiDate(_selectedDate);
+        });
         _fetchEggData();
       } else {
         _showBanner(
@@ -290,25 +282,6 @@ class _AddEggState extends State<AddEgg> {
     showEzTopBanner(context, message, type: type);
   }
 
-  double _calculateMaxY() {
-    if (actualMonthlyData.isEmpty ||
-        !actualMonthlyData.containsKey(selectedYear))
-      return 100;
-
-    double max = 0;
-    if (isMonthly) {
-      for (var val in actualMonthlyData[selectedYear]!) {
-        if (val > max) max = val;
-      }
-    } else {
-      for (var year in availableYears) {
-        double yearlyTotal = actualMonthlyData[year]!.reduce((a, b) => a + b);
-        if (yearlyTotal > max) max = yearlyTotal;
-      }
-    }
-    return max > 0 ? max * 1.2 : 100;
-  }
-
   void onTabSelected(int index) {
     if (index == 0) {
       Navigator.pushReplacement(
@@ -360,9 +333,8 @@ class _AddEggState extends State<AddEgg> {
                     child: Column(
                       children: [
                         _buildSummaryCard(),
-                        _buildToggleSwitch(),
                         _buildRecordFormCard(),
-                        _buildLineChartCard(),
+                        _buildEggChart(),
                         const Padding(
                           padding: EdgeInsets.symmetric(
                             horizontal: 20,
@@ -377,9 +349,8 @@ class _AddEggState extends State<AddEgg> {
                   Column(
                     children: [
                       _buildSummaryCard(),
-                      _buildToggleSwitch(),
                       _buildRecordFormCard(),
-                      _buildLineChartCard(),
+                      _buildEggChart(),
                       _buildHistoryList(),
                     ],
                   ),
@@ -399,113 +370,101 @@ class _AddEggState extends State<AddEgg> {
   }
 
   Widget _buildSummaryCard() {
+    final ez = ezColors(context);
     String formatNum(int n) => n.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
       (m) => '${m[1]},',
     );
 
-    bool isUp = todayTotalEggs > yesterdayTotalEggs;
-    bool isEqual = todayTotalEggs == yesterdayTotalEggs;
+    int diff = todayTotalEggs - yesterdayTotalEggs;
+    bool isUp = diff > 0;
+    bool isDown = diff < 0;
 
-    IconData trendIcon = isEqual
-        ? Icons.remove
-        : (isUp ? Icons.arrow_upward : Icons.arrow_downward);
-    Color trendColor = isEqual
-        ? ezColors(context).textSecondary
-        : (isUp ? const Color(0xFF4ADE80) : Colors.redAccent);
+    Color trendBg = isUp
+        ? ez.chipGreenBg
+        : (isDown ? ez.danger.withValues(alpha: 0.15) : ez.chipDarkBg);
+    Color trendFg = isUp
+        ? ez.chipGreenText
+        : (isDown ? ez.danger : ez.chipDarkText);
+    IconData trendIcon = isUp
+        ? Icons.arrow_upward_rounded
+        : (isDown ? Icons.arrow_downward_rounded : Icons.remove_rounded);
+    String trendLabel = isUp
+        ? 'เพิ่มขึ้น ${formatNum(diff)} ฟอง'
+        : (isDown ? 'ลดลง ${formatNum(diff.abs())} ฟอง' : 'เท่ากับเมื่อวาน');
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.all(18),
+      decoration: ezCardDecoration(context, radius: 18),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.egg_outlined, color: Color(0xFFFDE68A), size: 46),
-          const SizedBox(height: 10),
-          Text(
-            'วันนี้ : ${formatNum(todayTotalEggs)} ฟอง',
-            style: GoogleFonts.kanit(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: ezColors(context).textPrimary,
-            ),
-          ),
-          const SizedBox(height: 4),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(trendIcon, color: trendColor, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                'เมื่อวาน : ${formatNum(yesterdayTotalEggs)} ฟอง',
-                style: GoogleFonts.kanit(fontSize: 13, color: trendColor),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: ez.gold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(Icons.egg_rounded, color: ez.gold, size: 30),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ไข่ที่เก็บวันนี้',
+                      style: GoogleFonts.kanit(
+                        fontSize: 12,
+                        color: ez.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${formatNum(todayTotalEggs)} ฟอง',
+                      style: GoogleFonts.kanit(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: ez.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: trendBg,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(trendIcon, size: 14, color: trendFg),
+                    const SizedBox(width: 4),
+                    Text(
+                      trendLabel,
+                      style: GoogleFonts.kanit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: trendFg,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToggleSwitch() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => setState(() => isMonthly = true),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isMonthly
-                          ? const Color(0xFFFF7B7B)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'เดือน',
-                      style: GoogleFonts.kanit(
-                        fontSize: 14,
-                        color: isMonthly ? Colors.white : Colors.black54,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => setState(() => isMonthly = false),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: !isMonthly
-                          ? const Color(0xFFFF7B7B)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'ปี',
-                      style: GoogleFonts.kanit(
-                        fontSize: 14,
-                        color: !isMonthly ? Colors.white : Colors.black54,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(height: 10),
+          Text(
+            'เมื่อวานเก็บได้ ${formatNum(yesterdayTotalEggs)} ฟอง',
+            style: GoogleFonts.kanit(fontSize: 12, color: ez.textSecondary),
           ),
         ],
       ),
@@ -513,60 +472,124 @@ class _AddEggState extends State<AddEgg> {
   }
 
   Widget _buildRecordFormCard() {
+    final ez = ezColors(context);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: ezCardColor(context),
-        borderRadius: BorderRadius.circular(15),
-      ),
+      padding: const EdgeInsets.all(18),
+      decoration: ezCardDecoration(context, radius: 18),
       child: Column(
         children: [
-          _buildCoopFieldRow(),
-          const SizedBox(height: 12),
-          _buildDateFieldRow(),
-          const SizedBox(height: 12),
-          _buildFormInputRow(
-            'จำนวนไข่',
-            _eggCountController,
-            inputType: TextInputType.number,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: ez.gold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.edit_note_rounded, color: ez.gold, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'บันทึกยอดเก็บไข่',
+                      style: GoogleFonts.kanit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: ez.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'ช่องที่มี * ต้องกรอกให้ครบก่อนบันทึก',
+                      style: GoogleFonts.kanit(
+                        fontSize: 10,
+                        color: ez.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          EzFormDropdown<String>(
+            label: 'ชื่อคอก',
+            isRequired: true,
+            value: availableCoops.contains(_selectedCoop)
+                ? _selectedCoop
+                : null,
+            hint: availableCoops.isEmpty ? 'กำลังโหลด..' : 'เลือกคอก',
+            items: availableCoops.map((String val) {
+              return DropdownMenuItem<String>(
+                value: val,
+                child: Text(_coopNames[val] ?? val),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val == null) return;
+              setState(() => _selectedCoop = val);
+              _recalculateStats();
+            },
           ),
           const SizedBox(height: 12),
-          _buildFormInputRow('หมายเหตุ', _noteController, hint: '-'),
-          const SizedBox(height: 18),
+          EzFormDateField(
+            label: 'วันที่',
+            isRequired: true,
+            controller: _dateController,
+            onTap: _pickDate,
+          ),
+          const SizedBox(height: 12),
+          EzFormTextField(
+            label: 'จำนวนไข่',
+            isRequired: true,
+            controller: _eggCountController,
+            keyboardType: TextInputType.number,
+            hintText: 'เช่น 100',
+            suffixText: 'ฟอง',
+          ),
+          const SizedBox(height: 12),
+          EzFormTextField(
+            label: 'หมายเหตุ',
+            controller: _noteController,
+            hintText: 'ไม่บังคับ',
+          ),
+          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 50,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4CAF50),
+                backgroundColor: ez.accentGreen,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
               onPressed: isSubmitting ? null : _submitEggData,
               child: isSubmitting
-                  ? SizedBox(
+                  ? const SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
-                        color: ezColors(context).textPrimary,
+                        color: Colors.white,
                         strokeWidth: 2,
                       ),
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.add_circle_outline,
-                          color: ezColors(context).textPrimary,
+                          color: Colors.white,
                         ),
                         const SizedBox(width: 10),
                         Text(
                           'บันทึกยอดเก็บไข่ไก่',
                           style: GoogleFonts.kanit(
                             fontSize: 16,
-                            color: ezColors(context).textPrimary,
+                            color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -579,118 +602,6 @@ class _AddEggState extends State<AddEgg> {
     );
   }
 
-  Widget _buildCoopFieldRow() {
-    return Row(
-      children: [
-        SizedBox(
-          width: 80,
-          child: Text(
-            'ชื่อคอก',
-            style: GoogleFonts.kanit(
-              fontSize: 14,
-              color: ezColors(context).textPrimary,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: ezColors(context).inputFill,
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: availableCoops.contains(_selectedCoop)
-                    ? _selectedCoop
-                    : null,
-                isDense: true,
-                isExpanded: true,
-                dropdownColor: ezCardColor(context),
-                hint: Text(
-                  availableCoops.isEmpty ? 'กำลังโหลด..' : 'เลือกคอก',
-                  style: GoogleFonts.kanit(
-                    color: ezColors(context).textSecondary,
-                    fontSize: 14,
-                  ),
-                ),
-                style: GoogleFonts.kanit(
-                  fontSize: 14,
-                  color: ezColors(context).textPrimary,
-                ),
-                items: availableCoops.map((String val) {
-                  return DropdownMenuItem<String>(
-                    value: val,
-                    child: Text(_coopNames[val] ?? val),
-                  );
-                }).toList(),
-                onChanged: availableCoops.isEmpty
-                    ? null
-                    : (val) {
-                        setState(() => _selectedCoop = val!);
-                        _recalculateStats();
-                      },
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDateFieldRow() {
-    String formattedDate = thaiDate(_selectedDate);
-
-    return Row(
-      children: [
-        SizedBox(
-          width: 80,
-          child: Text(
-            'วันที่',
-            style: GoogleFonts.kanit(
-              fontSize: 14,
-              color: ezColors(context).textPrimary,
-            ),
-          ),
-        ),
-        Expanded(
-          child: GestureDetector(
-            onTap: _pickDate,
-            child: Container(
-              height: 36,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: ezColors(context).inputFill,
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      formattedDate,
-                      style: GoogleFonts.kanit(
-                        color: ezColors(context).textPrimary,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Icons.calendar_today_outlined,
-                    color: ezColors(context).textSecondary,
-                    size: 18,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -699,216 +610,21 @@ class _AddEggState extends State<AddEgg> {
       lastDate: DateTime.now(),
     );
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        _dateController.text = thaiDate(picked);
+      });
     }
   }
 
-  Widget _buildFormInputRow(
-    String label,
-    TextEditingController controller, {
-    String hint = '',
-    TextInputType inputType = TextInputType.text,
-  }) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 80,
-          child: Text(
-            label,
-            style: GoogleFonts.kanit(
-              fontSize: 14,
-              color: ezColors(context).textPrimary,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Container(
-            height: 36,
-            decoration: BoxDecoration(
-              color: ezColors(context).inputFill,
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
-            ),
-            child: TextField(
-              controller: controller,
-              keyboardType: inputType,
-              style: GoogleFonts.kanit(color: ezColors(context).inputText),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 10,
-                ),
-                isDense: true,
-                hintText: hint,
-                hintStyle: GoogleFonts.kanit(
-                  color: ezColors(context).textSecondary,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _buildEggChart() {
+    String coopLabel = _selectedCoop == null
+        ? 'ทุกคอก'
+        : (_coopNames[_selectedCoop] ?? _selectedCoop!);
 
-  Widget _buildLineChartCard() {
-    double chartMaxY = _calculateMaxY();
-    int thaiYear = int.parse(selectedYear) + 543;
-
-    List<double> currentData = isMonthly
-        ? (actualMonthlyData[selectedYear] ?? List.filled(12, 0.0))
-        : availableYears
-              .map((y) => actualMonthlyData[y]!.reduce((a, b) => a + b))
-              .toList();
-
-    double minVal = currentData.where((v) => v > 0).isEmpty
-        ? 0
-        : currentData.where((v) => v > 0).reduce((a, b) => a < b ? a : b);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: ezCardColor(context),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Column(
-        children: [
-          Text(
-            _selectedCoop == null
-                ? 'บันทึกการเก็บไข่รวมทุกคอก ปี $thaiYear'
-                : 'บันทึกการเก็บไข่ของคอก ${_coopNames[_selectedCoop] ?? _selectedCoop} ปี $thaiYear',
-            style: GoogleFonts.kanit(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: ezColors(context).textPrimary,
-            ),
-          ),
-          const SizedBox(height: 15),
-
-          SizedBox(
-            height: 180,
-            child: LineChart(
-              LineChartData(
-                minY: 0,
-                maxY: chartMaxY,
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.withOpacity(0.3),
-                    strokeWidth: 1,
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  show: true,
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 35,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: GoogleFonts.kanit(
-                            color: ezColors(context).textSecondary,
-                            fontSize: 10,
-                          ),
-                          textAlign: TextAlign.right,
-                        );
-                      },
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 22,
-                      getTitlesWidget: (value, meta) {
-                        List<String> months = [
-                          'ม.ค.',
-                          'ก.พ.',
-                          'มี.ค.',
-                          'เม.ย.',
-                          'พ.ค.',
-                          'มิ.ย.',
-                          'ก.ค.',
-                          'ส.ค.',
-                          'ก.ย.',
-                          'ต.ค.',
-                          'พ.ย.',
-                          'ธ.ค.',
-                        ];
-                        String text = '';
-                        if (isMonthly && value >= 0 && value < 12) {
-                          text = months[value.toInt()];
-                        } else if (!isMonthly &&
-                            value >= 0 &&
-                            value < availableYears.length) {
-                          text = availableYears[value.toInt()];
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            text,
-                            style: GoogleFonts.kanit(
-                              color: ezColors(context).textSecondary,
-                              fontSize: 10,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: List.generate(
-                      currentData.length,
-                      (index) => FlSpot(index.toDouble(), currentData[index]),
-                    ),
-                    isCurved: false,
-                    color: ezColors(context).textPrimary,
-                    barWidth: 2,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        bool isLowest = spot.y == minVal && spot.y > 0;
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: isLowest ? Colors.red : Colors.greenAccent,
-                          strokeWidth: 0,
-                        );
-                      },
-                    ),
-                  ),
-                ],
-                lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
-                      return LineTooltipItem(
-                        '${spot.y.toInt()} ฟอง',
-                        GoogleFonts.kanit(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 11,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: EzEggYearChart(coopLabel: coopLabel, eggData: actualMonthlyData),
     );
   }
 

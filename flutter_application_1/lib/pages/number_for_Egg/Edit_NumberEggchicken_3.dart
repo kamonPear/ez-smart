@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import '../bottombar.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
+import '../../widgets/ez_form_field.dart';
 import '../../utils/thai_date.dart';
 import '../../widgets/ez_top_banner.dart';
 
@@ -28,16 +29,13 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
   late TextEditingController _eggIdController;
   late TextEditingController _amountController;
   late TextEditingController _noteController;
+  late TextEditingController _dateController;
 
   String? _selectedCoopId;
   DateTime _selectedDate = DateTime.now();
 
   List<String> availableCoops = [];
   Map<String, String> _coopNames = {};
-  List<dynamic> _rawEggData = [];
-
-  int todayTotalEggs = 0;
-  int yesterdayTotalEggs = 0;
 
   @override
   void initState() {
@@ -50,6 +48,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
     _selectedDate =
         DateTime.tryParse(widget.initialData['date']?.toString() ?? '') ??
         DateTime.now();
+    _dateController = TextEditingController(text: thaiDate(_selectedDate));
 
     String countText =
         widget.initialData['count']?.toString().replaceAll(' ฟอง', '') ?? '';
@@ -60,7 +59,6 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
     );
 
     _fetchCoops();
-    _fetchEggSummary();
   }
 
   Future<void> _fetchCoops() async {
@@ -88,51 +86,6 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
     }
   }
 
-  Future<void> _fetchEggSummary() async {
-    try {
-      final response = await http.get(Uri.parse('$backendBaseUrl/api/eggs'));
-      if (response.statusCode == 200) {
-        _rawEggData = jsonDecode(response.body);
-        _recalculateSummary();
-      }
-    } catch (e) {
-      // เงียบไว้ได้ ถ้าดึงยอดสรุปไม่สำเร็จ
-    }
-  }
-
-  void _recalculateSummary() {
-    DateTime now = DateTime.now();
-    DateTime today = DateTime(now.year, now.month, now.day);
-    DateTime yesterday = today.subtract(const Duration(days: 1));
-
-    int tempToday = 0;
-    int tempYesterday = 0;
-
-    for (var item in _rawEggData) {
-      if (_selectedCoopId != null &&
-          item['coop_id']?.toString() != _selectedCoopId) {
-        continue;
-      }
-      if (item['date_collect_egg'] == null) continue;
-
-      DateTime date = DateTime.parse(item['date_collect_egg']).toLocal();
-      DateTime itemDate = DateTime(date.year, date.month, date.day);
-      int amount = (item['number_egg'] as num?)?.toInt() ?? 0;
-
-      if (itemDate == today) {
-        tempToday += amount;
-      } else if (itemDate == yesterday) {
-        tempYesterday += amount;
-      }
-    }
-
-    if (!mounted) return;
-    setState(() {
-      todayTotalEggs = tempToday;
-      yesterdayTotalEggs = tempYesterday;
-    });
-  }
-
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -141,7 +94,10 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
       lastDate: DateTime.now(),
     );
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        _dateController.text = thaiDate(picked);
+      });
     }
   }
 
@@ -149,6 +105,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
   void dispose() {
     _eggIdController.dispose();
     _amountController.dispose();
+    _dateController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -272,230 +229,89 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
     }
   }
 
-  Widget _buildDarkTextFieldRow({
-    required String label,
-    required TextEditingController controller,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0, left: 20, right: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+  Widget _buildFormCard() {
+    final ez = ezColors(context);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.all(18),
+      decoration: ezCardDecoration(context, radius: 18),
+      child: Column(
         children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: GoogleFonts.kanit(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: ezColors(context).textPrimary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              height: 40,
-              decoration: BoxDecoration(
-                color: ezColors(context).inputFill,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.blueAccent.withOpacity(0.4),
-                  width: 1.5,
-                ),
-              ),
-              child: TextFormField(
-                controller: controller,
-                keyboardType: keyboardType,
-                style: GoogleFonts.kanit(
-                  fontSize: 15,
-                  color: ezColors(context).inputText,
-                ),
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 15,
-                    vertical: 10,
-                  ),
-                  isDense: true,
-                  hintStyle: GoogleFonts.kanit(
-                    color: ezColors(context).textSecondary,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummary() {
-    String formatNum(int n) => n.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]},',
-    );
-
-    bool isUp = todayTotalEggs > yesterdayTotalEggs;
-    bool isEqual = todayTotalEggs == yesterdayTotalEggs;
-
-    IconData trendIcon = isEqual
-        ? Icons.remove
-        : (isUp ? Icons.arrow_upward : Icons.arrow_downward);
-    Color trendColor = isEqual
-        ? ezColors(context).textSecondary
-        : (isUp ? const Color(0xFF4ADE80) : Colors.redAccent);
-
-    return Column(
-      children: [
-        const Icon(Icons.egg_outlined, color: Color(0xFFFDE68A), size: 46),
-        const SizedBox(height: 10),
-        Text(
-          'วันนี้ : ${formatNum(todayTotalEggs)} ฟอง',
-          style: GoogleFonts.kanit(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: ezColors(context).textPrimary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(trendIcon, color: trendColor, size: 16),
-            const SizedBox(width: 4),
-            Text(
-              'เมื่อวาน : ${formatNum(yesterdayTotalEggs)} ฟอง',
-              style: GoogleFonts.kanit(fontSize: 13, color: trendColor),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCoopFieldRow() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0, left: 20, right: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              'เลือกคอก',
-              style: GoogleFonts.kanit(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: ezColors(context).textPrimary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              decoration: BoxDecoration(
-                color: ezColors(context).inputFill,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.blueAccent.withOpacity(0.4),
-                  width: 1.5,
-                ),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: availableCoops.contains(_selectedCoopId)
-                      ? _selectedCoopId
-                      : null,
-                  isDense: true,
-                  isExpanded: true,
-                  dropdownColor: ezCardColor(context),
-                  hint: Text(
-                    availableCoops.isEmpty ? 'กำลังโหลด..' : 'เลือกคอก',
-                    style: GoogleFonts.kanit(
-                      color: ezColors(context).textSecondary,
-                      fontSize: 15,
-                    ),
-                  ),
-                  style: GoogleFonts.kanit(
-                    fontSize: 15,
-                    color: ezColors(context).inputText,
-                  ),
-                  items: availableCoops.map((val) {
-                    return DropdownMenuItem<String>(
-                      value: val,
-                      child: Text(_coopNames[val] ?? val),
-                    );
-                  }).toList(),
-                  onChanged: availableCoops.isEmpty
-                      ? null
-                      : (val) {
-                          setState(() => _selectedCoopId = val);
-                          _recalculateSummary();
-                        },
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDateFieldRow() {
-    String formattedDate = thaiDate(_selectedDate);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0, left: 20, right: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              'วันที่',
-              style: GoogleFonts.kanit(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: ezColors(context).textPrimary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: _pickDate,
-              child: Container(
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 15),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: ezColors(context).inputFill,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.blueAccent.withOpacity(0.4),
-                    width: 1.5,
-                  ),
+                  color: ez.gold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Row(
+                child: Icon(Icons.edit_note_rounded, color: ez.gold, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        formattedDate,
-                        style: GoogleFonts.kanit(
-                          color: ezColors(context).textPrimary,
-                          fontSize: 15,
-                        ),
+                    Text(
+                      'แก้ไขข้อมูลการเก็บไข่',
+                      style: GoogleFonts.kanit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: ez.textPrimary,
                       ),
                     ),
-                    Icon(
-                      Icons.calendar_today_outlined,
-                      color: ezColors(context).textSecondary,
-                      size: 20,
+                    Text(
+                      'ช่องที่มี * ต้องกรอกให้ครบก่อนบันทึก',
+                      style: GoogleFonts.kanit(
+                        fontSize: 10,
+                        color: ez.textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          EzFormDropdown<String>(
+            label: 'ชื่อคอก',
+            isRequired: true,
+            value: availableCoops.contains(_selectedCoopId)
+                ? _selectedCoopId
+                : null,
+            hint: availableCoops.isEmpty ? 'กำลังโหลด..' : 'เลือกคอก',
+            items: availableCoops.map((val) {
+              return DropdownMenuItem<String>(
+                value: val,
+                child: Text(_coopNames[val] ?? val),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val == null) return;
+              setState(() => _selectedCoopId = val);
+            },
+          ),
+          const SizedBox(height: 12),
+          EzFormDateField(
+            label: 'วันที่',
+            isRequired: true,
+            controller: _dateController,
+            onTap: _pickDate,
+          ),
+          const SizedBox(height: 12),
+          EzFormTextField(
+            label: 'จำนวนไข่',
+            isRequired: true,
+            controller: _amountController,
+            keyboardType: TextInputType.number,
+            hintText: 'เช่น 100',
+            suffixText: 'ฟอง',
+          ),
+          const SizedBox(height: 12),
+          EzFormTextField(
+            label: 'หมายเหตุ',
+            controller: _noteController,
+            hintText: 'ไม่บังคับ',
           ),
         ],
       ),
@@ -503,45 +319,44 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
   }
 
   Widget _buildSaveButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 55,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF43A047),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: SizedBox(
+        width: double.infinity,
+        height: 50,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: ezColors(context).accentGreen,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
-        ),
-        onPressed: () {
-          if (_amountController.text.isEmpty) {
-            showEzTopBanner(
-              context,
-              'กรุณากรอกจำนวนไข่',
-              type: EzBannerType.warning,
-            );
-            return;
-          }
-          _updateEggData();
-        },
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.feed_outlined,
-              color: ezColors(context).textPrimary,
-              size: 24,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              "บันทึกการแก้ไข",
-              style: GoogleFonts.kanit(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: ezColors(context).textPrimary,
+          onPressed: () {
+            if (_amountController.text.isEmpty) {
+              showEzTopBanner(
+                context,
+                'กรุณากรอกจำนวนไข่',
+                type: EzBannerType.warning,
+              );
+              return;
+            }
+            _updateEggData();
+          },
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.feed_outlined, color: Colors.white, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                "บันทึกการแก้ไข",
+                style: GoogleFonts.kanit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -560,42 +375,15 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
               child: EzHeader(pageTitle: 'แก้ไขข้อมูลไข่'),
             ),
             Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 25,
-                      vertical: 20,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildSummary(),
-                        const SizedBox(height: 20),
-                        Container(
-                          padding: const EdgeInsets.symmetric(vertical: 25),
-                          decoration: ezCardDecoration(context, radius: 15),
-                          child: Column(
-                            children: [
-                              _buildCoopFieldRow(),
-                              _buildDateFieldRow(),
-                              _buildDarkTextFieldRow(
-                                label: "จำนวนไข่",
-                                controller: _amountController,
-                                keyboardType: TextInputType.number,
-                              ),
-                              _buildDarkTextFieldRow(
-                                label: "หมายเหตุ",
-                                controller: _noteController,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildSaveButton(),
-                      ],
-                    ),
-                  ),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    _buildFormCard(),
+                    const SizedBox(height: 6),
+                    _buildSaveButton(),
+                    const SizedBox(height: 40),
+                  ],
                 ),
               ),
             ),
