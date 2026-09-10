@@ -193,57 +193,6 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     }
   }
 
-  // 🌟 ฟังก์ชันลบสต็อกอาหาร
-  Future<void> _deleteFoodstock() async {
-    if (currentFoodId == null) {
-      showEzTopBanner(context, "ไม่มีข้อมูลให้ลบ", type: EzBannerType.warning);
-      return;
-    }
-
-    final bool confirmDelete = await showEzDeleteConfirm(
-      context,
-      title: 'ยืนยันการลบข้อมูล',
-      message:
-          'คุณต้องการลบข้อมูลคลังอาหารสัตว์ทั้งหมดในฐานข้อมูลใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนคืนได้',
-      confirmText: 'ลบข้อมูล',
-    );
-
-    if (!confirmDelete) return;
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final url = Uri.parse('$backendBaseUrl/api/foods?id=$currentFoodId');
-      print("📌 กำลังส่งคำสั่งลบไปที่: $url");
-
-      final response = await http.delete(url);
-
-      if (response.statusCode == 200) {
-        showEzTopBanner(
-          context,
-          "ลบข้อมูลอาหารและคลังสำเร็จเรียบร้อยแล้ว!",
-          type: EzBannerType.success,
-        );
-        _fetchFoodData();
-        _fetchFoodHistory();
-      } else {
-        showEzTopBanner(
-          context,
-          "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์: ไม่สามารถลบได้ (${response.statusCode})",
-          type: EzBannerType.error,
-        );
-      }
-    } catch (e) {
-      debugPrint("Error deleting foodstock: $e");
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-
   // 🌟 เพิ่มฟังก์ชันสั่งตัดสต็อก 20 กก. แบบแมนนวลที่นี่
   Future<void> _forceDeductStock() async {
     if (currentFoodId == null) {
@@ -837,13 +786,6 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                                 text: 'ตัดสต็อก 20 กก.',
                                 color: const Color(0xFFFFA726),
                                 onTap: _forceDeductStock,
-                              ),
-                              const SizedBox(width: 10),
-                              _buildSecondaryActionButton(
-                                icon: Icons.delete_outline,
-                                text: 'ลบข้อมูลทั้งหมด',
-                                color: ezColors(context).danger,
-                                onTap: _deleteFoodstock,
                               ),
                             ],
                           ),

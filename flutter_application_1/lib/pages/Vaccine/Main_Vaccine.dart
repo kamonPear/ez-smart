@@ -16,8 +16,8 @@ import '../main_dash.dart';
 import '../../widgets/ez_header.dart';
 import '../../widgets/ez_form_field.dart';
 import '../../widgets/ez_top_banner.dart';
-import '../../widgets/ez_confirm_dialog.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/vaccine_methods.dart';
 import '../../services/backend_config.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -148,31 +148,6 @@ class _MainVaccineState extends State<MainVaccine> {
     }
   }
 
-  // ==========================================
-  // 🌟 ส่วนของฟังก์ชัน "ลบ" และ "แสดงข้อมูล" 🌟
-  // ==========================================
-  Future<void> deleteVaccineAlertData(String id) async {
-    if (id.isEmpty) return;
-    setState(() => _isLoading = true);
-
-    try {
-      final response = await http.delete(
-        Uri.parse('$backendBaseUrl/api/vaccines/alerts?id=$id'),
-        headers: {"Content-Type": "application/json"},
-      );
-
-      if (response.statusCode == 200) {
-        print('✅ ลบข้อมูลสำเร็จ');
-        fetchVaccineAlerts();
-      } else {
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      print('❌ Error Deleting Data: $e');
-      setState(() => _isLoading = false);
-    }
-  }
-
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -276,61 +251,25 @@ class _MainVaccineState extends State<MainVaccine> {
                       : 'ไม่มีหมายเหตุ',
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          side: BorderSide(color: ez.border),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        onPressed: () => Navigator.pop(dialogContext),
-                        child: Text(
-                          "ปิด",
-                          style: GoogleFonts.kanit(
-                            color: ez.textSecondary,
-                            fontSize: 15,
-                          ),
-                        ),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: ez.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ez.danger,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        onPressed: () async {
-                          Navigator.pop(dialogContext);
-                          final confirmed = await showEzDeleteConfirm(
-                            context,
-                            message:
-                                'ต้องการลบข้อมูลวัคซีน "${alert['vaccine_name'] ?? 'รายการนี้'}" ใช่หรือไม่?',
-                          );
-                          if (confirmed) {
-                            deleteVaccineAlertData(
-                              alert['id']?.toString() ?? '',
-                            );
-                          }
-                        },
-                        child: Text(
-                          "ลบข้อมูล",
-                          style: GoogleFonts.kanit(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: Text(
+                      "ปิด",
+                      style: GoogleFonts.kanit(
+                        color: ez.textSecondary,
+                        fontSize: 15,
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -390,157 +329,185 @@ class _MainVaccineState extends State<MainVaccine> {
     TextEditingController ageController = TextEditingController(
       text: alert['chicken_age']?.toString() ?? '',
     );
-    TextEditingController typeController = TextEditingController(
-      text: alert['injection_type']?.toString() ?? '',
-    );
     TextEditingController noteController = TextEditingController(
       text: alert['description']?.toString() ?? '',
     );
+    // ถ้าค่าเดิมไม่ตรงกับตัวเลือกมาตรฐาน (เช่น ข้อมูลเก่าที่กรอกแบบอิสระ) ให้เริ่มจากยังไม่เลือก
+    String? selectedMethod = alert['injection_type']?.toString();
+    if (selectedMethod == null ||
+        !kVaccineMethodOptions.contains(selectedMethod)) {
+      selectedMethod = null;
+    }
 
     showDialog(
       context: context,
       builder: (dialogContext) {
         final ez = ezColors(dialogContext);
-        return Dialog(
-          backgroundColor: ezCardColor(dialogContext),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(22.0),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: ez.gold.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          Icons.edit_note_rounded,
-                          color: ez.gold,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          "แก้ไขข้อมูลวัคซีน",
-                          style: GoogleFonts.kanit(
-                            color: ez.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  EzFormTextField(
-                    label: 'ชื่อวัคซีน',
-                    isRequired: true,
-                    controller: nameController,
-                    hintText: 'เช่น นิวคาสเซิล',
-                  ),
-                  const SizedBox(height: 12),
-                  EzFormTextField(
-                    label: 'อายุไก่',
-                    isRequired: true,
-                    controller: ageController,
-                    keyboardType: TextInputType.number,
-                    hintText: 'เช่น 7',
-                    suffixText: 'วัน',
-                  ),
-                  const SizedBox(height: 12),
-                  EzFormTextField(
-                    label: 'ประเภทการให้',
-                    controller: typeController,
-                    hintText: 'เช่น หยอดตา, ฉีด',
-                  ),
-                  const SizedBox(height: 12),
-                  EzFormTextField(
-                    label: 'หมายเหตุ',
-                    controller: noteController,
-                    hintText: 'ไม่บังคับ',
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            side: BorderSide(color: ez.border),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () => Navigator.pop(dialogContext),
-                          child: Text(
-                            "ยกเลิก",
-                            style: GoogleFonts.kanit(
-                              color: ez.textSecondary,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ez.accentGreen,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () {
-                            if (nameController.text.trim().isEmpty) {
-                              showEzTopBanner(
-                                dialogContext,
-                                'กรุณากรอกชื่อวัคซีน',
-                                type: EzBannerType.warning,
-                              );
-                              return;
-                            }
-
-                            // ลบตัวอักษรอื่นออก เหลือแต่ตัวเลข ป้องกัน user พิมพ์คำว่า 'วัน' ติดมา
-                            String numericString = ageController.text
-                                .trim()
-                                .replaceAll(RegExp(r'[^0-9]'), '');
-                            int parsedAge = int.tryParse(numericString) ?? 0;
-
-                            Navigator.pop(dialogContext);
-                            editVaccineAlertData(
-                              oldName: alert['vaccine_name'] ?? '',
-                              newName: nameController.text.trim(),
-                              age: parsedAge,
-                              type: typeController.text.trim(),
-                              note: noteController.text.trim(),
-                            );
-                          },
-                          child: Text(
-                            "บันทึก",
-                            style: GoogleFonts.kanit(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return Dialog(
+              backgroundColor: ezCardColor(dialogContext),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-            ),
-          ),
+              child: Padding(
+                padding: const EdgeInsets.all(22.0),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: ez.gold.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.edit_note_rounded,
+                              color: ez.gold,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              "แก้ไขข้อมูลวัคซีน",
+                              style: GoogleFonts.kanit(
+                                color: ez.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      EzFormTextField(
+                        label: 'ชื่อวัคซีน',
+                        isRequired: true,
+                        controller: nameController,
+                        hintText: 'เช่น นิวคาสเซิล',
+                      ),
+                      const SizedBox(height: 12),
+                      EzFormTextField(
+                        label: 'อายุไก่',
+                        isRequired: true,
+                        controller: ageController,
+                        keyboardType: TextInputType.number,
+                        hintText: 'เช่น 7',
+                        suffixText: 'วัน',
+                      ),
+                      const SizedBox(height: 12),
+                      EzFormDropdown<String>(
+                        label: 'วิธีการให้',
+                        isRequired: true,
+                        value: selectedMethod,
+                        hint: 'เลือกวิธีการให้',
+                        items: kVaccineMethodOptions
+                            .map(
+                              (m) => DropdownMenuItem(value: m, child: Text(m)),
+                            )
+                            .toList(),
+                        onChanged: (val) =>
+                            setDialogState(() => selectedMethod = val),
+                      ),
+                      const SizedBox(height: 12),
+                      EzFormTextField(
+                        label: 'หมายเหตุ',
+                        controller: noteController,
+                        hintText: 'ไม่บังคับ',
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                side: BorderSide(color: ez.border),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              onPressed: () => Navigator.pop(dialogContext),
+                              child: Text(
+                                "ยกเลิก",
+                                style: GoogleFonts.kanit(
+                                  color: ez.textSecondary,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: ez.accentGreen,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              onPressed: () {
+                                if (nameController.text.trim().isEmpty) {
+                                  showEzTopBanner(
+                                    dialogContext,
+                                    'กรุณากรอกชื่อวัคซีน',
+                                    type: EzBannerType.warning,
+                                  );
+                                  return;
+                                }
+                                if (selectedMethod == null) {
+                                  showEzTopBanner(
+                                    dialogContext,
+                                    'กรุณาเลือกวิธีการให้',
+                                    type: EzBannerType.warning,
+                                  );
+                                  return;
+                                }
+
+                                // ลบตัวอักษรอื่นออก เหลือแต่ตัวเลข ป้องกัน user พิมพ์คำว่า 'วัน' ติดมา
+                                String numericString = ageController.text
+                                    .trim()
+                                    .replaceAll(RegExp(r'[^0-9]'), '');
+                                int parsedAge =
+                                    int.tryParse(numericString) ?? 0;
+
+                                Navigator.pop(dialogContext);
+                                editVaccineAlertData(
+                                  oldName: alert['vaccine_name'] ?? '',
+                                  newName: nameController.text.trim(),
+                                  age: parsedAge,
+                                  type: selectedMethod!,
+                                  note: noteController.text.trim(),
+                                );
+                              },
+                              child: Text(
+                                "บันทึก",
+                                style: GoogleFonts.kanit(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );

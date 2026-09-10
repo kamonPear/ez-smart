@@ -20,7 +20,9 @@ import '../../services/backend_config.dart';
 import '../widgets/ez_header.dart';
 import '../widgets/ez_gauge.dart';
 import '../theme/app_theme.dart';
+import '../theme/farm_settings.dart';
 import '../utils/thai_date.dart';
+import 'Settings/Main_FarmThresholds.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -362,37 +364,55 @@ class _MainScreenState extends State<MainScreen> {
 
                 const SizedBox(height: 25),
 
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 20,
-                    horizontal: 15,
-                  ),
-                  decoration: BoxDecoration(
-                    color: ezCardColor(context),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      EzGaugeCard(
-                        icon: Icons.thermostat_outlined,
-                        value: "25",
-                        unit: "°",
-                        subTitle: "อุณหภูมิที่ตั้งไว้คงที่",
-                        color: Colors.cyan,
-                        percent: 0.6,
+                ListenableBuilder(
+                  listenable: farmThresholdController,
+                  builder: (context, _) {
+                    final temp = farmThresholdController.temperature;
+                    final ammonia = farmThresholdController.ammonia;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MainFarmThresholds(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 20,
+                          horizontal: 15,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ezCardColor(context),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            EzGaugeCard(
+                              icon: Icons.thermostat_outlined,
+                              value: temp.toStringAsFixed(0),
+                              unit: "°",
+                              subTitle: "อุณหภูมิที่ตั้งไว้คงที่",
+                              color: Colors.cyan,
+                              percent: (temp / 50).clamp(0, 1),
+                            ),
+                            EzGaugeCard(
+                              icon: Icons.air_outlined,
+                              value: ammonia.toStringAsFixed(0),
+                              unit: "PPM",
+                              subTitle: "ปริมาณแอมโมเนียที่ตั้งไว้คงที่",
+                              color: Colors.orange.shade800,
+                              percent: (ammonia / 100).clamp(0, 1),
+                            ),
+                          ],
+                        ),
                       ),
-                      EzGaugeCard(
-                        icon: Icons.air_outlined,
-                        value: "35",
-                        unit: "PPM",
-                        subTitle: "ปริมาณแอมโมเนียที่ตั้งไว้คงที่",
-                        color: Colors.orange.shade800,
-                        percent: 0.4,
-                      ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 20),
@@ -765,6 +785,15 @@ class _MainScreenState extends State<MainScreen> {
                       );
                     },
                   ),
+                  _buildDrawerItem(Icons.tune_rounded, 'ค่ามาตรฐานทุกคอก', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MainFarmThresholds(),
+                      ),
+                    );
+                  }),
                   Divider(color: ezColors(context).border, height: 24),
                   _buildThemeToggleItem(context),
                 ],

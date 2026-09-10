@@ -17,8 +17,6 @@ import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../utils/thai_date.dart';
-import '../../widgets/ez_top_banner.dart';
-import '../../widgets/ez_confirm_dialog.dart';
 
 class Adoptchicken extends StatefulWidget {
   const Adoptchicken({super.key});
@@ -588,37 +586,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
                 const SizedBox(height: 22),
                 Row(
                   children: [
-                    // ซ้าย: ลบข้อมูล
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(dialogContext);
-                          _confirmDelete(index: index, id: id);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          side: BorderSide(color: ez.danger, width: 1.3),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: Icon(
-                          Icons.delete_outline,
-                          color: ez.danger,
-                          size: 19,
-                        ),
-                        label: Text(
-                          'ลบข้อมูล',
-                          style: GoogleFonts.kanit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: ez.danger,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // ขวา: แก้ไขข้อมูล
+                    // แก้ไขข้อมูล
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () async {
@@ -683,62 +651,6 @@ class _AdoptchickenState extends State<Adoptchicken> {
         );
       },
     );
-  }
-
-  Future<void> _confirmDelete({required int index, required String id}) async {
-    final confirmed = await showEzDeleteConfirm(
-      context,
-      message: 'คุณต้องการลบข้อมูลคอกนี้ใช่หรือไม่?',
-    );
-    if (confirmed) {
-      await _executeDeleteAPI(index: index, id: id);
-    }
-  }
-
-  Future<bool> _executeDeleteAPI({
-    required int index,
-    required String id,
-  }) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) =>
-          const Center(child: CircularProgressIndicator(color: Colors.red)),
-    );
-
-    try {
-      final response = await http.delete(
-        Uri.parse('$backendBaseUrl/api/coops?id=$id'),
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      if (!context.mounted) return false;
-      Navigator.of(context, rootNavigator: true).pop(); // ปิด Loading
-
-      if (response.statusCode == 200) {
-        setState(() {
-          coopDataList.removeAt(index);
-        });
-        showEzTopBanner(context, 'ลบข้อมูลสำเร็จ', type: EzBannerType.success);
-        return true;
-      } else {
-        showEzTopBanner(
-          context,
-          'เกิดข้อผิดพลาดในการลบ: ${response.statusCode}',
-          type: EzBannerType.error,
-        );
-        return false;
-      }
-    } catch (e) {
-      if (!context.mounted) return false;
-      Navigator.of(context, rootNavigator: true).pop(); // ปิด Loading
-      showEzTopBanner(
-        context,
-        'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: $e',
-        type: EzBannerType.error,
-      );
-      return false;
-    }
   }
 
   @override
@@ -815,34 +727,8 @@ class _AdoptchickenState extends State<Adoptchicken> {
                   ...coopDataList.asMap().entries.map((entry) {
                     int index = entry.key;
                     Coop data = entry.value;
-
-                    return Dismissible(
-                      key: Key(data.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        child: Icon(
-                          Icons.delete,
-                          color: ezColors(context).textPrimary,
-                          size: 32,
-                        ),
-                      ),
-                      confirmDismiss: (direction) => showEzDeleteConfirm(
-                        context,
-                        message: 'คุณต้องการลบข้อมูลคอกนี้ใช่หรือไม่?',
-                      ),
-                      onDismissed: (direction) async {
-                        await _executeDeleteAPI(index: index, id: data.id);
-                      },
-                      child: _buildCoopCard(index: index, coop: data),
-                    );
-                  }).toList(),
+                    return _buildCoopCard(index: index, coop: data);
+                  }),
 
                   const SizedBox(height: 80),
                 ],

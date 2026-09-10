@@ -14,6 +14,7 @@ import '../../widgets/ez_header.dart';
 import '../../widgets/ez_form_field.dart';
 import '../../widgets/ez_top_banner.dart';
 import '../../utils/thai_date.dart';
+import '../../utils/vaccine_methods.dart';
 import '../../services/backend_config.dart';
 
 class ShowDatavaccine extends StatefulWidget {
@@ -48,13 +49,7 @@ class _ShowDatavaccineState extends State<ShowDatavaccine> {
   // Controllers สำหรับช่องกรอกข้อมูล
   TextEditingController medNameCtrl = TextEditingController(text: "");
   String? selectedMethod;
-  static const List<String> methodOptions = [
-    'พ่น',
-    'ฉีด',
-    'หยอดปาก',
-    'ผสมน้ำ',
-    'ผสมอาหาร',
-  ];
+  static const List<String> methodOptions = kVaccineMethodOptions;
   TextEditingController minAgeCtrl = TextEditingController(text: "");
   TextEditingController maxAgeCtrl = TextEditingController(text: "");
   TextEditingController remarkCtrl = TextEditingController(text: "");

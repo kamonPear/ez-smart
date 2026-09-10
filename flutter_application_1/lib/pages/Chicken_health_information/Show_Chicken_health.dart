@@ -16,8 +16,6 @@ import '../../widgets/ez_header.dart';
 import '../../widgets/ez_skeleton.dart';
 import '../../services/backend_config.dart';
 import '../../utils/thai_date.dart';
-import '../../widgets/ez_top_banner.dart';
-import '../../widgets/ez_confirm_dialog.dart';
 
 class Chickenhealth extends StatefulWidget {
   final String? initialCoopId;
@@ -204,52 +202,6 @@ class _ChickenhealthState extends State<Chickenhealth> {
       setState(() {
         isLoading = false;
       });
-    }
-  }
-
-  Future<bool> _executeDeleteAPI(String id) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) =>
-          const Center(child: CircularProgressIndicator(color: Colors.red)),
-    );
-
-    try {
-      final url = Uri.parse('$backendBaseUrl/api/healths?id=$id');
-      print('==== URL ที่ส่งไป: $url ====');
-
-      final response = await http.delete(
-        url,
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      if (!context.mounted) return false;
-      Navigator.of(context, rootNavigator: true).pop();
-
-      print('==== Status Code จาก Backend: ${response.statusCode} ====');
-      print('==== ข้อความจาก Backend: ${response.body} ====');
-
-      if (response.statusCode == 200) {
-        showEzTopBanner(context, 'ลบข้อมูลสำเร็จ', type: EzBannerType.success);
-        return true;
-      } else {
-        showEzTopBanner(
-          context,
-          'เกิดข้อผิดพลาดในการลบ: ${response.statusCode}',
-          type: EzBannerType.error,
-        );
-        return false;
-      }
-    } catch (e) {
-      if (!context.mounted) return false;
-      Navigator.of(context, rootNavigator: true).pop();
-      showEzTopBanner(
-        context,
-        'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: $e',
-        type: EzBannerType.error,
-      );
-      return false;
     }
   }
 
@@ -804,298 +756,233 @@ class _ChickenhealthState extends State<Chickenhealth> {
                               data['record_date']?.toString(),
                             );
 
-                            return Dismissible(
+                            return Padding(
                               key: Key(uniqueKey),
-                              direction: DismissDirection.endToStart,
-                              background: Container(
-                                margin: const EdgeInsets.only(bottom: 12.0),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade700,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                alignment: Alignment.centerRight,
-                                padding: const EdgeInsets.only(right: 20),
-                                child: Icon(
-                                  Icons.delete,
-                                  color: ezColors(context).textPrimary,
-                                  size: 32,
-                                ),
-                              ),
-                              confirmDismiss: (direction) async {
-                                bool confirm = await showEzDeleteConfirm(
-                                  context,
-                                  message:
-                                      'คุณต้องการลบข้อมูลการตรวจสุขภาพนี้ใช่หรือไม่?',
-                                );
-
-                                if (confirm) {
-                                  var rawId =
-                                      data['id'] ??
-                                      data['ID'] ??
-                                      data['health_id'];
-
-                                  if (rawId == null) {
-                                    showEzTopBanner(
-                                      context,
-                                      'เกิดข้อผิดพลาด: ไม่พบ ID ของข้อมูล',
-                                      type: EzBannerType.error,
-                                    );
-                                    return false;
-                                  }
-
-                                  String idToDelete = rawId.toString();
-                                  bool isDeleted = await _executeDeleteAPI(
-                                    idToDelete,
+                              padding: const EdgeInsets.only(bottom: 12.0),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  _showHealthDataBottomSheet(
+                                    context,
+                                    existingData: data,
                                   );
-                                  return isDeleted;
-                                }
-                                return false;
-                              },
-                              onDismissed: (direction) {
-                                setState(() {
-                                  allHealthDataList.removeWhere(
-                                    (item) =>
-                                        (item['id']?.toString() ??
-                                            item['ID']?.toString()) ==
-                                        uniqueKey,
-                                  );
-                                  displayedHealthDataList.removeAt(index);
-                                });
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 12.0),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTap: () {
-                                    _showHealthDataBottomSheet(
-                                      context,
-                                      existingData: data,
-                                    );
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: cardColor,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: isLatest
-                                          ? Border.all(
-                                              color: highlightColor,
-                                              width: 1.5,
-                                            )
-                                          : null,
-                                    ),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        SizedBox(
-                                          width: 75,
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                dateInfo['day']!,
-                                                style: GoogleFonts.kanit(
-                                                  fontSize: 32,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: ezColors(
-                                                    context,
-                                                  ).textPrimary,
-                                                  height: 1.1,
-                                                ),
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: cardColor,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: isLatest
+                                        ? Border.all(
+                                            color: highlightColor,
+                                            width: 1.5,
+                                          )
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 75,
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              dateInfo['day']!,
+                                              style: GoogleFonts.kanit(
+                                                fontSize: 32,
+                                                fontWeight: FontWeight.bold,
+                                                color: ezColors(
+                                                  context,
+                                                ).textPrimary,
+                                                height: 1.1,
                                               ),
+                                            ),
+                                            Text(
+                                              dateInfo['monthYear']!,
+                                              style: GoogleFonts.kanit(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: ezColors(
+                                                  context,
+                                                ).textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 12.0,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              if (isAppointment)
+                                                Container(
+                                                  margin: const EdgeInsets.only(
+                                                    bottom: 8,
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 3,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(
+                                                      0xFF42A5F5,
+                                                    ).withOpacity(0.15),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: const Color(
+                                                        0xFF42A5F5,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.event_available,
+                                                        size: 12,
+                                                        color: Color(
+                                                          0xFF42A5F5,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        'นัดหมายล่วงหน้า',
+                                                        style:
+                                                            GoogleFonts.kanit(
+                                                              fontSize: 11,
+                                                              color:
+                                                                  const Color(
+                                                                    0xFF42A5F5,
+                                                                  ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              Row(
+                                                children: [
+                                                  SizedBox(
+                                                    width: 85,
+                                                    child: Text(
+                                                      'คอกที่',
+                                                      style: GoogleFonts.kanit(
+                                                        fontSize: 14,
+                                                        color: ezColors(
+                                                          context,
+                                                        ).textSecondary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    coopNumber,
+                                                    style: GoogleFonts.kanit(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: highlightColor,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Row(
+                                                children: [
+                                                  SizedBox(
+                                                    width: 85,
+                                                    child: Text(
+                                                      'สุขภาพดี',
+                                                      style: GoogleFonts.kanit(
+                                                        fontSize: 14,
+                                                        color: ezColors(
+                                                          context,
+                                                        ).textSecondary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '$healthy ตัว',
+                                                    style: GoogleFonts.kanit(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: greenTextColor,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Row(
+                                                children: [
+                                                  SizedBox(
+                                                    width: 85,
+                                                    child: Text(
+                                                      'สุขภาพไม่ดี',
+                                                      style: GoogleFonts.kanit(
+                                                        fontSize: 14,
+                                                        color: ezColors(
+                                                          context,
+                                                        ).textSecondary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '$sick ตัว',
+                                                    style: GoogleFonts.kanit(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: const Color(
+                                                        0xFFFF6E5C,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 10),
                                               Text(
-                                                dateInfo['monthYear']!,
+                                                'หมายเหตุ: $note',
                                                 style: GoogleFonts.kanit(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
                                                   color: ezColors(
                                                     context,
                                                   ).textSecondary,
                                                 ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ],
                                           ),
                                         ),
+                                      ),
 
-                                        Expanded(
-                                          child: Padding(
-                                            padding: const EdgeInsets.only(
-                                              left: 12.0,
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                if (isAppointment)
-                                                  Container(
-                                                    margin:
-                                                        const EdgeInsets.only(
-                                                          bottom: 8,
-                                                        ),
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 8,
-                                                          vertical: 3,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: const Color(
-                                                        0xFF42A5F5,
-                                                      ).withOpacity(0.15),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            6,
-                                                          ),
-                                                      border: Border.all(
-                                                        color: const Color(
-                                                          0xFF42A5F5,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        const Icon(
-                                                          Icons.event_available,
-                                                          size: 12,
-                                                          color: Color(
-                                                            0xFF42A5F5,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 4,
-                                                        ),
-                                                        Text(
-                                                          'นัดหมายล่วงหน้า',
-                                                          style:
-                                                              GoogleFonts.kanit(
-                                                                fontSize: 11,
-                                                                color:
-                                                                    const Color(
-                                                                      0xFF42A5F5,
-                                                                    ),
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w600,
-                                                              ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                Row(
-                                                  children: [
-                                                    SizedBox(
-                                                      width: 85,
-                                                      child: Text(
-                                                        'คอกที่',
-                                                        style:
-                                                            GoogleFonts.kanit(
-                                                              fontSize: 14,
-                                                              color: ezColors(
-                                                                context,
-                                                              ).textSecondary,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      coopNumber,
-                                                      style: GoogleFonts.kanit(
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color: highlightColor,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Row(
-                                                  children: [
-                                                    SizedBox(
-                                                      width: 85,
-                                                      child: Text(
-                                                        'สุขภาพดี',
-                                                        style:
-                                                            GoogleFonts.kanit(
-                                                              fontSize: 14,
-                                                              color: ezColors(
-                                                                context,
-                                                              ).textSecondary,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      '$healthy ตัว',
-                                                      style: GoogleFonts.kanit(
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color: greenTextColor,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Row(
-                                                  children: [
-                                                    SizedBox(
-                                                      width: 85,
-                                                      child: Text(
-                                                        'สุขภาพไม่ดี',
-                                                        style:
-                                                            GoogleFonts.kanit(
-                                                              fontSize: 14,
-                                                              color: ezColors(
-                                                                context,
-                                                              ).textSecondary,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      '$sick ตัว',
-                                                      style: GoogleFonts.kanit(
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color: const Color(
-                                                          0xFFFF6E5C,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 10),
-                                                Text(
-                                                  'หมายเหตุ: $note',
-                                                  style: GoogleFonts.kanit(
-                                                    fontSize: 13,
-                                                    color: ezColors(
-                                                      context,
-                                                    ).textSecondary,
-                                                  ),
-                                                  maxLines: 2,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+                                      Padding(
+                                        padding: EdgeInsets.only(left: 8.0),
+                                        child: Icon(
+                                          Icons.arrow_forward_ios,
+                                          color: ezColors(
+                                            context,
+                                          ).textSecondary,
+                                          size: 18,
                                         ),
-
-                                        Padding(
-                                          padding: EdgeInsets.only(left: 8.0),
-                                          child: Icon(
-                                            Icons.arrow_forward_ios,
-                                            color: ezColors(
-                                              context,
-                                            ).textSecondary,
-                                            size: 18,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

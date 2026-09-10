@@ -16,7 +16,6 @@ import '../../widgets/ez_skeleton.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_top_banner.dart';
-import '../../widgets/ez_confirm_dialog.dart';
 
 class AddEgg extends StatefulWidget {
   final String? initialCoopId;
@@ -35,8 +34,6 @@ class _AddEggState extends State<AddEgg> {
 
   int todayTotalEggs = 0;
   int yesterdayTotalEggs = 0;
-
-  Map<String, List<double>> actualMonthlyData = {};
 
   List<dynamic> eggHistoryList = [];
   List<dynamic> _rawEggData = [];
@@ -129,13 +126,7 @@ class _AddEggState extends State<AddEgg> {
   }
 
   void _recalculateStats() {
-    List<dynamic> data = _selectedCoop == null
-        ? _rawEggData
-        : _rawEggData
-              .where((e) => e['coop_id']?.toString() == _selectedCoop)
-              .toList();
-
-    Map<String, List<double>> tempMonthlyData = {};
+    List<dynamic> data = _recordsForSelectedCoop;
 
     int tempTodayTotal = 0;
     int tempYesterdayTotal = 0;
@@ -147,12 +138,7 @@ class _AddEggState extends State<AddEgg> {
       if (item['date_collect_egg'] == null) continue;
 
       DateTime date = DateTime.parse(item['date_collect_egg']).toLocal();
-      String yearStr = date.year.toString();
-      int monthIndex = date.month - 1;
       double amount = (item['number_egg'] ?? 0).toDouble();
-
-      tempMonthlyData.putIfAbsent(yearStr, () => List.filled(12, 0.0));
-      tempMonthlyData[yearStr]![monthIndex] += amount;
 
       DateTime itemDate = DateTime(date.year, date.month, date.day);
       if (itemDate == today) {
@@ -163,12 +149,18 @@ class _AddEggState extends State<AddEgg> {
     }
 
     setState(() {
-      actualMonthlyData = tempMonthlyData;
       todayTotalEggs = tempTodayTotal;
       yesterdayTotalEggs = tempYesterdayTotal;
       eggHistoryList = List.from(data.reversed);
     });
   }
+
+  // ✅ ข้อมูลไข่ดิบที่กรองตามคอกที่เลือกแล้ว ใช้ทั้งสรุปยอด/ประวัติ/กราฟ
+  List<dynamic> get _recordsForSelectedCoop => _selectedCoop == null
+      ? _rawEggData
+      : _rawEggData
+            .where((e) => e['coop_id']?.toString() == _selectedCoop)
+            .toList();
 
   Future<void> _submitEggData() async {
     if (_selectedCoop == null) {
@@ -238,46 +230,6 @@ class _AddEggState extends State<AddEgg> {
     }
   }
 
-  Future<void> _deleteEggData(int id) async {
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final response = await http.delete(
-        Uri.parse('$backendBaseUrl/api/eggs?id=$id'),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        _showBanner('ลบข้อมูลสำเร็จ', type: EzBannerType.success);
-        _fetchEggData();
-      } else {
-        _showBanner(
-          'เกิดข้อผิดพลาดในการลบ: Error ${response.statusCode}',
-          type: EzBannerType.error,
-        );
-      }
-    } catch (e) {
-      _showBanner('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', type: EzBannerType.error);
-      debugPrint("Delete error: $e");
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _showDeleteConfirmDialog(int id) async {
-    final confirmed = await showEzDeleteConfirm(
-      context,
-      message: 'คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลนี้?',
-      confirmText: 'ลบข้อมูล',
-    );
-    if (confirmed) {
-      _deleteEggData(id);
-    }
-  }
-
   void _showBanner(String message, {EzBannerType type = EzBannerType.warning}) {
     showEzTopBanner(context, message, type: type);
   }
@@ -327,7 +279,7 @@ class _AddEggState extends State<AddEgg> {
                 const EzHeader(pageTitle: 'บันทึกการเก็บไข่'),
                 const SizedBox(height: 20),
 
-                if (isLoading && actualMonthlyData.isEmpty)
+                if (isLoading && _rawEggData.isEmpty)
                   Skeletonizer(
                     enabled: true,
                     child: Column(
@@ -624,7 +576,10 @@ class _AddEggState extends State<AddEgg> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: EzEggYearChart(coopLabel: coopLabel, eggData: actualMonthlyData),
+      child: EzEggMultiChart(
+        coopLabel: coopLabel,
+        records: _recordsForSelectedCoop,
+      ),
     );
   }
 
@@ -674,7 +629,6 @@ class _AddEggState extends State<AddEgg> {
               itemCount: eggHistoryList.length > 5 ? 5 : eggHistoryList.length,
               itemBuilder: (context, index) {
                 var item = eggHistoryList[index];
-                int id = item['id'] ?? item['egg_id'] ?? 0;
                 int amount = item['number_egg'] ?? 0;
                 String coopId = item['coop_id']?.toString() ?? '-';
                 String coop = _coopNames[coopId] ?? coopId;
@@ -704,39 +658,27 @@ class _AddEggState extends State<AddEgg> {
                       fontSize: 13,
                     ),
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.edit_outlined,
-                          color: Colors.blueAccent,
+                  trailing: IconButton(
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      color: Colors.blueAccent,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditNumbereggchicken(
+                            initialData: {
+                              'id': item['egg_id'] ?? item['id'],
+                              'date': item['date_collect_egg'],
+                              'count': item['number_egg'],
+                              'note': item['note'],
+                              'coop_id': item['coop_id'],
+                            },
+                          ),
                         ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => EditNumbereggchicken(
-                                initialData: {
-                                  'id': item['egg_id'] ?? item['id'],
-                                  'date': item['date_collect_egg'],
-                                  'count': item['number_egg'],
-                                  'note': item['note'],
-                                  'coop_id': item['coop_id'],
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.redAccent,
-                        ),
-                        onPressed: () => _showDeleteConfirmDialog(id),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 );
               },

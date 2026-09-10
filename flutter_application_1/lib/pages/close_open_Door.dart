@@ -7,7 +7,6 @@ import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'bottombar.dart';
 import '../widgets/ez_header.dart';
-import '../widgets/ez_confirm_dialog.dart';
 
 class CloseOpenDoor extends StatefulWidget {
   const CloseOpenDoor({super.key});
@@ -58,16 +57,6 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
     setState(() {
       doors.add({"id": nextDoorId++, "isOn": false});
     });
-  }
-
-  Future<void> _confirmDeleteDoor(int doorId) async {
-    final confirmed = await showEzDeleteConfirm(
-      context,
-      message: 'ต้องการลบประตูคอกไก่ที่ $doorId ใช่หรือไม่?',
-    );
-    if (confirmed) {
-      setState(() => doors.removeWhere((d) => d['id'] == doorId));
-    }
   }
 
   @override
@@ -254,11 +243,6 @@ class _CloseOpenDoorState extends State<CloseOpenDoor> {
             activeTrackColor: ez.success,
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: ez.border,
-          ),
-          IconButton(
-            onPressed: () => _confirmDeleteDoor(door['id']),
-            tooltip: 'ลบประตูนี้',
-            icon: Icon(Icons.delete_outline, color: ez.danger, size: 20),
           ),
         ],
       ),

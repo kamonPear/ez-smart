@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/close_open_Door.dart';
@@ -24,15 +23,11 @@ class ShowChart extends StatefulWidget {
 class _ShowChartState extends State<ShowChart> {
   int selectedIndex = 2;
 
-  bool isMonthly = true;
-  String selectedYear = DateTime.now().year.toString();
-
   bool isLoading = true;
 
   int todayTotalEggs = 0;
   int yesterdayTotalEggs = 0;
 
-  List<String> availableYears = [];
   List<dynamic> _rawEggData = [];
 
   List<String> availableCoops = [];
@@ -108,13 +103,10 @@ class _ShowChartState extends State<ShowChart> {
     DateTime today = DateTime(now.year, now.month, now.day);
     DateTime yesterday = today.subtract(const Duration(days: 1));
 
-    Set<String> years = {};
-
     for (var item in _rawEggData) {
       if (item['date_collect_egg'] == null) continue;
 
       DateTime date = DateTime.parse(item['date_collect_egg']).toLocal();
-      years.add(date.year.toString());
       double amount = (item['number_egg'] as num?)?.toDouble() ?? 0;
 
       DateTime itemDate = DateTime(date.year, date.month, date.day);
@@ -128,39 +120,13 @@ class _ShowChartState extends State<ShowChart> {
     setState(() {
       todayTotalEggs = tempTodayTotal;
       yesterdayTotalEggs = tempYesterdayTotal;
-
-      availableYears = years.toList()..sort();
-      if (availableYears.isNotEmpty) {
-        selectedYear = availableYears.last;
-      } else {
-        selectedYear = DateTime.now().year.toString();
-        availableYears = [selectedYear];
-      }
     });
   }
 
-  double _calculateMaxYForData(List<double> data) {
-    double max = 0;
-    for (var val in data) {
-      if (val > max) max = val;
-    }
-    return max > 0 ? max * 1.2 : 100;
-  }
-
-  Map<String, List<double>> _monthlyDataForCoop(String coopId) {
-    Map<String, List<double>> temp = {};
-    for (var item in _rawEggData) {
-      if (item['coop_id']?.toString() != coopId) continue;
-      if (item['date_collect_egg'] == null) continue;
-
-      DateTime date = DateTime.parse(item['date_collect_egg']).toLocal();
-      String yearStr = date.year.toString();
-      double amount = (item['number_egg'] as num?)?.toDouble() ?? 0;
-
-      temp.putIfAbsent(yearStr, () => List.filled(12, 0.0));
-      temp[yearStr]![date.month - 1] += amount;
-    }
-    return temp;
+  List<dynamic> _recordsForCoop(String coopId) {
+    return _rawEggData
+        .where((item) => item['coop_id']?.toString() == coopId)
+        .toList();
   }
 
   void onTabSelected(int index) {
@@ -205,7 +171,7 @@ class _ShowChartState extends State<ShowChart> {
             constraints: BoxConstraints(minHeight: screenHeight),
             child: Column(
               children: [
-                const EzHeader(pageTitle: 'กราฟข้อมูล'),
+                const EzHeader(pageTitle: 'กราฟข้อมูลการเก็บไข่'),
                 const SizedBox(height: 20),
 
                 if (isLoading && _rawEggData.isEmpty)
@@ -214,7 +180,6 @@ class _ShowChartState extends State<ShowChart> {
                     child: Column(
                       children: [
                         _buildSummaryCard(),
-                        _buildToggleSwitch(),
                         const Padding(
                           padding: EdgeInsets.symmetric(
                             horizontal: 20,
@@ -229,7 +194,6 @@ class _ShowChartState extends State<ShowChart> {
                   Column(
                     children: [
                       _buildSummaryCard(),
-                      _buildToggleSwitch(),
                       ...availableCoops.map(
                         (coopId) => _buildCoopChartCard(coopId),
                       ),
@@ -302,225 +266,13 @@ class _ShowChartState extends State<ShowChart> {
     );
   }
 
-  Widget _buildToggleSwitch() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => setState(() => isMonthly = true),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isMonthly
-                          ? const Color(0xFFFF7B7B)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'เดือน',
-                      style: GoogleFonts.kanit(
-                        fontSize: 14,
-                        color: isMonthly ? Colors.white : Colors.black54,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => setState(() => isMonthly = false),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: !isMonthly
-                          ? const Color(0xFFFF7B7B)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'ปี',
-                      style: GoogleFonts.kanit(
-                        fontSize: 14,
-                        color: !isMonthly ? Colors.white : Colors.black54,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCoopChartCard(String coopId) {
-    Map<String, List<double>> monthlyData = _monthlyDataForCoop(coopId);
     String coopLabel = _coopNames[coopId] ?? coopId;
-
-    if (isMonthly) {
-      // 📊 มุมมองรายเดือน: ใช้ widget กราฟกลางที่แชร์กับหน้ารายละเอียดคอก
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: EzEggYearChart(coopLabel: coopLabel, eggData: monthlyData),
-      );
-    }
-
-    List<double> currentData = availableYears
-        .map(
-          (y) =>
-              (monthlyData[y] ?? List.filled(12, 0.0)).reduce((a, b) => a + b),
-        )
-        .toList();
-
-    double minVal = currentData.where((v) => v > 0).isEmpty
-        ? 0
-        : currentData.where((v) => v > 0).reduce((a, b) => a < b ? a : b);
-    double chartMaxY = _calculateMaxYForData(currentData);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: ezCardColor(context),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Column(
-        children: [
-          Text(
-            'บันทึกการเก็บไข่รายปีของคอกที่ $coopLabel',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.kanit(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: ezColors(context).textPrimary,
-            ),
-          ),
-          const SizedBox(height: 15),
-
-          SizedBox(
-            height: 160,
-            child: LineChart(
-              LineChartData(
-                minY: 0,
-                maxY: chartMaxY,
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.withOpacity(0.3),
-                    strokeWidth: 1,
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  show: true,
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 32,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: GoogleFonts.kanit(
-                            color: ezColors(context).textSecondary,
-                            fontSize: 10,
-                          ),
-                          textAlign: TextAlign.right,
-                        );
-                      },
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 22,
-                      getTitlesWidget: (value, meta) {
-                        String text = '';
-                        if (value >= 0 && value < availableYears.length) {
-                          final year = int.tryParse(
-                            availableYears[value.toInt()],
-                          );
-                          text = year != null
-                              ? '${year + 543}'
-                              : availableYears[value.toInt()];
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            text,
-                            style: GoogleFonts.kanit(
-                              color: ezColors(context).textSecondary,
-                              fontSize: 10,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: List.generate(
-                      currentData.length,
-                      (index) => FlSpot(index.toDouble(), currentData[index]),
-                    ),
-                    isCurved: false,
-                    color: ezColors(context).textPrimary,
-                    barWidth: 2,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        bool isLowest = spot.y == minVal && spot.y > 0;
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: isLowest ? Colors.red : Colors.greenAccent,
-                          strokeWidth: 0,
-                        );
-                      },
-                    ),
-                  ),
-                ],
-                lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
-                      return LineTooltipItem(
-                        '${spot.y.toInt()} ฟอง',
-                        GoogleFonts.kanit(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 11,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: EzEggMultiChart(
+        coopLabel: coopLabel,
+        records: _recordsForCoop(coopId),
       ),
     );
   }
