@@ -39,47 +39,52 @@ class _NotificationsState extends State<Notifications> {
 
     List<Map<String, dynamic>> newNotifications = [];
     DateTime today = DateTime.now();
+    DateTime todayOnly = DateTime(today.year, today.month, today.day);
 
     String timeNow =
         "${today.hour.toString().padLeft(2, '0')}:${today.minute.toString().padLeft(2, '0')}";
     String dateNow = thaiDate(today);
 
     // ---------------------------------------------------------
-    // 1. แจ้งเตือนปริมาณอาหาร (ใกล้หมด / หมดแล้ว)
+    // 1. แจ้งเตือนปริมาณอาหาร (ใกล้หมด / หมดแล้ว) - เช็คทุกประเภทอาหาร
     // ---------------------------------------------------------
     try {
-      final response = await http.get(
-        Uri.parse('$backendBaseUrl/api/foods?id=1'),
-      );
+      final response = await http.get(Uri.parse('$backendBaseUrl/api/foods'));
 
       if (response.statusCode == 200 &&
           response.body.isNotEmpty &&
           response.body != 'null') {
         final decoded = jsonDecode(response.body);
+        final List<dynamic> rows = decoded is List ? decoded : [];
 
-        if (decoded != null && decoded is Map<String, dynamic>) {
+        for (final row in rows) {
+          if (row is! Map<String, dynamic>) continue;
           double currentQuantity =
-              (decoded['quantity_current'] as num?)?.toDouble() ?? 0.0;
-          double minQuantity =
-              (decoded['min_quantity'] as num?)?.toDouble() ?? 0.0;
-          int foodId = decoded['id'] ?? 1; // ดึง ID อาหาร
+              (row['quantity_current'] as num?)?.toDouble() ?? 0.0;
+          double minQuantity = (row['min_quantity'] as num?)?.toDouble() ?? 0.0;
+          String foodType = row['food_type']?.toString() ?? 'อาหาร';
+          int foodId = row['id'] ?? 0;
 
           if (currentQuantity <= 0.0) {
             newNotifications.add({
               "id": foodId,
               "type": "food",
-              "title": "🚨 อาหารหมดแล้ว! กรุณาเติมอาหารด่วน",
+              "title": "🚨 อาหาร$foodTypeหมดแล้ว! กรุณาเติมอาหารด่วน",
               "time": timeNow,
               "date": dateNow,
+              "urgent": true,
+              "daysUntil": -999,
             });
           } else if (currentQuantity <= minQuantity) {
             newNotifications.add({
               "id": foodId,
               "type": "food",
               "title":
-                  "⚠️ อาหารใกล้หมด! (เหลือ ${currentQuantity.toStringAsFixed(2)} กก.)",
+                  "⚠️ อาหาร$foodTypeใกล้หมด (เหลือ ${currentQuantity.toStringAsFixed(1)} กก.)",
               "time": timeNow,
               "date": dateNow,
+              "urgent": false,
+              "daysUntil": -999,
             });
           }
         }
@@ -89,84 +94,80 @@ class _NotificationsState extends State<Notifications> {
     }
 
     // ---------------------------------------------------------
-    // 2. แจ้งเตือนวัคซีน
+    // 2. แจ้งเตือนวัคซีน - เริ่มเตือนก่อนถึงกำหนด 3 วัน จนถึงวันที่ต้องทำ
+    //    (รวมถึงเลยกำหนดแล้วด้วย) และซ่อนไปเลยถ้าให้วัคซีนไปแล้ว
     // ---------------------------------------------------------
     try {
-      final responseVaccine = await http.get(
-        Uri.parse('$backendBaseUrl/api/notifications/vaccines'),
+      final coopResp = await http.get(Uri.parse('$backendBaseUrl/api/coops'));
+      final alertResp = await http.get(
+        Uri.parse('$backendBaseUrl/api/vaccines/alerts'),
       );
 
-      if (responseVaccine.statusCode == 200 &&
-          responseVaccine.body.isNotEmpty &&
-          responseVaccine.body != 'null') {
-        final decoded = jsonDecode(responseVaccine.body);
+      Map<String, String> coopNames = {};
+      if (coopResp.statusCode == 200) {
+        final List<dynamic> coops = jsonDecode(coopResp.body);
+        coopNames = {
+          for (final c in coops)
+            (c['coop_id'] ?? c['id']).toString():
+                (c['name_coop']?.toString().trim().isNotEmpty == true)
+                ? c['name_coop'].toString()
+                : (c['coop_id'] ?? c['id']).toString(),
+        };
+      }
 
-        if (decoded is List) {
-          for (var v in decoded) {
-            if (v is Map<String, dynamic>) {
-              // 🌟 สำคัญ: ดึง ID ของวัคซีนมาด้วย เพื่อใช้ตอนอัปเดตสถานะ
-              int id = v['id'] ?? v['vaccine_id'] ?? 0;
-              String vaccineName = v['name'] ?? 'วัคซีน';
-              String coopName = v['coop_name'] ?? 'ไม่ระบุคอก';
-              bool isToday = v['is_today'] ?? false;
+      if (alertResp.statusCode == 200) {
+        final List<dynamic> alerts = jsonDecode(alertResp.body);
 
-              String notiTitle = isToday
-                  ? "‼️ วันนี้ถึงกำหนดให้ $vaccineName ที่ $coopName"
-                  : "💉 พรุ่งนี้มีคิวให้ $vaccineName ที่ $coopName";
+        for (final a in alerts) {
+          if (a is! Map<String, dynamic>) continue;
+          if (a['is_completed'] == true) continue; // ทำแล้ว ไม่ต้องเตือนอีก
 
-              newNotifications.add({
-                "id": id,
-                "type": "vaccine", // ระบุประเภท
-                "title": notiTitle,
-                "time": timeNow,
-                "date": dateNow,
-              });
-            }
+          final dueDate = DateTime.tryParse(a['date']?.toString() ?? '');
+          if (dueDate == null) continue;
+          final dueOnly = DateTime(dueDate.year, dueDate.month, dueDate.day);
+          final daysUntil = dueOnly.difference(todayOnly).inDays;
+          if (daysUntil > 3) continue; // ยังไม่เข้าเขตเตือนล่วงหน้า 3 วัน
+
+          final coopId = a['coop_id']?.toString() ?? '-';
+          final coopName = coopNames[coopId] ?? 'คอก $coopId';
+          final vaccineName = a['vaccine_name']?.toString() ?? 'วัคซีน';
+
+          String notiTitle;
+          if (daysUntil < 0) {
+            notiTitle =
+                "‼️ เลยกำหนดให้ $vaccineName ที่ $coopName มา ${-daysUntil} วันแล้ว";
+          } else if (daysUntil == 0) {
+            notiTitle = "‼️ วันนี้ถึงกำหนดให้ $vaccineName ที่ $coopName";
+          } else if (daysUntil == 1) {
+            notiTitle = "💉 พรุ่งนี้ถึงกำหนดให้ $vaccineName ที่ $coopName";
+          } else {
+            notiTitle = "💉 อีก $daysUntil วันถึงกำหนดให้ $vaccineName ที่ $coopName";
           }
+
+          newNotifications.add({
+            "id": a['id'],
+            "type": "vaccine",
+            "title": notiTitle,
+            "time": timeNow,
+            "date": dateNow,
+            "urgent": daysUntil <= 0,
+            "daysUntil": daysUntil,
+            "method": a['injection_type'] ?? '-',
+            "chickenAge": a['chicken_age'] ?? 0,
+            "note": a['description'] ?? '',
+          });
         }
       }
     } catch (e) {
       debugPrint("Error fetching vaccine notifications: $e");
     }
 
-    // ---------------------------------------------------------
-    // 3. แจ้งเตือนตรวจสุขภาพ
-    // ---------------------------------------------------------
-    try {
-      final responseHealth = await http.get(
-        Uri.parse('$backendBaseUrl/api/notifications/health_checks'),
-      );
-
-      if (responseHealth.statusCode == 200 &&
-          responseHealth.body.isNotEmpty &&
-          responseHealth.body != 'null') {
-        final decoded = jsonDecode(responseHealth.body);
-
-        if (decoded is List) {
-          for (var h in decoded) {
-            if (h is Map<String, dynamic>) {
-              int id = h['id'] ?? h['check_id'] ?? 0;
-              String coopName = h['coop_name'] ?? 'ไม่ระบุคอก';
-              bool isToday = h['is_today'] ?? false;
-
-              String notiTitle = isToday
-                  ? "🩺 วันนี้คอกไก่ที่ $coopName ต้องตรวจสุขภาพ"
-                  : "🩺 พรุ่งนี้ถึงคอกไก่ที่ $coopName ต้องตรวจสุขภาพแล้ว";
-
-              newNotifications.add({
-                "id": id,
-                "type": "health", // ระบุประเภท
-                "title": notiTitle,
-                "time": timeNow,
-                "date": dateNow,
-              });
-            }
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Error fetching health check notifications: $e");
-    }
+    // เรียงลำดับ: เลยกำหนด/วันนี้ก่อน แล้วไล่ตามความเร่งด่วน
+    newNotifications.sort((x, y) {
+      final dx = x['daysUntil'] as int? ?? 999;
+      final dy = y['daysUntil'] as int? ?? 999;
+      return dx.compareTo(dy);
+    });
 
     setState(() {
       notificationsList = newNotifications;
@@ -174,31 +175,32 @@ class _NotificationsState extends State<Notifications> {
     });
   }
 
-  // 🌟 2. ฟังก์ชันจัดการเมื่อกดปุ่ม "เสร็จสิ้น" หรือ "ลบ"
+  // 🌟 2. ฟังก์ชันจัดการเมื่อกดปุ่ม "เสร็จสิ้น" หรือ "รับทราบ"
   Future<void> _handleNotificationAction(
     int index,
     Map<String, dynamic> data,
   ) async {
     String type = data['type'];
-    int id = data['id'];
 
     if (type == 'vaccine') {
-      // 💡 ส่งข้อมูลไปบอก Backend ว่าทำรายการนี้เสร็จแล้ว (ปรับ URL ให้ตรงกับ Backend ของคุณ)
+      String id = data['id'].toString();
       try {
-        await http.put(Uri.parse('$backendBaseUrl/api/vaccines/complete/$id'));
+        await http.put(
+          Uri.parse('$backendBaseUrl/api/vaccines/alerts?id=$id'),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "is_completed": true,
+            "method": data['method'] ?? '-',
+            "chicken_age": data['chickenAge'] ?? 0,
+            "note": data['note'] ?? '',
+          }),
+        );
       } catch (e) {
         debugPrint("Error updating vaccine status: $e");
       }
-    } else if (type == 'health') {
-      // 💡 ส่งข้อมูลไปบอก Backend ว่าตรวจสุขภาพเสร็จแล้ว (ปรับ URL ให้ตรงกับ Backend ของคุณ)
-      try {
-        await http.put(
-          Uri.parse('$backendBaseUrl/api/health_checks/complete/$id'),
-        );
-      } catch (e) {
-        debugPrint("Error updating health check status: $e");
-      }
     }
+    // type == 'food': ไม่มี endpoint สำหรับ "รับทราบ" การแจ้งเตือนสต็อก
+    // แค่ปิดออกจากหน้าจอตอนนี้เท่านั้น (จะกลับมาเตือนใหม่ถ้ายังใกล้หมดอยู่ตอนโหลดหน้าใหม่)
 
     // ลบออกจากหน้าจอ
     setState(() {
@@ -233,99 +235,102 @@ class _NotificationsState extends State<Notifications> {
     });
   }
 
-  // 🌟 3. ปรับ UI ของการ์ดให้รับ Parameter แบบ Map
+  // 🌟 3. UI การ์ดแจ้งเตือนแบบใหม่ - ไอคอนตามประเภท + ป้ายความเร่งด่วน
   Widget _buildNotificationCard(Map<String, dynamic> data, int index) {
+    final ez = ezColors(context);
     String title = data["title"];
     String time = data["time"];
     String date = data["date"];
     String type = data["type"];
+    bool isUrgent = data["urgent"] == true;
 
-    bool isUrgent = title.contains("อาหารหมดแล้ว");
+    final IconData icon = type == 'vaccine'
+        ? Icons.vaccines_rounded
+        : Icons.grass_rounded;
+    final Color statusColor = isUrgent
+        ? ez.danger
+        : (type == 'vaccine' ? const Color(0xFFFFA726) : ez.gold);
 
-    // กำหนดข้อความและสีของปุ่มตามประเภท
     String buttonText = type == "food" ? "รับทราบ" : "เสร็จสิ้น";
-    Color buttonColor = type == "food"
-        ? Colors.blueAccent
-        : const Color(0xFF4CAF50); // สีเขียวสำหรับปุ่มเสร็จสิ้น
+    Color buttonColor = type == "food" ? Colors.blueAccent : ez.accentGreen;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isUrgent ? const Color(0xFF3A2020) : ezCardColor(context),
-        borderRadius: BorderRadius.circular(20),
+        color: ezCardColor(context),
+        borderRadius: BorderRadius.circular(18),
         border: isUrgent
-            ? Border.all(color: Colors.redAccent.withOpacity(0.5), width: 1.5)
+            ? Border.all(color: ez.danger.withValues(alpha: 0.5), width: 1.4)
             : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 5,
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: statusColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   title,
                   style: GoogleFonts.kanit(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: isUrgent ? const Color(0xFFFF8A80) : Colors.white,
+                    color: ez.textPrimary,
+                    height: 1.4,
                   ),
                 ),
-              ),
-              Text(
-                time,
-                style: GoogleFonts.kanit(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: ezColors(context).textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                date,
-                style: GoogleFonts.kanit(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: ezColors(context).textSecondary,
-                ),
-              ),
-              GestureDetector(
-                onTap: () => _handleNotificationAction(index, data),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
+                const SizedBox(height: 8),
+                Text(
+                  '$date · $time',
+                  style: GoogleFonts.kanit(
+                    fontSize: 12,
+                    color: ez.textSecondary,
                   ),
-                  decoration: BoxDecoration(
-                    color: buttonColor,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Text(
-                    buttonText,
-                    style: GoogleFonts.kanit(
-                      fontSize: 13,
-                      color: ezColors(context).textPrimary,
-                      fontWeight: FontWeight.bold,
+                ),
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: GestureDetector(
+                    onTap: () => _handleNotificationAction(index, data),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: buttonColor,
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Text(
+                        buttonText,
+                        style: GoogleFonts.kanit(
+                          fontSize: 13,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

@@ -44,9 +44,9 @@ class CustomBottomBar extends StatelessWidget {
         hasSelection: hasSelection,
       ),
       _destination(
-        icon: Icons.pets_outlined,
-        selectedIcon: Icons.pets,
-        label: 'ข้อมูลคอก',
+        icon: Icons.calendar_month_outlined,
+        selectedIcon: Icons.calendar_month,
+        label: 'ปฏิทินรวม',
         hasSelection: hasSelection,
       ),
       _destination(

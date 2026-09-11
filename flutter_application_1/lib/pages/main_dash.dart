@@ -36,6 +36,7 @@ class _MainScreenState extends State<MainScreen> {
   int selectedIndex = 0;
   bool isLoading = true;
   List<Map<String, dynamic>> coopList = [];
+  double _totalFoodKg = 0;
   String _searchQuery = '';
 
   List<Map<String, dynamic>> get _visibleCoopList {
@@ -52,6 +53,30 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _fetchCoops();
+    _fetchFoodStock();
+  }
+
+  Future<void> _fetchFoodStock() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$backendBaseUrl/api/foods'),
+      );
+      if (response.statusCode == 200) {
+        final dynamic decoded = jsonDecode(response.body);
+        final List<dynamic> rows = decoded is List ? decoded : [];
+        double total = 0;
+        for (final row in rows) {
+          if (row is Map<String, dynamic>) {
+            total += (row['quantity_current'] as num?)?.toDouble() ?? 0;
+          }
+        }
+        if (mounted) {
+          setState(() => _totalFoodKg = total);
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ โหลดข้อมูลอาหารคงเหลือไม่สำเร็จ: $e");
+    }
   }
 
   Future<void> _fetchCoops() async {
@@ -428,6 +453,14 @@ class _MainScreenState extends State<MainScreen> {
                           textColor: ezColors(context).chipGreenText,
                           label: 'จำนวนไก่ทั้งหมด',
                           value: '$_totalChickenCount ตัว',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const Adoptchicken(),
+                              ),
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -438,6 +471,14 @@ class _MainScreenState extends State<MainScreen> {
                           textColor: ezColors(context).chipOrangeText,
                           label: 'จำนวนไข่ทั้งหมด',
                           value: '$_totalEggCount ฟอง',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ShowChart(),
+                              ),
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -447,7 +488,15 @@ class _MainScreenState extends State<MainScreen> {
                           bgColor: ezColors(context).chipDarkBg,
                           textColor: ezColors(context).chipDarkText,
                           label: 'อาหารคงเหลือ',
-                          value: '250 กิโลกรัม',
+                          value: '${_totalFoodKg.toStringAsFixed(0)} กิโลกรัม',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const MainShowDataFood(),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -526,37 +575,42 @@ class _MainScreenState extends State<MainScreen> {
     required Color textColor,
     required String label,
     required String value,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 28)),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.kanit(
-              fontSize: 12,
-              color: textColor,
-              fontWeight: FontWeight.bold,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 28)),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.kanit(
+                fontSize: 12,
+                color: textColor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            value,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.kanit(
-              fontSize: 14,
-              color: textColor,
-              fontWeight: FontWeight.bold,
+            const SizedBox(height: 5),
+            Text(
+              value,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.kanit(
+                fontSize: 14,
+                color: textColor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -750,13 +804,6 @@ class _MainScreenState extends State<MainScreen> {
                           builder: (context) => const Chickenhealth(),
                         ),
                       );
-                    },
-                  ),
-                  _buildDrawerItem(
-                    Icons.calendar_month_outlined,
-                    'ปฏิทินรวม',
-                    () {
-                      Navigator.pop(context);
                     },
                   ),
                   _buildDrawerItem(

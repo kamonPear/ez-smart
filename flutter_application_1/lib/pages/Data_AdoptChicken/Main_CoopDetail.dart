@@ -25,40 +25,135 @@ class CoopDetailPage extends StatefulWidget {
 
 class _CoopDetailPageState extends State<CoopDetailPage> {
   bool isLoading = true;
-  List<dynamic> dailyEggRecords = [];
+  List<Map<String, dynamic>> dailyActivity = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchDailyEggs();
+    _fetchDailyActivity();
   }
 
-  Future<void> _fetchDailyEggs() async {
+  // 🌟 รวมกิจกรรมของคอกนี้ทั้งหมดเป็นรายการเดียว: ไข่ที่เก็บ, ตรวจสุขภาพที่บันทึกแล้ว,
+  //    วัคซีนที่ให้แล้ว/ใกล้ถึงกำหนด (ภายใน 3 วัน เหมือนหน้าแจ้งเตือน) และคำนวณเพิ่ม
+  //    "ควรตรวจสุขภาพ" ก่อนวันฉีดวัคซีน 1 วัน เพราะจะฉีดวัคซีนแค่ไก่ที่แข็งแรง
+  //    รายการที่ "ยังไม่ทำ" (pending) จะมาร์คสีแดงไว้เตือน - ทำหน้าที่เป็นการแจ้งเตือนในตัว
+  Future<void> _fetchDailyActivity() async {
     setState(() => isLoading = true);
+
+    final coopId = widget.coop["id"].toString();
+    List<Map<String, dynamic>> merged = [];
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
+
     try {
-      final response = await http.get(Uri.parse('$backendBaseUrl/api/eggs'));
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        final coopId = widget.coop["id"].toString();
-        final filtered = data
-            .where((e) => e['coop_id']?.toString() == coopId)
-            .toList();
-        filtered.sort((a, b) {
-          DateTime da =
-              DateTime.tryParse(a['date_collect_egg']?.toString() ?? '') ??
-              DateTime(1970);
-          DateTime db =
-              DateTime.tryParse(b['date_collect_egg']?.toString() ?? '') ??
-              DateTime(1970);
-          return db.compareTo(da);
-        });
-        setState(() => dailyEggRecords = filtered);
+      final results = await Future.wait([
+        http.get(Uri.parse('$backendBaseUrl/api/eggs')),
+        http.get(Uri.parse('$backendBaseUrl/api/healths')),
+        http.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
+      ]);
+
+      // ไข่ที่เก็บแล้ว
+      if (results[0].statusCode == 200) {
+        final List<dynamic> eggs = jsonDecode(results[0].body);
+        for (final e in eggs) {
+          if (e['coop_id']?.toString() != coopId) continue;
+          final date = DateTime.tryParse(
+            e['date_collect_egg']?.toString() ?? '',
+          );
+          if (date == null) continue;
+          merged.add({
+            'type': 'egg',
+            'date': DateTime(date.year, date.month, date.day),
+            'text': '🥚 เก็บไข่ประจำวัน : ${e['number_egg'] ?? 0} ฟอง',
+            'pending': false,
+            'raw': e,
+          });
+        }
+      }
+
+      // ตรวจสุขภาพที่บันทึกแล้ว
+      if (results[1].statusCode == 200) {
+        final List<dynamic> healths = jsonDecode(results[1].body);
+        for (final h in healths) {
+          if (h['coop_id']?.toString() != coopId) continue;
+          final date = DateTime.tryParse(h['record_date']?.toString() ?? '');
+          if (date == null) continue;
+          merged.add({
+            'type': 'health',
+            'date': DateTime(date.year, date.month, date.day),
+            'text':
+                '🩺 ตรวจสุขภาพ : สุขภาพดี ${h['healthy'] ?? 0} / ป่วย ${h['poor_health'] ?? 0} ตัว',
+            'pending': false,
+          });
+        }
+      }
+
+      // วัคซีน (ให้แล้ว / ใกล้ถึงกำหนด) + ตรวจสุขภาพที่ "ควรทำ" ก่อนวันฉีด 1 วัน
+      if (results[2].statusCode == 200) {
+        final List<dynamic> alerts = jsonDecode(results[2].body);
+        for (final a in alerts) {
+          if (a['coop_id']?.toString() != coopId) continue;
+          final dueDate = DateTime.tryParse(a['date']?.toString() ?? '');
+          if (dueDate == null) continue;
+          final dueOnly = DateTime(dueDate.year, dueDate.month, dueDate.day);
+          final vaccineName = a['vaccine_name']?.toString() ?? 'วัคซีน';
+          final isCompleted = a['is_completed'] == true;
+
+          if (isCompleted) {
+            merged.add({
+              'type': 'vaccine',
+              'date': dueOnly,
+              'text': '💉 ให้$vaccineNameแล้ว',
+              'pending': false,
+            });
+            continue;
+          }
+
+          final daysUntil = dueOnly.difference(todayOnly).inDays;
+          if (daysUntil > 3) continue; // เตือนล่วงหน้าแค่ 3 วัน เหมือนหน้าแจ้งเตือน
+
+          merged.add({
+            'type': 'vaccine',
+            'date': dueOnly,
+            'text': daysUntil < 0
+                ? '💉 เลยกำหนดให้$vaccineNameมา ${-daysUntil} วันแล้ว'
+                : daysUntil == 0
+                ? '💉 วันนี้ถึงกำหนดให้$vaccineName'
+                : '💉 อีก $daysUntil วันถึงกำหนดให้$vaccineName',
+            'pending': true,
+          });
+
+          // ตรวจสุขภาพก่อนฉีดวัคซีน 1 วัน (คัดเอาแต่ไก่แข็งแรงไปฉีด)
+          final healthDueOnly = dueOnly.subtract(const Duration(days: 1));
+          final healthDaysUntil = healthDueOnly
+              .difference(todayOnly)
+              .inDays;
+          if (healthDaysUntil <= 3) {
+            merged.add({
+              'type': 'health_due',
+              'date': healthDueOnly,
+              'text': healthDaysUntil < 0
+                  ? '🩺 ควรตรวจสุขภาพก่อนให้$vaccineName (เลยกำหนดมา ${-healthDaysUntil} วัน)'
+                  : healthDaysUntil == 0
+                  ? '🩺 วันนี้ควรตรวจสุขภาพ เตรียมให้$vaccineNameวันพรุ่งนี้'
+                  : '🩺 อีก $healthDaysUntil วันควรตรวจสุขภาพ เตรียมให้$vaccineNameวันที่ ${dueOnly.day}/${dueOnly.month}',
+              'pending': true,
+            });
+          }
+        }
       }
     } catch (e) {
       debugPrint("❌ Connection/Parsing error: $e");
-    } finally {
-      setState(() => isLoading = false);
     }
+
+    merged.sort(
+      (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime),
+    );
+
+    setState(() {
+      dailyActivity = merged;
+      isLoading = false;
+    });
   }
 
   @override
@@ -450,19 +545,20 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                         child: Column(
                           children: List.generate(
                             3,
-                            (_) => _buildDailyEggItem({
-                              'number_egg': 20,
-                              'date_collect_egg': DateTime.now()
-                                  .toIso8601String(),
+                            (_) => _buildActivityItem({
+                              'type': 'egg',
+                              'text': 'เก็บไข่ประจำวัน : 20 ฟอง',
+                              'date': DateTime.now(),
+                              'pending': false,
                             }),
                           ),
                         ),
                       )
-                    else if (dailyEggRecords.isEmpty)
+                    else if (dailyActivity.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 30),
                         child: Text(
-                          "ยังไม่มีบันทึกการเก็บไข่ประจำวัน",
+                          "ยังไม่มีรายการของคอกนี้",
                           style: GoogleFonts.kanit(
                             fontSize: 15,
                             color: Colors.grey,
@@ -470,8 +566,8 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                         ),
                       )
                     else
-                      ...dailyEggRecords.map(
-                        (item) => _buildDailyEggItem(item),
+                      ...dailyActivity.map(
+                        (item) => _buildActivityItem(item),
                       ),
                   ],
                 ),
@@ -514,28 +610,90 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
     );
   }
 
-  Widget _buildDailyEggItem(dynamic item) {
-    final amount = item['number_egg'] ?? 0;
-    final dateStr = item['date_collect_egg']?.toString() ?? '';
-    DateTime? date = DateTime.tryParse(dateStr);
-    const months = [
-      'ม.ค.',
-      'ก.พ.',
-      'มี.ค.',
-      'เม.ย.',
-      'พ.ค.',
-      'มิ.ย.',
-      'ก.ค.',
-      'ส.ค.',
-      'ก.ย.',
-      'ต.ค.',
-      'พ.ย.',
-      'ธ.ค.',
-    ];
-    String day = date != null ? date.day.toString().padLeft(2, '0') : '--';
-    String month = date != null ? months[date.month - 1] : '';
-    String thaiYear = date != null ? (date.year + 543).toString() : '';
+  static const _thaiMonths = [
+    'ม.ค.',
+    'ก.พ.',
+    'มี.ค.',
+    'เม.ย.',
+    'พ.ค.',
+    'มิ.ย.',
+    'ก.ค.',
+    'ส.ค.',
+    'ก.ย.',
+    'ต.ค.',
+    'พ.ย.',
+    'ธ.ค.',
+  ];
 
+  // 🌟 การ์ดกิจกรรมของคอกนี้ - รองรับทั้งไข่/ตรวจสุขภาพ/วัคซีน
+  // รายการที่ pending=true (ยังไม่ทำ) จะมาร์คสีแดงไว้เตือน ส่วนที่ทำแล้ว/เป็นแค่บันทึกจะเป็นสีปกติ
+  // เฉพาะรายการไข่เท่านั้นที่กดแก้ไขได้ (รายการอื่นเป็นข้อมูลสรุป/แจ้งเตือนเท่านั้น)
+  Widget _buildActivityItem(Map<String, dynamic> item) {
+    final ez = ezColors(context);
+    final DateTime date = item['date'] is DateTime
+        ? item['date'] as DateTime
+        : DateTime.now();
+    final String day = date.day.toString().padLeft(2, '0');
+    final String month = _thaiMonths[date.month - 1];
+    final String thaiYear = (date.year + 543).toString();
+    final bool pending = item['pending'] == true;
+    final String text = item['text']?.toString() ?? '';
+    final bool isEgg = item['type'] == 'egg' && item['raw'] != null;
+
+    final card = Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      decoration: BoxDecoration(
+        color: ezCardColor(context),
+        borderRadius: BorderRadius.circular(16),
+        border: pending
+            ? Border.all(color: ez.danger.withValues(alpha: 0.5), width: 1.3)
+            : null,
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 48,
+            child: Column(
+              children: [
+                Text(
+                  day,
+                  style: GoogleFonts.kanit(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: pending ? ez.danger : const Color(0xFFE5BA93),
+                  ),
+                ),
+                Text(
+                  '$month $thaiYear',
+                  style: GoogleFonts.kanit(
+                    fontSize: 10,
+                    color: ez.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.kanit(
+                color: pending ? ez.danger : ez.textPrimary,
+                fontSize: 14,
+                fontWeight: pending ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+          if (isEgg)
+            Icon(Icons.arrow_forward_ios, color: ez.textSecondary, size: 16),
+        ],
+      ),
+    );
+
+    if (!isEgg) return card;
+
+    final raw = item['raw'] as Map;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
@@ -544,63 +702,17 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
           MaterialPageRoute(
             builder: (context) => EditNumbereggchicken(
               initialData: {
-                'id': item['egg_id'] ?? item['id'],
-                'date': item['date_collect_egg'],
-                'count': item['number_egg'],
-                'note': item['note'],
-                'coop_id': item['coop_id'],
+                'id': raw['egg_id'] ?? raw['id'],
+                'date': raw['date_collect_egg'],
+                'count': raw['number_egg'],
+                'note': raw['note'],
+                'coop_id': raw['coop_id'],
               },
             ),
           ),
-        ).then((_) => _fetchDailyEggs());
+        ).then((_) => _fetchDailyActivity());
       },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        decoration: ezCardDecoration(context, radius: 16),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 48,
-              child: Column(
-                children: [
-                  Text(
-                    day,
-                    style: GoogleFonts.kanit(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFFE5BA93),
-                    ),
-                  ),
-                  Text(
-                    '$month $thaiYear',
-                    style: GoogleFonts.kanit(
-                      fontSize: 10,
-                      color: ezColors(context).textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                'บันทึกเก็บไข่ประจำวัน : $amount ฟอง',
-                style: GoogleFonts.kanit(
-                  color: ezColors(context).textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: ezColors(context).textSecondary,
-              size: 16,
-            ),
-          ],
-        ),
-      ),
+      child: card,
     );
   }
 }

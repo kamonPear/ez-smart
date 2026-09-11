@@ -34,7 +34,7 @@ class _MainVaccineState extends State<MainVaccine> {
   int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
 
   DateTime _selectedDay = DateTime.now();
-  List<DateTime> _markedDates = [];
+  Map<DateTime, DayMarkerInfo> _dayMarkers = {};
   List<dynamic> _vaccineAlerts = [];
   bool _isLoading = true;
   Map<String, String> _coopNames =
@@ -75,20 +75,118 @@ class _MainVaccineState extends State<MainVaccine> {
     }).toList();
   }
 
-  void _updateMarkedDates() {
-    Set<DateTime> pendingDates = {};
+  // 🌟 มาร์คสีเขียว = ให้วัคซีนแล้ว, สีแดง = ยังไม่ให้ (ถึงกำหนด/เกินกำหนด) ต้องรีบเตือน
+  void _updateDayMarkers() {
+    final Map<DateTime, List<DayDetailItem>> byDate = {};
+    final Map<DateTime, bool> hasPending = {};
+
     for (var alert in _coopFilteredAlerts) {
-      bool isCompleted = alert['is_completed'] ?? false;
-      if (!isCompleted && alert['date'] != null) {
-        try {
-          DateTime d = DateTime.parse(alert['date']).toLocal();
-          pendingDates.add(DateTime(d.year, d.month, d.day));
-        } catch (e) {
-          print('Date parsing error: $e');
-        }
+      if (alert['date'] == null) continue;
+      DateTime d;
+      try {
+        d = DateTime.parse(alert['date']).toLocal();
+      } catch (e) {
+        continue;
       }
+      final dateOnly = DateTime(d.year, d.month, d.day);
+      final bool isCompleted = alert['is_completed'] ?? false;
+      final bool isOverdue = alert['is_overdue'] ?? false;
+      final String vaccineName = alert['vaccine_name'] ?? 'วัคซีน';
+      final String coopId = alert['coop_id']?.toString() ?? '-';
+      final String coopName = _coopNames[coopId] ?? 'คอก $coopId';
+      final String status = isCompleted
+          ? 'ให้แล้ว'
+          : (isOverdue ? 'เกินกำหนด' : 'ถึงกำหนด');
+
+      byDate
+          .putIfAbsent(dateOnly, () => [])
+          .add(
+            DayDetailItem(
+              text: '💉 $vaccineName – $coopName ($status)',
+              isPending: !isCompleted,
+            ),
+          );
+      if (!isCompleted) hasPending[dateOnly] = true;
     }
-    _markedDates = pendingDates.toList();
+
+    _dayMarkers = {
+      for (final entry in byDate.entries)
+        entry.key: DayMarkerInfo(
+          color: hasPending[entry.key] == true ? kCalendarRed : kCalendarGreen,
+          details: entry.value,
+        ),
+    };
+  }
+
+  void _showDayMarkerPopup(DateTime day, DayMarkerInfo marker) {
+    final ez = ezColors(context);
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: ezCardColor(dialogContext),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(22.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${day.day}/${day.month}/${day.year}',
+                  style: GoogleFonts.kanit(
+                    color: ez.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Divider(color: ez.border, thickness: 1, height: 1),
+                ),
+                ...marker.details.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(
+                      item.text,
+                      style: GoogleFonts.kanit(
+                        color: item.isPending ? kCalendarRed : ez.textPrimary,
+                        fontWeight: item.isPending
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: ez.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: Text(
+                      'ปิด',
+                      style: GoogleFonts.kanit(
+                        color: ez.textSecondary,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> fetchVaccineAlerts() async {
@@ -106,7 +204,7 @@ class _MainVaccineState extends State<MainVaccine> {
 
         setState(() {
           _vaccineAlerts = data;
-          _updateMarkedDates();
+          _updateDayMarkers();
           _isLoading = false;
         });
       } else {
@@ -593,15 +691,17 @@ class _MainVaccineState extends State<MainVaccine> {
                     CustomCalendar(
                       key: ValueKey(
                         _selectedDay.toString() +
-                            _markedDates.length.toString(),
+                            _dayMarkers.length.toString(),
                       ),
                       initialDate: _selectedDay,
-                      markedDates: _markedDates,
+                      dayMarkers: _dayMarkers,
                       onDateSelected: (selectedDay) {
                         setState(() {
                           _selectedDay = selectedDay;
                         });
                       },
+                      onDayLongPress: (day, marker) =>
+                          _showDayMarkerPopup(day, marker),
                     ),
                     const SizedBox(height: 25),
                     _isLoading
@@ -893,7 +993,7 @@ class _MainVaccineState extends State<MainVaccine> {
               bool newValue = !isCompleted;
               setState(() {
                 alert['is_completed'] = newValue;
-                _updateMarkedDates();
+                _updateDayMarkers();
               });
               updateCompletionStatus(alert, newValue);
             },

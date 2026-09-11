@@ -3,17 +3,42 @@ import 'package:google_fonts/google_fonts.dart';
 import '../widgets/ez_header.dart';
 import '../utils/thai_date.dart';
 
+const Color kCalendarGreen = Color(0xFF66E07A);
+const Color kCalendarRed = Color(0xFFE53935);
+
+/// รายการย่อยหนึ่งบรรทัดของวันนั้น เช่น "💉 นิวคาสเซิล – คอกX (ถึงกำหนด)"
+/// isPending = true หมายถึง "ยังไม่ทำ" (ต้องมาร์คสีแดงเตือน), false = แจ้งให้ทราบ/ทำแล้ว (เขียว)
+class DayDetailItem {
+  final String text;
+  final bool isPending;
+
+  const DayDetailItem({required this.text, this.isPending = false});
+}
+
+/// ข้อมูลมาร์กของวันหนึ่งๆ สำหรับปฏิทินรวม (สีจุด + รายละเอียดที่โชว์ตอนกดค้าง)
+class DayMarkerInfo {
+  final Color color;
+  final List<DayDetailItem> details;
+
+  const DayMarkerInfo({required this.color, required this.details});
+}
+
 class CustomCalendar extends StatefulWidget {
   final DateTime? initialDate;
   final Function(DateTime) onDateSelected; // ส่งค่ากลับเมื่อมีการเลือกวันที่
   final List<DateTime>?
   markedDates; // 🌟 1. เพิ่มตัวแปรสำหรับรับรายการวันที่ต้องการมาร์กจุด
+  final Map<DateTime, DayMarkerInfo>?
+  dayMarkers; // 🌟 มาร์กแบบมีสี+รายละเอียด ใช้แยกจาก markedDates เพื่อไม่กระทบของเดิม
+  final void Function(DateTime day, DayMarkerInfo marker)? onDayLongPress;
 
   const CustomCalendar({
     super.key,
     required this.onDateSelected,
     this.initialDate,
     this.markedDates, // 🌟 2. เพิ่มใน Constructor
+    this.dayMarkers,
+    this.onDayLongPress,
   });
 
   @override
@@ -49,31 +74,44 @@ class _CustomCalendarState extends State<CustomCalendar> {
         ) ??
         false;
 
+    final DateTime cellDate = DateTime(
+      currentMonth.year,
+      currentMonth.month,
+      day,
+    );
+    final DayMarkerInfo? richMarker = widget.dayMarkers?[cellDate];
+
+    final DateTime now = DateTime.now();
+    final bool isToday =
+        now.year == cellDate.year &&
+        now.month == cellDate.month &&
+        now.day == cellDate.day;
+
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          DateTime newSelected = DateTime(
-            currentMonth.year,
-            currentMonth.month,
-            day,
-          );
+          DateTime newSelected = cellDate;
           setState(() {
             selectedDate = newSelected;
           });
           // ส่งค่าวันที่ที่เลือกกลับไปให้หน้าหลัก
           widget.onDateSelected(newSelected);
         },
+        onLongPress: richMarker != null
+            ? () => widget.onDayLongPress?.call(cellDate, richMarker)
+            : null,
         child: SizedBox(
-          height: 36,
+          height: 42,
           child: Center(
             child: Container(
-              width: 30,
-              height: 30,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF66E07A)
-                    : Colors.transparent,
+                color: isSelected ? kCalendarGreen : Colors.transparent,
                 shape: BoxShape.circle,
+                border: (!isSelected && isToday)
+                    ? Border.all(color: kCalendarGreen, width: 1.4)
+                    : null,
               ),
               child: Column(
                 // 🌟 4. เปลี่ยนจาก Center เป็น Column เพื่อให้ใส่จุดใต้ตัวเลขได้
@@ -94,17 +132,26 @@ class _CustomCalendarState extends State<CustomCalendar> {
                           : FontWeight.normal,
                     ),
                   ),
-                  // 🌟 5. แสดงจุดมาร์กสีเขียวเฉพาะวันที่มีข้อมูล
-                  if (hasMarker)
+                  // 🌟 5. แสดงจุดมาร์ก - ถ้ามี dayMarkers (สีตามสถานะ) ให้ใช้สีนั้น
+                  // ไม่งั้น fallback ไปใช้จุดเขียวตายตัวแบบเดิมจาก markedDates
+                  if (richMarker != null)
+                    Container(
+                      margin: const EdgeInsets.only(top: 1),
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.black : richMarker.color,
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                  else if (hasMarker)
                     Container(
                       margin: const EdgeInsets.only(top: 1),
                       width: 4,
                       height: 4,
                       decoration: BoxDecoration(
                         // ถ้าวันนั้นกำลังถูกเลือกอยู่ ให้จุดเปลี่ยนเป็นสีดำเพื่อให้ตัดกับพื้นหลังสีเขียวของปุ่ม
-                        color: isSelected
-                            ? Colors.black
-                            : const Color(0xFF66E07A),
+                        color: isSelected ? Colors.black : kCalendarGreen,
                         shape: BoxShape.circle,
                       ),
                     )
@@ -217,7 +264,7 @@ class _CustomCalendarState extends State<CustomCalendar> {
                 children: List.generate(7, (colIndex) {
                   int cellIndex = rowIndex * 7 + colIndex;
                   if (cellIndex < offset || cellIndex >= totalCells) {
-                    return const Expanded(child: SizedBox(height: 36));
+                    return const Expanded(child: SizedBox(height: 42));
                   }
                   int day = cellIndex - offset + 1;
                   return _buildDayCell(day);

@@ -39,12 +39,29 @@ class _ChickenhealthState extends State<Chickenhealth> {
 
   Map<String, String> _coopNames =
       {}; // ✅ แผนที่ coop_id -> ชื่อคอก สำหรับแสดงผล
+  List<dynamic> _vaccineAlerts = []; // ✅ ใช้คำนวณวันที่ "ควรตรวจสุขภาพ" ล่วงหน้า
 
   @override
   void initState() {
     super.initState();
     fetchHealthData();
     _fetchCoopNames();
+    _fetchVaccineAlerts();
+  }
+
+  Future<void> _fetchVaccineAlerts() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$backendBaseUrl/api/vaccines/alerts'),
+      );
+      if (response.statusCode == 200) {
+        setState(() {
+          _vaccineAlerts = json.decode(response.body);
+        });
+      }
+    } catch (e) {
+      print('เกิดข้อผิดพลาดในการดึงข้อมูลวัคซีน: $e');
+    }
   }
 
   Future<void> _fetchCoopNames() async {
@@ -67,25 +84,162 @@ class _ChickenhealthState extends State<Chickenhealth> {
     }
   }
 
-  List<DateTime> _getMarkedDates() {
-    List<DateTime> dates = [];
-    for (var data in allHealthDataList) {
-      if (data['record_date'] != null) {
-        try {
-          DateTime parsedDate = DateTime.parse(data['record_date']).toLocal();
-          dates.add(
-            DateTime(parsedDate.year, parsedDate.month, parsedDate.day),
-          );
-        } catch (e) {
-          print('Error parsing date for marker: $e');
-        }
+  // 🌟 เขียว = บันทึกตรวจสุขภาพไว้แล้ว, แดง = "ควรตรวจ" (คำนวณจากวันก่อนให้วัคซีน 1 วัน
+  // เพราะจะฉีดวัคซีนแค่ไก่แข็งแรง) แต่ยังไม่มีบันทึกของคอกนั้นในวันนั้น
+  Map<DateTime, DayMarkerInfo> _getDayMarkers() {
+    final Map<DateTime, List<DayDetailItem>> byDate = {};
+    final Map<DateTime, bool> hasPending = {};
+    final Set<String> checkedCoopDates = {};
+
+    List<dynamic> healthBase = widget.initialCoopId != null
+        ? allHealthDataList.where((d) {
+            final coopId =
+                d['coop_id']?.toString() ?? d['coop_number']?.toString() ?? '';
+            return coopId == widget.initialCoopId;
+          }).toList()
+        : allHealthDataList;
+
+    for (var data in healthBase) {
+      if (data['record_date'] == null) continue;
+      try {
+        DateTime d = DateTime.parse(data['record_date']).toLocal();
+        final dateOnly = DateTime(d.year, d.month, d.day);
+        final coopId = data['coop_id']?.toString() ?? '-';
+        final coopName = _coopNames[coopId] ?? 'คอก $coopId';
+        checkedCoopDates.add('${coopId}_${dateOnly.toIso8601String()}');
+        byDate
+            .putIfAbsent(dateOnly, () => [])
+            .add(
+              DayDetailItem(
+                text:
+                    '🩺 ตรวจสุขภาพ – $coopName (สุขภาพดี ${data['healthy'] ?? 0} / ป่วย ${data['poor_health'] ?? 0})',
+              ),
+            );
+      } catch (e) {
+        print('Error parsing date for marker: $e');
       }
     }
-    return dates;
+
+    List<dynamic> alertBase = widget.initialCoopId != null
+        ? _vaccineAlerts.where((a) {
+            return a['coop_id']?.toString() == widget.initialCoopId;
+          }).toList()
+        : _vaccineAlerts;
+
+    for (var alert in alertBase) {
+      if (alert['is_completed'] == true) continue;
+      if (alert['date'] == null) continue;
+      try {
+        final dueDate = DateTime.parse(alert['date']).toLocal();
+        final dueOnly = DateTime(dueDate.year, dueDate.month, dueDate.day);
+        final healthDueOnly = dueOnly.subtract(const Duration(days: 1));
+        final coopId = alert['coop_id']?.toString() ?? '-';
+        final coopName = _coopNames[coopId] ?? 'คอก $coopId';
+        final vaccineName = alert['vaccine_name'] ?? 'วัคซีน';
+
+        // ถ้าคอกนี้มีบันทึกตรวจสุขภาพในวันนั้นอยู่แล้ว ไม่ต้องเตือนซ้ำ
+        if (checkedCoopDates.contains(
+          '${coopId}_${healthDueOnly.toIso8601String()}',
+        )) {
+          continue;
+        }
+
+        byDate
+            .putIfAbsent(healthDueOnly, () => [])
+            .add(
+              DayDetailItem(
+                text: '🩺 ควรตรวจสุขภาพ – $coopName (เตรียมให้$vaccineNameวันถัดไป)',
+                isPending: true,
+              ),
+            );
+        hasPending[healthDueOnly] = true;
+      } catch (e) {
+        print('Error computing health due date: $e');
+      }
+    }
+
+    return {
+      for (final entry in byDate.entries)
+        entry.key: DayMarkerInfo(
+          color: hasPending[entry.key] == true ? kCalendarRed : kCalendarGreen,
+          details: entry.value,
+        ),
+    };
+  }
+
+  void _showDayMarkerPopup(DateTime day, DayMarkerInfo marker) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final ez = ezColors(dialogContext);
+        return Dialog(
+          backgroundColor: ezCardColor(dialogContext),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(22.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${day.day}/${day.month}/${day.year}',
+                  style: GoogleFonts.kanit(
+                    color: ez.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Divider(color: ez.border, thickness: 1, height: 1),
+                ),
+                ...marker.details.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(
+                      item.text,
+                      style: GoogleFonts.kanit(
+                        color: item.isPending ? kCalendarRed : ez.textPrimary,
+                        fontWeight: item.isPending
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: ez.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: Text(
+                      'ปิด',
+                      style: GoogleFonts.kanit(
+                        color: ez.textSecondary,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    List<DateTime> markedDates = _getMarkedDates();
+    Map<DateTime, DayMarkerInfo> dayMarkers = _getDayMarkers();
 
     await showDialog(
       context: context,
@@ -95,7 +249,8 @@ class _ChickenhealthState extends State<Chickenhealth> {
           insetPadding: const EdgeInsets.symmetric(horizontal: 16),
           child: CustomCalendar(
             initialDate: _selectedDate,
-            markedDates: markedDates,
+            dayMarkers: dayMarkers,
+            onDayLongPress: (day, marker) => _showDayMarkerPopup(day, marker),
             onDateSelected: (DateTime newSelected) {
               setState(() {
                 _selectedDate = newSelected;
