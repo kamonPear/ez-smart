@@ -11,13 +11,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
 import '../close_open_Door.dart';
 import 'Main_EditData_ShowFood1.dart';
+import 'Main_FoodTypeSummary.dart';
 import '../../services/backend_config.dart';
 import '../../utils/thai_date.dart';
 import '../../widgets/ez_header.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../widgets/ez_top_banner.dart';
 import '../../widgets/ez_confirm_dialog.dart';
-import '../../theme/app_theme.dart';
 
 class MainShowDataFood extends StatefulWidget {
   const MainShowDataFood({super.key});
@@ -26,48 +26,35 @@ class MainShowDataFood extends StatefulWidget {
   State<MainShowDataFood> createState() => _MainShowDataFoodState();
 }
 
+// จำนวน กก./วัน ที่ตัดออกจากสต็อกแต่ละประเภทตอนกดปุ่มตัดสต็อกแมนนวล (ต้องตรงกับฝั่ง backend)
+const Map<String, int> kDailyDeductAmounts = {
+  kFoodTypeSmallPellet: 20,
+  kFoodTypeLargePellet: 30,
+};
+
 class _MainShowDataFoodState extends State<MainShowDataFood> {
   int selectedIndex = 4;
   bool isLoading = true;
 
-  Map<String, String>? foodData;
-  Map<String, dynamic>?
-  rawData; // 🌟 เพิ่มตัวแปรสำหรับเก็บข้อมูลดิบจากฐานข้อมูล
-  String? currentFoodId;
+  // 🌟 สต็อกปัจจุบันแยกตามประเภทอาหาร (เม็ดเล็ก/เม็ดใหญ่ มียอดของตัวเอง)
+  Map<String, dynamic>? _smallStock;
+  Map<String, dynamic>? _largeStock;
 
-  double currentPercent = 0.0;
-  String expireStatusText = "กำลังโหลดข้อมูล...";
-  // จำนวนวันจนถึงวันหมดอายุ (null = ยังไม่ทราบ/ไม่มีข้อมูล) ใช้ตัดสินใจสี
-  // ของป้ายสถานะ แทนที่จะให้เป็นสีแดงตลอดไม่ว่ากรณีไหน
-  int? _daysUntilExpire;
+  // ประเภทที่เลือกไว้ก่อนกดตัดสต็อก (ต้องเลือกก่อนเสมอ)
+  String? _selectedDeductType;
 
   List<dynamic> foodHistory = [];
+
+  // 🌟 ปริมาณอาหารที่แต่ละคอกกินโดยประมาณต่อวัน (คำนวณจากอายุไก่ -> ประเภทอาหาร
+  // แล้วหารสัดส่วนยอดตัดสต็อกรายวันตามจำนวนไก่ในคอก)
+  List<dynamic> coopConsumption = [];
 
   @override
   void initState() {
     super.initState();
     _fetchFoodData();
     _fetchFoodHistory();
-  }
-
-  String _getThaiMonthShort(int month) {
-    const List<String> thaiMonths = [
-      "",
-      "ม.ค.",
-      "ก.พ.",
-      "มี.ค.",
-      "เม.ย.",
-      "พ.ค.",
-      "มิ.ย.",
-      "ก.ค.",
-      "ส.ค.",
-      "ก.ย.",
-      "ต.ค.",
-      "พ.ย.",
-      "ธ.ค.",
-    ];
-    if (month < 1 || month > 12) return "";
-    return thaiMonths[month];
+    _fetchCoopConsumption();
   }
 
   Future<void> _fetchFoodData() async {
@@ -80,68 +67,22 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
 
       if (response.statusCode == 200) {
         final dynamic decodedData = json.decode(response.body);
-        Map<String, dynamic>? data;
+        final List<dynamic> rows = decodedData is List
+            ? decodedData
+            : (decodedData is Map<String, dynamic> ? [decodedData] : []);
 
-        if (decodedData is List) {
-          if (decodedData.isNotEmpty) {
-            data = decodedData.last;
-          }
-        } else if (decodedData is Map<String, dynamic>) {
-          data = decodedData;
+        Map<String, dynamic>? small;
+        Map<String, dynamic>? large;
+        for (final row in rows) {
+          if (row is! Map<String, dynamic>) continue;
+          if (row['food_type'] == kFoodTypeSmallPellet) small = row;
+          if (row['food_type'] == kFoodTypeLargePellet) large = row;
         }
 
-        if (data != null && data['food_id'] != null && data['food_id'] != 0) {
-          currentFoodId = data['food_id'].toString();
-          rawData = data; // 🌟 เก็บข้อมูลทั้งหมดไว้ เพื่อใช้ตอนส่งอัปเดตกลับไป
-
-          double currentQty = (data['quantity_current'] ?? 0).toDouble();
-          double maxQty = (data['max_quantity'] ?? 400).toDouble();
-          if (maxQty <= 0) maxQty = 400;
-
-          double calculatedPercent = (currentQty / maxQty) * 100;
-
-          String expireStatus = "ไม่ระบุวันหมด";
-          int? daysDiff;
-          if (data['expiry_date'] != null &&
-              data['expiry_date'].toString().isNotEmpty) {
-            try {
-              DateTime expDt = DateTime.parse(data['expiry_date']).toLocal();
-              DateTime now = DateTime.now();
-              DateTime today = DateTime(now.year, now.month, now.day);
-              DateTime expDay = DateTime(expDt.year, expDt.month, expDt.day);
-
-              daysDiff = expDay.difference(today).inDays;
-              String thaiMonth = _getThaiMonthShort(expDt.month);
-
-              if (daysDiff < 0) {
-                expireStatus =
-                    "หมดอายุแล้ว (${expDt.day} $thaiMonth ${expDt.year + 543})";
-              } else {
-                expireStatus =
-                    "จะหมดในอีก $daysDiff วัน (${expDt.day} $thaiMonth ${expDt.year + 543})";
-              }
-            } catch (_) {}
-          }
-
-          setState(() {
-            currentPercent = calculatedPercent.clamp(0.0, 100.0);
-            expireStatusText = expireStatus;
-            _daysUntilExpire = daysDiff;
-
-            foodData = {
-              "id": data?['food_id'].toString() ?? "",
-              "receiveDate": _formatDate(data?['import_date']),
-              "amount": _formatAmount(data?['quantity_current']),
-              "expireDate": _formatDate(data?['expiry_date']),
-              "threshold": "${data?['min_quantity']} กิโลกรัม",
-              "lastUpdateDate": _formatDateTime(
-                data?['updated_at'] ?? data?['date_up'],
-              ),
-            };
-          });
-        } else {
-          _setEmptyFoodData();
-        }
+        setState(() {
+          _smallStock = small;
+          _largeStock = large;
+        });
       } else {
         _setEmptyFoodData();
       }
@@ -159,12 +100,8 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
 
   void _setEmptyFoodData() {
     setState(() {
-      foodData = null;
-      rawData = null;
-      currentFoodId = null;
-      currentPercent = 0.0;
-      expireStatusText = "ยังไม่มีข้อมูลสต็อกปัจจุบัน";
-      _daysUntilExpire = null;
+      _smallStock = null;
+      _largeStock = null;
     });
   }
 
@@ -193,21 +130,46 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     }
   }
 
-  // 🌟 เพิ่มฟังก์ชันสั่งตัดสต็อก 20 กก. แบบแมนนวลที่นี่
+  Future<void> _fetchCoopConsumption() async {
+    try {
+      final url = Uri.parse('$backendBaseUrl/api/foods/coop-consumption');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData is List) {
+          setState(() {
+            coopConsumption = decodedData;
+          });
+        }
+      } else {
+        debugPrint(
+          "Error fetching coop consumption: ${response.statusCode}",
+        );
+      }
+    } catch (e) {
+      debugPrint("Connection error (Coop consumption): $e");
+    }
+  }
+
+  // 🌟 ตัดสต็อกแมนนวล — ต้องเลือกประเภทอาหารก่อนเสมอ
   Future<void> _forceDeductStock() async {
-    if (currentFoodId == null) {
+    final String? foodType = _selectedDeductType;
+    if (foodType == null) {
       showEzTopBanner(
         context,
-        "ไม่มีข้อมูลสต็อกให้ตัด",
+        "กรุณาเลือกประเภทอาหารก่อนตัดสต็อก",
         type: EzBannerType.warning,
       );
       return;
     }
 
+    final int amount = kDailyDeductAmounts[foodType] ?? 0;
+
     final bool confirm = await showEzConfirmDialog(
       context,
       title: 'ยืนยันการตัดสต็อก',
-      message: 'คุณต้องการตัดสต็อกอาหาร 20 กิโลกรัม ใช่หรือไม่?',
+      message: 'คุณต้องการตัดสต็อกอาหาร$foodType $amount กิโลกรัม ใช่หรือไม่?',
       confirmText: 'ยืนยัน',
       icon: Icons.remove_circle_outline_rounded,
     );
@@ -220,14 +182,17 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
 
     try {
       final url = Uri.parse('$backendBaseUrl/api/foodstocks/force-deduct');
-      print("📌 กำลังส่งคำสั่งตัดสต็อกไปที่: $url");
 
-      final response = await http.post(url);
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: json.encode({"food_type": foodType}),
+      );
 
       if (response.statusCode == 200) {
         showEzTopBanner(
           context,
-          "ตัดสต็อก 20 กก. สำเร็จ!",
+          "ตัดสต็อก$foodType $amount กก. สำเร็จ!",
           type: EzBannerType.success,
         );
         await _fetchFoodData();
@@ -263,10 +228,6 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   }
 
   String _formatDateSimple(String? isoString) {
-    return thaiDateFromIso(isoString);
-  }
-
-  String _formatDate(String? isoString) {
     return thaiDateFromIso(isoString);
   }
 
@@ -374,20 +335,74 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     );
   }
 
-  /// สีของป้ายสถานะวันหมดอายุ ให้สอดคล้องกับความเร่งด่วนจริง แทนที่จะเป็น
-  /// สีแดงตายตัวไม่ว่าจะเหลือเวลาอีกกี่วันก็ตาม
-  Color _expireColor(EzColors ez) {
-    if (_daysUntilExpire == null) return ez.textSecondary;
-    if (_daysUntilExpire! < 0) return ez.danger;
-    if (_daysUntilExpire! <= 7) return const Color(0xFFFFA726);
-    return ez.success;
+  /// การ์ดย่อยแสดงยอดคงเหลือของอาหารประเภทหนึ่ง (เม็ดเล็ก/เม็ดใหญ่)
+  Widget _buildTypeStockTile(String foodType, Map<String, dynamic>? data) {
+    final ez = ezColors(context);
+    final String amount = _formatAmount(data?['quantity_current']);
+    final String lastUpdate = _formatDateTime(data?['date_up']);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: ez.background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ez.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            foodType,
+            style: GoogleFonts.kanit(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: ez.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$amount กก.',
+            style: GoogleFonts.kanit(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: ez.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            data == null ? 'ยังไม่มีข้อมูล' : 'อัปเดต $lastUpdate',
+            style: GoogleFonts.kanit(fontSize: 10, color: ez.textSecondary),
+          ),
+        ],
+      ),
+    );
   }
 
-  IconData _expireIcon() {
-    if (_daysUntilExpire == null) return Icons.help_outline_rounded;
-    if (_daysUntilExpire! < 0) return Icons.error_outline_rounded;
-    if (_daysUntilExpire! <= 7) return Icons.warning_amber_rounded;
-    return Icons.check_circle_outline_rounded;
+  /// ชิปเลือกประเภทอาหารก่อนตัดสต็อก — ต้องเลือกก่อนปุ่ม "ตัดสต็อก" จะรู้ว่าตัดยอดไหน
+  Widget _buildTypeChoiceChip(String foodType) {
+    final ez = ezColors(context);
+    final bool selected = _selectedDeductType == foodType;
+    return InkWell(
+      onTap: () => setState(() => _selectedDeductType = foodType),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? ez.gold.withValues(alpha: 0.15) : ez.background,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: selected ? ez.gold : ez.border, width: 1.3),
+        ),
+        child: Text(
+          foodType,
+          style: GoogleFonts.kanit(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? ez.gold : ez.textPrimary,
+          ),
+        ),
+      ),
+    );
   }
 
   /// ปุ่มหลัก (เข้าสต็อกอาหาร) — เต็มความกว้าง สีเขียว เด่นชัดว่าเป็นการกระทำหลัก
@@ -536,123 +551,64 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                       ),
                     )
                   else ...[
-                    // การ์ดที่ 1: สรุปสต็อกปัจจุบัน
+                    // การ์ดที่ 1: สรุปสต็อกปัจจุบัน — แยกยอดตามประเภทอาหาร
                     _buildDarkCard(
                       child: Column(
                         children: [
                           _sectionHeader(
                             Icons.inventory_2_outlined,
                             'สรุปสต็อกปัจจุบัน',
-                            subtitle: foodData == null
-                                ? null
-                                : 'อัปเดตล่าสุด ${foodData!['lastUpdateDate']}',
+                            subtitle: 'แยกยอดตามประเภทอาหาร',
                           ),
                           const SizedBox(height: 18),
-
-                          Text(
-                            "ปริมาณคงเหลือ",
-                            style: GoogleFonts.kanit(
-                              fontSize: 13,
-                              color: ezColors(context).textSecondary,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTypeStockTile(
+                                  kFoodTypeSmallPellet,
+                                  _smallStock,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildTypeStockTile(
+                                  kFoodTypeLargePellet,
+                                  _largeStock,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            "${foodData?['amount'] ?? '0'} กก.",
-                            style: GoogleFonts.kanit(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: ezColors(context).textPrimary,
-                            ),
+                        ],
+                      ),
+                    ),
+
+                    // การ์ดที่ 1.5: สรุปผลอาหารแยกตามประเภท — คลิกประเภทไหนเพื่อดู
+                    // รายละเอียดการกินอาหารของแต่ละคอกที่กินประเภทนั้น (คำนวณจากอายุไก่
+                    // ในคอก -> ประเภทอาหาร แล้วหารสัดส่วนยอดตัดสต็อกรายวันตามจำนวนไก่)
+                    // ใช้เทียบกับสุขภาพไก่/ผลไข่ของคอกนั้นได้ว่ากินเยอะ-น้อยผิดปกติไหม
+                    _buildDarkCard(
+                      child: Column(
+                        children: [
+                          _sectionHeader(
+                            Icons.egg_alt_outlined,
+                            'สรุปผลอาหารแต่ละประเภท',
+                            subtitle: 'แตะประเภทเพื่อดูการกินอาหารของแต่ละคอก',
                           ),
                           const SizedBox(height: 14),
-
                           Row(
                             children: [
-                              Text(
-                                "${currentPercent.toInt()}%",
-                                style: GoogleFonts.kanit(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: ezColors(context).textPrimary,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
                               Expanded(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: LinearProgressIndicator(
-                                    value: (currentPercent / 100).clamp(
-                                      0.0,
-                                      1.0,
-                                    ),
-                                    minHeight: 14,
-                                    backgroundColor: ezColors(context).border,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      ezColors(context).gold,
-                                    ),
-                                  ),
+                                child: _buildFoodTypeSummaryTile(
+                                  kFoodTypeSmallPellet,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildFoodTypeSummaryTile(
+                                  kFoodTypeLargePellet,
                                 ),
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                rawData?['min_quantity'] != null
-                                    ? "ต่ำสุด ${rawData!['min_quantity']} กก."
-                                    : "ต่ำสุด -",
-                                style: GoogleFonts.kanit(
-                                  fontSize: 11,
-                                  color: ezColors(context).textSecondary,
-                                ),
-                              ),
-                              Text(
-                                rawData?['max_quantity'] != null
-                                    ? "เต็มถัง ${rawData!['max_quantity']} กก."
-                                    : "เต็มถัง -",
-                                style: GoogleFonts.kanit(
-                                  fontSize: 11,
-                                  color: ezColors(context).textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 16),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _expireColor(
-                                ezColors(context),
-                              ).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _expireIcon(),
-                                  size: 16,
-                                  color: _expireColor(ezColors(context)),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    expireStatusText,
-                                    style: GoogleFonts.kanit(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: _expireColor(ezColors(context)),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ],
                       ),
@@ -673,6 +629,14 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
+                              Text(
+                                "ประเภท",
+                                style: GoogleFonts.kanit(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: ezColors(context).textSecondary,
+                                ),
+                              ),
                               Text(
                                 "ปริมาณ (กก.)",
                                 style: GoogleFonts.kanit(
@@ -719,7 +683,9 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                               String date = _formatDateSimple(
                                 data['import_date'] ?? data['created_at'],
                               );
-                              return _buildTableRow(amount, date);
+                              String type = (data['food_type'] ?? '-')
+                                  .toString();
+                              return _buildTableRow(type, amount, date);
                             }),
                         ],
                       ),
@@ -779,11 +745,38 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                           ),
                           const SizedBox(height: 10),
 
+                          Text(
+                            'เลือกประเภทอาหารก่อนตัดสต็อก',
+                            style: GoogleFonts.kanit(
+                              fontSize: 11,
+                              color: ezColors(context).textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTypeChoiceChip(
+                                  kFoodTypeSmallPellet,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildTypeChoiceChip(
+                                  kFoodTypeLargePellet,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
                           Row(
                             children: [
                               _buildSecondaryActionButton(
                                 icon: Icons.remove_circle_outline,
-                                text: 'ตัดสต็อก 20 กก.',
+                                text: _selectedDeductType == null
+                                    ? 'ตัดสต็อก'
+                                    : 'ตัดสต็อก${_selectedDeductType!} ${kDailyDeductAmounts[_selectedDeductType!]} กก.',
                                 color: const Color(0xFFFFA726),
                                 onTap: _forceDeductStock,
                               ),
@@ -808,7 +801,69 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     );
   }
 
-  Widget _buildTableRow(String amount, String date) {
+  /// การ์ดย่อยสรุปอาหารประเภทหนึ่ง — จำนวนคอกที่กินประเภทนี้ + ยอดรวม กก./วัน
+  /// แตะแล้วเปิดหน้ารายละเอียดแยกตามคอกของประเภทนั้น
+  Widget _buildFoodTypeSummaryTile(String foodType) {
+    final ez = ezColors(context);
+    final matching = coopConsumption.where(
+      (c) => c['food_type'] == foodType,
+    );
+    final int coopCount = matching.length;
+    final double totalKg = matching.fold<double>(
+      0.0,
+      (sum, c) => sum + ((c['estimated_kg_per_day'] ?? 0) as num).toDouble(),
+    );
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                MainFoodTypeSummary(initialFoodType: foodType),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: ez.background,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: ez.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              foodType,
+              style: GoogleFonts.kanit(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: ez.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${totalKg.toStringAsFixed(1)} กก./วัน',
+              style: GoogleFonts.kanit(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: ez.gold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$coopCount คอก • ดูรายละเอียด',
+              style: GoogleFonts.kanit(fontSize: 10, color: ez.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTableRow(String foodType, String amount, String date) {
     return Column(
       children: [
         Padding(
@@ -816,6 +871,14 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
+              Text(
+                foodType,
+                style: GoogleFonts.kanit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: ezColors(context).textPrimary,
+                ),
+              ),
               Text(
                 amount,
                 style: GoogleFonts.kanit(

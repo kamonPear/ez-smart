@@ -40,7 +40,7 @@ class CustomBottomBar extends StatelessWidget {
       _destination(
         icon: Icons.bar_chart_outlined,
         selectedIcon: Icons.bar_chart,
-        label: 'เก็บไข่',
+        label: 'สถิติเก็บไข่',
         hasSelection: hasSelection,
       ),
       _destination(

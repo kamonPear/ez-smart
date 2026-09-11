@@ -14,6 +14,21 @@ import '../../widgets/ez_form_field.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_top_banner.dart';
 
+/// ประเภทอาหารที่รองรับ - ผูกกับช่วงอายุไก่ที่กินอาหารประเภทนั้น
+const String kFoodTypeSmallPellet = 'เม็ดเล็ก';
+const String kFoodTypeLargePellet = 'เม็ดใหญ่';
+
+String foodTypeAgeHint(String? foodType) {
+  switch (foodType) {
+    case kFoodTypeSmallPellet:
+      return 'สำหรับไก่อายุ 0-6 สัปดาห์';
+    case kFoodTypeLargePellet:
+      return 'สำหรับไก่อายุมากกว่า 6 สัปดาห์';
+    default:
+      return 'เลือกประเภทอาหารให้ตรงกับช่วงอายุไก่';
+  }
+}
+
 class MainaddDataFood extends StatefulWidget {
   const MainaddDataFood({super.key});
 
@@ -31,6 +46,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
 
   DateTime? _selectedImportDate;
   DateTime? _selectedExpiryDate;
+  String? _selectedFoodType;
 
   @override
   void initState() {
@@ -87,6 +103,14 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     // importfood และบวกเพิ่มใน foodstock ให้อัตโนมัติ) — /api/foods รับแค่ GET/PUT/DELETE
     final url = Uri.parse('$backendBaseUrl/api/importfoods');
 
+    if (_selectedFoodType == null) {
+      showEzTopBanner(
+        context,
+        'กรุณาเลือกประเภทอาหาร',
+        type: EzBannerType.warning,
+      );
+      return;
+    }
     if (_selectedImportDate == null) {
       showEzTopBanner(
         context,
@@ -117,6 +141,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
         url,
         headers: {"Content-Type": "application/json"},
         body: json.encode({
+          "food_type": _selectedFoodType,
           // 🌟 import_volume เป็น int ฝั่ง backend (models.CreateImportFoodRequest)
           "import_volume": (double.tryParse(_amountController.text) ?? 0.0)
               .round(),
@@ -287,6 +312,42 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
                       ],
                     ),
                     const SizedBox(height: 20),
+
+                    EzFormDropdown<String>(
+                      label: 'ประเภทอาหาร',
+                      isRequired: true,
+                      value: _selectedFoodType,
+                      hint: 'เลือกประเภทอาหาร',
+                      items: const [
+                        DropdownMenuItem(
+                          value: kFoodTypeSmallPellet,
+                          child: Text(kFoodTypeSmallPellet),
+                        ),
+                        DropdownMenuItem(
+                          value: kFoodTypeLargePellet,
+                          child: Text(kFoodTypeLargePellet),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedFoodType = value;
+                        });
+                      },
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: kEzFormLabelWidth,
+                        top: 4,
+                      ),
+                      child: Text(
+                        foodTypeAgeHint(_selectedFoodType),
+                        style: GoogleFonts.kanit(
+                          fontSize: 11,
+                          color: ez.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
                     EzFormDateField(
                       label: 'วันที่นำอาหารเข้า',
