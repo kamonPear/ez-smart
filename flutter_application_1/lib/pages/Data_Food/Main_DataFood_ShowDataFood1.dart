@@ -9,7 +9,7 @@ import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
-import '../close_open_Door.dart';
+import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'Main_EditData_ShowFood1.dart';
 import 'Main_FoodTypeSummary.dart';
 import '../../services/backend_config.dart';
@@ -250,7 +250,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     } else if (index == 1) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
       );
     } else if (index == 3) {
       Navigator.pushReplacement(

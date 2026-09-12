@@ -105,12 +105,17 @@ class EzHeader extends StatelessWidget {
                     onPressed: onBack ?? () => Navigator.pop(context),
                   )
                 : const SizedBox(width: 48),
-            Text(
-              pageTitle,
-              style: GoogleFonts.kanit(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: ezGoldColor(context),
+            Expanded(
+              child: Text(
+                pageTitle,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.kanit(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: ezGoldColor(context),
+                ),
               ),
             ),
             trailing ?? const SizedBox(width: 48),

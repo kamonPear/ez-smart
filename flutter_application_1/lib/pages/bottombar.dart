@@ -32,9 +32,9 @@ class CustomBottomBar extends StatelessWidget {
         hasSelection: hasSelection,
       ),
       _destination(
-        icon: Icons.meeting_room_outlined,
-        selectedIcon: Icons.meeting_room,
-        label: 'ประตู',
+        icon: Icons.sensors_outlined,
+        selectedIcon: Icons.sensors,
+        label: 'อุปกรณ์',
         hasSelection: hasSelection,
       ),
       _destination(

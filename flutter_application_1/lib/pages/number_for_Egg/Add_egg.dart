@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
-import 'package:flutter_application_1/pages/close_open_Door.dart';
+import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:flutter_application_1/pages/number_for_Egg/Edit_NumberEggchicken_3.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -183,19 +183,14 @@ class _AddEggState extends State<AddEgg> {
       isSubmitting = true;
     });
 
-    DateTime now = DateTime.now();
-    DateTime combinedDate = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      now.hour,
-      now.minute,
-    );
-
     Map<String, dynamic> payload = {
       "coop_id": int.parse(_selectedCoop!),
       "number_egg": eggCount,
-      "date_collect_egg": combinedDate.toUtc().toIso8601String(),
+      // ✅ ส่งเฉพาะ "วันที่" ตามที่ผู้ใช้เลือกตรงๆ ไม่แปลงเป็น UTC ตามเวลาปัจจุบัน
+      // (ป้องกันบั๊ก: ถ้าเวลาท้องถิ่นเป็นช่วงเที่ยงคืน-ตี 7 การแปลง .toUtc()
+      // จะดันวันที่ถอยหลังไป 1 วันเพราะไทยอยู่ UTC+7)
+      "date_collect_egg":
+          '${_selectedDate.toIso8601String().split('T').first}T00:00:00Z',
       "note": _noteController.text.trim(),
     };
 
@@ -215,6 +210,13 @@ class _AddEggState extends State<AddEgg> {
           _dateController.text = thaiDate(_selectedDate);
         });
         _fetchEggData();
+      } else if (response.statusCode == 409) {
+        // ✅ มีข้อมูลไข่ของคอกนี้ในวันที่นี้อยู่แล้ว (1 คอก บันทึกได้วันละ 1 ยอด)
+        // ให้ผู้ใช้ไปแก้ไขยอดเดิมแทน ไม่ใช่กรอกซ้ำเป็นรายการใหม่
+        _showBanner(
+          'วันนี้บันทึกยอดเก็บไข่ของคอกนี้ไปแล้ว กรุณาแก้ไขยอดเดิมที่ "ประวัติการบันทึก" ด้านล่างแทน',
+          type: EzBannerType.warning,
+        );
       } else {
         _showBanner(
           'เกิดข้อผิดพลาดในการบันทึก: Error ${response.statusCode}',
@@ -253,7 +255,7 @@ class _AddEggState extends State<AddEgg> {
     } else if (index == 1) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
       );
     } else {
       setState(() {
@@ -264,7 +266,11 @@ class _AddEggState extends State<AddEgg> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
+    final mediaQuery = MediaQuery.of(context);
+    // ✅ หักความสูงแป้นพิมพ์ออก ไม่งั้นตอนโฟกัสช่องกรอก (เช่น จำนวนไข่) แล้ว
+    // คีย์บอร์ดเด้งขึ้นมา หน้าจะถูกบังคับให้สูงเท่าจอเต็มทั้งที่พื้นที่จริงเหลือน้อยลง
+    double minContentHeight =
+        mediaQuery.size.height - mediaQuery.viewInsets.bottom;
 
     return Scaffold(
       extendBody: true,
@@ -273,7 +279,7 @@ class _AddEggState extends State<AddEgg> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Container(
-            constraints: BoxConstraints(minHeight: screenHeight),
+            constraints: BoxConstraints(minHeight: minContentHeight),
             child: Column(
               children: [
                 const EzHeader(pageTitle: 'บันทึกการเก็บไข่'),
@@ -467,25 +473,36 @@ class _AddEggState extends State<AddEgg> {
             ],
           ),
           const SizedBox(height: 20),
-          EzFormDropdown<String>(
-            label: 'ชื่อคอก',
-            isRequired: true,
-            value: availableCoops.contains(_selectedCoop)
-                ? _selectedCoop
-                : null,
-            hint: availableCoops.isEmpty ? 'กำลังโหลด..' : 'เลือกคอก',
-            items: availableCoops.map((String val) {
-              return DropdownMenuItem<String>(
-                value: val,
-                child: Text(_coopNames[val] ?? val),
-              );
-            }).toList(),
-            onChanged: (val) {
-              if (val == null) return;
-              setState(() => _selectedCoop = val);
-              _recalculateStats();
-            },
-          ),
+          // ✅ ถ้าเปิดมาจากคอกใดคอกหนึ่งโดยเฉพาะ ล็อกไว้เป็นคอกนั้น ไม่ให้เลือกคอกอื่น
+          widget.initialCoopId != null
+              ? EzFormRow(
+                  label: 'ชื่อคอก',
+                  isRequired: true,
+                  child: Text(
+                    _coopNames[widget.initialCoopId] ??
+                        widget.initialCoopId!,
+                    style: GoogleFonts.kanit(color: ez.textPrimary, fontSize: 14),
+                  ),
+                )
+              : EzFormDropdown<String>(
+                  label: 'ชื่อคอก',
+                  isRequired: true,
+                  value: availableCoops.contains(_selectedCoop)
+                      ? _selectedCoop
+                      : null,
+                  hint: availableCoops.isEmpty ? 'กำลังโหลด..' : 'เลือกคอก',
+                  items: availableCoops.map((String val) {
+                    return DropdownMenuItem<String>(
+                      value: val,
+                      child: Text(_coopNames[val] ?? val),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val == null) return;
+                    setState(() => _selectedCoop = val);
+                    _recalculateStats();
+                  },
+                ),
           const SizedBox(height: 12),
           EzFormDateField(
             label: 'วันที่',

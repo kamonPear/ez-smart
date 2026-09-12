@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/pages/Main_SenSor/Data_System.dart';
+import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
-import 'package:flutter_application_1/pages/Vaccine/Main_Vaccine.dart';
 import 'package:flutter_application_1/pages/calendar.dart';
-import 'package:flutter_application_1/pages/close_open_Door.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../Chicken_health_information/Show_Chicken_health.dart';
 import '../bottombar.dart';
 import '../main_dash.dart';
 import '../../widgets/ez_header.dart';
@@ -156,7 +153,7 @@ class _MainchickenState extends State<Mainchicken> {
     } else if (index == 1) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
       );
     } else if (index == 2) {
       Navigator.pushReplacement(
@@ -168,48 +165,6 @@ class _MainchickenState extends State<Mainchicken> {
         selectedIndex = index;
       });
     }
-  }
-
-  // --- ฟังก์ชันสร้างปุ่มเมนูสี่เหลี่ยม ---
-  Widget _buildSquareMenu(
-    IconData icon,
-    String title,
-    VoidCallback onTap, {
-    double? width,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: width,
-        height: 110,
-        decoration: BoxDecoration(
-          color: ezCardColor(context), // สีพื้นหลังปุ่มแบบในรูป
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: ezColors(context).textPrimary, size: 45),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: GoogleFonts.kanit(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: ezColors(context).textPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _legendDot(Color color, String label) {
@@ -239,32 +194,22 @@ class _MainchickenState extends State<Mainchicken> {
     return Scaffold(
       extendBody: true,
       backgroundColor: ezBackgroundColor(context),
-      body: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: EzHeader(pageTitle: 'ปฏิทินรวม'),
-              ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: EzHeader(pageTitle: 'ปฏิทินรวม'),
             ),
-          ),
+            const SizedBox(height: 10),
 
-          // --- เนื้อหา ---
-          Positioned(
-            top: 110,
-            left: 0,
-            right: 0,
-            bottom: 80,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 25),
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                children: [
+            // --- เนื้อหา ---
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 25),
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  children: [
                   // 1. ปฏิทินรวม (แทนตารางคอกรวมเดิม)
                   CustomCalendar(
                     key: ValueKey(
@@ -355,68 +300,13 @@ class _MainchickenState extends State<Mainchicken> {
                       ),
                     ),
 
-                  const SizedBox(height: 25),
-
-                  // 2. เมนูปุ่มด้านล่าง
-                  Row(
-                    children: [
-                      // ปุ่มตรวจสุขภาพ
-                      Expanded(
-                        child: _buildSquareMenu(
-                          Icons.medical_information_outlined,
-                          "ตรวจสุขภาพ",
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const Chickenhealth(),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 15),
-                      // ปุ่มการให้วัคซีน
-                      Expanded(
-                        child: _buildSquareMenu(
-                          Icons.vaccines_outlined,
-                          "การให้วัคซีน",
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const MainVaccine(),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  // ปุ่มอุปกรณ์และเซนเซอร์
-                  _buildSquareMenu(
-                    Icons.cell_tower,
-                    "อุปกรณ์ และ เซนเซอร์",
-                    () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const DataSystem(),
-                        ),
-                      );
-                    },
-                    width: MediaQuery.of(context).size.width * 0.65,
-                  ),
-
                   const SizedBox(height: 50),
                 ],
               ),
             ),
           ),
         ],
+      ),
       ),
       bottomNavigationBar: CustomBottomBar(
         selectedIndex: selectedIndex,

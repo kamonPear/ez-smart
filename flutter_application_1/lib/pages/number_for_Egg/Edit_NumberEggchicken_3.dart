@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
-import 'package:flutter_application_1/pages/close_open_Door.dart';
+import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -46,7 +46,9 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
 
     _selectedCoopId = widget.initialData['coop_id']?.toString();
     _selectedDate =
-        DateTime.tryParse(widget.initialData['date']?.toString() ?? '') ??
+        DateTime.tryParse(
+          widget.initialData['date']?.toString() ?? '',
+        )?.toLocal() ??
         DateTime.now();
     _dateController = TextEditingController(text: thaiDate(_selectedDate));
 
@@ -129,7 +131,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
     } else if (index == 1) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
       );
     } else if (index == 2) {
       Navigator.pushReplacement(
@@ -173,7 +175,10 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
 
       Map<String, dynamic> requestBody = {
         "coop_id": int.tryParse(_selectedCoopId!) ?? 0,
-        "date_collect_egg": _selectedDate.toUtc().toIso8601String(),
+        // ✅ ส่งเฉพาะ "วันที่" ตรงๆ ไม่แปลงเป็น UTC (ป้องกันบั๊กวันที่ถอยหลัง 1 วัน
+        // เพราะไทยอยู่ UTC+7 — เหมือนที่แก้ไว้แล้วในหน้าเพิ่มข้อมูลไข่)
+        "date_collect_egg":
+            '${_selectedDate.toIso8601String().split('T').first}T00:00:00Z',
         "number_egg": int.tryParse(_amountController.text.trim()) ?? 0,
         "note": _noteController.text,
       };

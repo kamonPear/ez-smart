@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
-import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../bottombar.dart';
-import '../close_open_Door.dart';
+import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import '../../widgets/ez_header.dart';
 import '../../widgets/ez_form_field.dart';
 import '../../services/backend_config.dart';
@@ -119,10 +118,21 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
       );
       return;
     }
+    final double? enteredAmount = double.tryParse(
+      _amountController.text.trim(),
+    );
     if (_amountController.text.trim().isEmpty) {
       showEzTopBanner(
         context,
         'กรุณากรอกปริมาณที่นำเข้า',
+        type: EzBannerType.warning,
+      );
+      return;
+    }
+    if (enteredAmount == null || enteredAmount <= 0) {
+      showEzTopBanner(
+        context,
+        'กรุณากรอกปริมาณที่นำเข้าให้มากกว่า 0',
         type: EzBannerType.warning,
       );
       return;
@@ -143,8 +153,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
         body: json.encode({
           "food_type": _selectedFoodType,
           // 🌟 import_volume เป็น int ฝั่ง backend (models.CreateImportFoodRequest)
-          "import_volume": (double.tryParse(_amountController.text) ?? 0.0)
-              .round(),
+          "import_volume": enteredAmount.round(),
           "expiry_date": _selectedExpiryDate!.toUtc().toIso8601String(),
         }),
       );
@@ -184,7 +193,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     } else if (index == 1) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
       );
     } else if (index == 3) {
       Navigator.pushReplacement(

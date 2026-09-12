@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../../services/backend_config.dart';
-import '../Chicken_health_information/Show_Chicken_health.dart'
-    hide backendBaseUrl;
+import '../Chicken_health_information/Main_HealthCheckCalendar.dart';
 import '../Main_SenSor/Data_System.dart';
 import '../Vaccine/Main_Vaccine.dart';
 import '../number_for_Egg/Add_egg.dart';
@@ -59,7 +58,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
           if (e['coop_id']?.toString() != coopId) continue;
           final date = DateTime.tryParse(
             e['date_collect_egg']?.toString() ?? '',
-          );
+          )?.toLocal();
           if (date == null) continue;
           merged.add({
             'type': 'egg',
@@ -76,7 +75,9 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
         final List<dynamic> healths = jsonDecode(results[1].body);
         for (final h in healths) {
           if (h['coop_id']?.toString() != coopId) continue;
-          final date = DateTime.tryParse(h['record_date']?.toString() ?? '');
+          final date = DateTime.tryParse(
+            h['record_date']?.toString() ?? '',
+          )?.toLocal();
           if (date == null) continue;
           merged.add({
             'type': 'health',
@@ -93,7 +94,9 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
         final List<dynamic> alerts = jsonDecode(results[2].body);
         for (final a in alerts) {
           if (a['coop_id']?.toString() != coopId) continue;
-          final dueDate = DateTime.tryParse(a['date']?.toString() ?? '');
+          final dueDate = DateTime.tryParse(
+            a['date']?.toString() ?? '',
+          )?.toLocal();
           if (dueDate == null) continue;
           final dueOnly = DateTime(dueDate.year, dueDate.month, dueDate.day);
           final vaccineName = a['vaccine_name']?.toString() ?? 'วัคซีน';
@@ -146,12 +149,17 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
       debugPrint("❌ Connection/Parsing error: $e");
     }
 
-    merged.sort(
-      (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime),
-    );
+    // แสดงเฉพาะ "วันนี้" เท่านั้น ไม่รวมหลายวันมาปนกัน (นัดตรวจ/นัดวัคซีนล่วงหน้า-ย้อนหลัง
+    // ไปดูที่หน้าปฏิทินของแต่ละกิจกรรมแทน ส่วนนี้เป็นแค่สรุปสั้นๆ ว่าวันนี้ทำอะไรไปบ้าง)
+    final todayItems = merged.where((item) {
+      final date = item['date'] as DateTime;
+      return date.year == todayOnly.year &&
+          date.month == todayOnly.month &&
+          date.day == todayOnly.day;
+    }).toList();
 
     setState(() {
-      dailyActivity = merged;
+      dailyActivity = todayItems;
       isLoading = false;
     });
   }
@@ -462,14 +470,18 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                           child: _buildMenuButton(
                             icon: Icons.medical_information_outlined,
                             label: "ตรวจสุขภาพ",
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => Chickenhealth(
-                                  initialCoopId: data["id"].toString(),
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MainHealthCheckCalendar(
+                                    coopId: data["id"].toString(),
+                                    coopName: data["name"].toString(),
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                              _fetchDailyActivity();
+                            },
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -477,14 +489,17 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                           child: _buildMenuButton(
                             icon: Icons.cell_tower,
                             label: "อุปกรณ์,เซนเซอร์",
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DataSystem(
-                                  initialCoopId: data["id"].toString(),
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => DataSystem(
+                                    initialCoopId: data["id"].toString(),
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                              _fetchDailyActivity();
+                            },
                           ),
                         ),
                       ],
@@ -496,14 +511,17 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                           child: _buildMenuButton(
                             icon: Icons.vaccines_outlined,
                             label: "การให้วัคซีน",
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MainVaccine(
-                                  initialCoopId: data["id"].toString(),
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MainVaccine(
+                                    initialCoopId: data["id"].toString(),
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                              _fetchDailyActivity();
+                            },
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -511,14 +529,17 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                           child: _buildMenuButton(
                             icon: Icons.egg_outlined,
                             label: "เก็บไข่ไก่",
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AddEgg(
-                                  initialCoopId: data["id"].toString(),
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AddEgg(
+                                    initialCoopId: data["id"].toString(),
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                              _fetchDailyActivity();
+                            },
                           ),
                         ),
                       ],
@@ -529,7 +550,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'รายการประจำวันคอกไก่ ${data["name"]}',
+                        'รายการวันนี้ - คอกไก่ ${data["name"]}',
                         style: GoogleFonts.kanit(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -558,7 +579,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 30),
                         child: Text(
-                          "ยังไม่มีรายการของคอกนี้",
+                          "ไม่มีรายการวันนี้",
                           style: GoogleFonts.kanit(
                             fontSize: 15,
                             color: Colors.grey,

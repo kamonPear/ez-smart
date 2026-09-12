@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'package:flutter_application_1/pages/Chicken_health_information/Show_Chicken_health.dart';
+import 'package:flutter_application_1/pages/Chicken_health_information/Main_HealthAppointments.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_Datadopt_chicken_2.dart';
-import 'package:flutter_application_1/pages/Main_SenSor/Data_System.dart';
-import 'package:flutter_application_1/pages/Vaccine/Main_Vaccine.dart';
-import 'package:flutter_application_1/pages/Vaccine/Show_Datavaccine.dart';
+import 'package:flutter_application_1/pages/Vaccine/Add_VaccineType.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
@@ -12,11 +10,11 @@ import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'bottombar.dart';
-import 'close_open_Door.dart';
-import 'main_dash_AddData.dart';
+import 'Main_SenSor/Main_DeviceSummary.dart';
 import 'Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'Data_AdoptChicken/Main_CoopDetail.dart';
 import '../../services/backend_config.dart';
+import '../../services/notifications_service.dart';
 import '../widgets/ez_header.dart';
 import '../widgets/ez_gauge.dart';
 import '../theme/app_theme.dart';
@@ -38,14 +36,24 @@ class _MainScreenState extends State<MainScreen> {
   List<Map<String, dynamic>> coopList = [];
   double _totalFoodKg = 0;
   String _searchQuery = '';
+  int _notificationCount = 0;
 
   List<Map<String, dynamic>> get _visibleCoopList {
     if (_searchQuery.trim().isEmpty) return coopList;
     final query = _searchQuery.trim().toLowerCase();
+    // ✅ ค้นหาได้ทุกอย่าง ไม่ใช่แค่ชื่อ/เลขคอก แต่รวมวันที่นำเข้า วันเกิดไก่
+    // จำนวนไก่ และผลสุขภาพล่าสุดด้วย - พิมพ์วันที่/เดือน/ปีก็เจอได้เลย
     return coopList.where((coop) {
-      final name = (coop['name'] ?? '').toString().toLowerCase();
-      final number = (coop['number'] ?? '').toString().toLowerCase();
-      return name.contains(query) || number.contains(query);
+      final haystack = [
+        coop['name'],
+        coop['number'],
+        coop['import_date'],
+        coop['birth_date'],
+        coop['amount'],
+        coop['healthy'],
+        coop['poor_health'],
+      ].map((v) => (v ?? '').toString().toLowerCase()).join(' ');
+      return haystack.contains(query);
     }).toList();
   }
 
@@ -54,6 +62,16 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _fetchCoops();
     _fetchFoodStock();
+    _fetchNotificationCount();
+  }
+
+  Future<void> _fetchNotificationCount() async {
+    try {
+      final notifications = await loadNotifications();
+      if (mounted) setState(() => _notificationCount = notifications.length);
+    } catch (e) {
+      debugPrint('Error fetching notification count: $e');
+    }
   }
 
   Future<void> _fetchFoodStock() async {
@@ -137,7 +155,7 @@ class _MainScreenState extends State<MainScreen> {
                 try {
                   DateTime parsedDate = DateTime.parse(
                     egg['date_collect_egg'].toString(),
-                  );
+                  ).toLocal();
                   year = parsedDate.year.toString();
                   month = parsedDate.month;
                 } catch (e) {
@@ -231,7 +249,7 @@ class _MainScreenState extends State<MainScreen> {
     if (index == 1) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
       ).then((_) => setState(() => selectedIndex = 0));
     } else if (index == 3) {
       Navigator.push(
@@ -280,7 +298,12 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
+    final mediaQuery = MediaQuery.of(context);
+    // ✅ หักความสูงแป้นพิมพ์ออกด้วย ไม่งั้นตอนโฟกัสช่องค้นหาแล้วคีย์บอร์ดเด้งขึ้นมา
+    // เนื้อหาจะยังถูกบังคับให้สูงเท่าจอเต็มทั้งที่พื้นที่จริงเหลือน้อยลง ทำให้
+    // เลย์เอาต์กระตุกดูแปลกๆ (และดูเหมือนพิมพ์อะไรไม่ได้เพราะหน้าขยับตลอด)
+    final double minContentHeight =
+        mediaQuery.size.height - mediaQuery.viewInsets.bottom;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -289,7 +312,7 @@ class _MainScreenState extends State<MainScreen> {
       drawer: _buildAppDrawer(context),
       body: SingleChildScrollView(
         child: Container(
-          constraints: BoxConstraints(minHeight: screenHeight),
+          constraints: BoxConstraints(minHeight: minContentHeight),
           child: SafeArea(
             child: Column(
               children: [
@@ -342,7 +365,7 @@ class _MainScreenState extends State<MainScreen> {
                             onChanged: (value) =>
                                 setState(() => _searchQuery = value),
                             decoration: InputDecoration(
-                              hintText: 'ค้นหาคอกไก่ (ชื่อคอก, เลขคอก)',
+                              hintText: 'ค้นหาคอกไก่ (ชื่อ, เลขคอก, วันที่)',
                               hintStyle: GoogleFonts.kanit(
                                 color: Colors.grey.shade400,
                                 fontSize: 13,
@@ -362,24 +385,62 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                       const SizedBox(width: 15),
                       InkWell(
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const Notifications(), // ⚠️ เปลี่ยนชื่อ Notifications() ให้ตรงกับชื่อ Class ในไฟล์ Notifications_.dart ของคุณ
+                              builder: (context) => const Notifications(),
                             ),
                           );
+                          _fetchNotificationCount();
                         },
                         borderRadius: BorderRadius.circular(
                           20,
                         ), // เพิ่มเอฟเฟกต์ตอนกดให้เป็นวงกลม
                         child: Padding(
                           padding: const EdgeInsets.all(4.0),
-                          child: Icon(
-                            Icons.notifications_none,
-                            color: ezColors(context).textPrimary,
-                            size: 32,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Icon(
+                                Icons.notifications_none,
+                                color: ezColors(context).textPrimary,
+                                size: 32,
+                              ),
+                              if (_notificationCount > 0)
+                                Positioned(
+                                  top: -2,
+                                  right: -2,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 1,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 18,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: ezColors(context).danger,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: ezBackgroundColor(context),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      _notificationCount > 99
+                                          ? '99+'
+                                          : '$_notificationCount',
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.kanit(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
@@ -755,26 +816,18 @@ class _MainScreenState extends State<MainScreen> {
                   _buildDrawerItem(
                     Icons.notifications_none,
                     'การแจ้งเตือน',
-                    () {
+                    () async {
                       Navigator.pop(context);
-                      Navigator.push(
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => const Notifications(),
                         ),
                       );
+                      _fetchNotificationCount();
                     },
+                    badgeCount: _notificationCount,
                   ),
-                  _buildDrawerItem(Icons.vaccines_outlined, 'การให้วัคซีน', () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            const ShowDatavaccine(vaccineTypeFilter: ''),
-                      ),
-                    );
-                  }),
                   _buildDrawerItem(Icons.pets, 'คอกไก่', () {
                     Navigator.pop(context);
                     Navigator.push(
@@ -784,60 +837,35 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                     );
                   }),
-                  _buildDrawerItem(Icons.sensors, 'เซนเซอร์', () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DataSystem(),
-                      ),
-                    );
-                  }),
-                  _buildDrawerItem(
-                    Icons.health_and_safety_outlined,
-                    'ตรวจสุขภาพ',
-                    () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const Chickenhealth(),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildDrawerItem(
-                    Icons.inventory_2_outlined,
-                    'สต็อกอาหาร',
-                    () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MainShowDataFood(),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildDrawerItem(
-                    Icons.developer_board_outlined,
-                    'อุปกรณ์',
-                    () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const DataSystem(),
-                        ),
-                      );
-                    },
-                  ),
                   _buildDrawerItem(Icons.tune_rounded, 'ค่ามาตรฐานทุกคอก', () {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const MainFarmThresholds(),
+                      ),
+                    );
+                  }),
+                  _buildDrawerItem(
+                    Icons.medical_information_outlined,
+                    'นัดตรวจสุขภาพ',
+                    () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const MainHealthAppointments(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(Icons.vaccines_outlined, 'เพิ่มยาวัคซีน', () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddVaccineType(),
                       ),
                     );
                   }),
@@ -880,7 +908,13 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildDrawerItem(IconData icon, String title, VoidCallback onTap) {
+  Widget _buildDrawerItem(
+    IconData icon,
+    String title,
+    VoidCallback onTap, {
+    int? badgeCount,
+  }) {
+    final bool hasBadge = badgeCount != null && badgeCount > 0;
     return ListTile(
       leading: Icon(icon, color: ezGoldColor(context)),
       title: Text(
@@ -891,6 +925,25 @@ class _MainScreenState extends State<MainScreen> {
           fontWeight: FontWeight.w500,
         ),
       ),
+      trailing: hasBadge
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              constraints: const BoxConstraints(minWidth: 22),
+              decoration: BoxDecoration(
+                color: ezColors(context).danger,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                badgeCount > 99 ? '99+' : '$badgeCount',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.kanit(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
+          : null,
       onTap: onTap,
     );
   }

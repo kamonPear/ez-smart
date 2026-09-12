@@ -4,7 +4,7 @@ import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
-import 'package:flutter_application_1/pages/close_open_Door.dart';
+import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -38,11 +38,15 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
     if (iso == null || iso.isEmpty) return '';
     final datePart = iso.split('T').first;
     if (datePart == '0001-01-01') return ''; // ค่าว่างที่ backend (Go) ส่งมา
-    final date = DateTime.tryParse(iso);
-    if (date == null) return '';
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    return '$day / $month / ${date.year + 543}';
+    // ✅ อ่านปี-เดือน-วันตรงๆ จากสตริง ไม่ผ่าน DateTime.parse ที่มี offset
+    // (เช่น "+07:00") เพราะจะถูกแปลงเป็น UTC ภายในจน .day ผิดไปวันนึง
+    final parts = datePart.split('-');
+    if (parts.length != 3) return '';
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+    if (year == null || month == null || day == null) return '';
+    return '${day.toString().padLeft(2, '0')} / ${month.toString().padLeft(2, '0')} / ${year + 543}';
   }
 
   @override
@@ -94,7 +98,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
     } else if (index == 1) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
       );
     } else if (index == 2) {
       Navigator.pushReplacement(

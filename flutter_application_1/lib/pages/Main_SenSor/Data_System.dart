@@ -4,7 +4,7 @@ import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood
 
 import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
-import 'package:flutter_application_1/pages/close_open_Door.dart';
+import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
@@ -147,7 +147,7 @@ class _DataSystemState extends State<DataSystem> {
     } else if (index == 1) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
       );
     } else if (index == 3) {
       Navigator.push(
@@ -173,7 +173,9 @@ class _DataSystemState extends State<DataSystem> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
+    final mediaQuery = MediaQuery.of(context);
+    double minContentHeight =
+        mediaQuery.size.height - mediaQuery.viewInsets.bottom;
 
     return Scaffold(
       extendBody: true,
@@ -183,7 +185,7 @@ class _DataSystemState extends State<DataSystem> {
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Container(
-            constraints: BoxConstraints(minHeight: screenHeight),
+            constraints: BoxConstraints(minHeight: minContentHeight),
             child: Stack(
               children: [
                 Padding(
@@ -193,11 +195,14 @@ class _DataSystemState extends State<DataSystem> {
                       const EzHeader(pageTitle: 'อุปกรณ์เซนเซอร์'),
                       const SizedBox(height: 20),
 
-                      // 1. ตัวเลือกคอก — ถ้ายังไม่เลือกคอก ให้เป็นการ์ดใหญ่ชัดเจน
-                      // ชวนให้เลือกก่อน (ไม่โชว์กริด/ฟอร์มรายละเอียดที่ว่างเปล่า)
-                      selectedCoopId == null
-                          ? _buildChooseCoopCard()
-                          : _buildCoopSwitcherBar(),
+                      // 1. ตัวเลือกคอก — ถ้าเปิดมาจากคอกใดคอกหนึ่งโดยเฉพาะ (initialCoopId)
+                      // ให้ล็อกไว้แค่คอกนั้น ไม่ให้สลับไปดูคอกอื่นได้เลย
+                      // ถ้ายังไม่เลือกคอก ให้เป็นการ์ดใหญ่ชัดเจนชวนให้เลือกก่อน
+                      widget.initialCoopId != null
+                          ? _buildLockedCoopBar()
+                          : (selectedCoopId == null
+                                ? _buildChooseCoopCard()
+                                : _buildCoopSwitcherBar()),
 
                       if (selectedCoopId != null) ...[
                         const SizedBox(height: 20),
@@ -448,6 +453,66 @@ class _DataSystemState extends State<DataSystem> {
   }
 
   /// แถบสลับคอกแบบกะทัดรัด แสดงตอนเลือกคอกแล้ว เปลี่ยนคอกอื่นได้จากตรงนี้เลย
+  /// แสดงชื่อคอกแบบล็อกตายตัว (ไม่มีลูกศร/แตะเปลี่ยนไม่ได้) ใช้ตอนเปิดมาจาก
+  /// หน้ารายละเอียดของคอกใดคอกหนึ่งโดยเฉพาะ (initialCoopId) - ห้ามสลับไปดูคอกอื่น
+  Widget _buildLockedCoopBar() {
+    final ez = ezColors(context);
+    final coop = coops.firstWhere(
+      (c) => (c['coop_id'] ?? c['id'])?.toString() == widget.initialCoopId,
+      orElse: () => {},
+    );
+    final String coopName =
+        (coop['name_coop'] ?? coop['coop_name'])?.toString().trim().isNotEmpty ==
+            true
+        ? (coop['name_coop'] ?? coop['coop_name']).toString()
+        : 'คอกที่ ${widget.initialCoopId}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: ezCardColor(context),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: ez.border, width: 1.2),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.pets_outlined, color: ez.gold, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'คอก$coopName',
+                  style: GoogleFonts.kanit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: ez.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          "สถานะอุปกรณ์",
+          style: GoogleFonts.kanit(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: ez.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          "แตะที่การ์ดด้านล่างเพื่อดูรายละเอียดอุปกรณ์นั้น",
+          style: GoogleFonts.kanit(fontSize: 11, color: ez.textSecondary),
+        ),
+      ],
+    );
+  }
+
   Widget _buildCoopSwitcherBar() {
     final ez = ezColors(context);
     final bool hasMatch = coops.any(

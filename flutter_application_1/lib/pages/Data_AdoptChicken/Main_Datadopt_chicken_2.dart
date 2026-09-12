@@ -4,11 +4,12 @@ import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
-import 'package:flutter_application_1/pages/close_open_Door.dart';
+import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import '../bottombar.dart';
+import 'Main_CoopDetail.dart';
 import 'Main_Dataadd_adopt2.dart';
 import 'Main_EditData_adoptchicken2.dart';
 import '../../models/coop.dart';
@@ -36,6 +37,8 @@ class _AdoptchickenState extends State<Adoptchicken> {
   final Map<String, int> _poorByCoop = {};
   final Map<String, String> _tempByCoop = {};
   final Map<String, String> _ppmByCoop = {};
+  // สถิติไข่รายเดือนของแต่ละคอก (key = coop_id -> ปี -> 12 เดือน) ใช้ส่งต่อให้หน้ารายละเอียดคอก
+  final Map<String, Map<String, List<double>>> _eggStatsByCoop = {};
 
   final ApiService api = ApiService(baseUrl: backendBaseUrl);
 
@@ -62,7 +65,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
     } else if (index == 1) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
       );
     } else if (index == 2) {
       Navigator.pushReplacement(
@@ -114,11 +117,13 @@ class _AdoptchickenState extends State<Adoptchicken> {
       final deviceResponse = await http.get(
         Uri.parse('$backendBaseUrl/api/devices'),
       );
+      final eggResponse = await http.get(Uri.parse('$backendBaseUrl/api/eggs'));
 
       _healthyByCoop.clear();
       _poorByCoop.clear();
       _tempByCoop.clear();
       _ppmByCoop.clear();
+      _eggStatsByCoop.clear();
 
       if (healthResponse.statusCode == 200) {
         final List<dynamic> healthData = jsonDecode(healthResponse.body);
@@ -148,6 +153,37 @@ class _AdoptchickenState extends State<Adoptchicken> {
         }
       }
 
+      if (eggResponse.statusCode == 200) {
+        final List<dynamic> eggData = jsonDecode(eggResponse.body);
+        for (final egg in eggData) {
+          final coopId = egg['coop_id']?.toString();
+          if (coopId == null) continue;
+
+          String year = DateTime.now().year.toString();
+          int month = DateTime.now().month;
+          if (egg['date_collect_egg'] != null) {
+            try {
+              final parsedDate = DateTime.parse(
+                egg['date_collect_egg'].toString(),
+              ).toLocal();
+              year = parsedDate.year.toString();
+              month = parsedDate.month;
+            } catch (_) {
+              // ใช้วันที่ปัจจุบันแทนถ้าพาร์สไม่ได้
+            }
+          }
+
+          final amount =
+              double.tryParse((egg['number_egg'] ?? '0').toString()) ?? 0.0;
+
+          final coopStats = _eggStatsByCoop.putIfAbsent(coopId, () => {});
+          coopStats.putIfAbsent(year, () => List.filled(12, 0.0));
+          if (month >= 1 && month <= 12) {
+            coopStats[year]![month - 1] += amount;
+          }
+        }
+      }
+
       if (mounted) setState(() {});
     } catch (_) {
       // ข้อมูลเสริม ดึงไม่ได้ก็ยังแสดงรายการคอกได้ตามปกติ
@@ -163,7 +199,10 @@ class _AdoptchickenState extends State<Adoptchicken> {
     if (birth == null) return null;
     final days = DateTime.now().difference(birth).inDays;
     if (days < 0) return null;
-    return '$days วัน';
+    final months = days ~/ 30;
+    final remainderDays = days % 30;
+    if (months < 1) return '$days วัน';
+    return '$days วัน / $months เดือน $remainderDays วัน';
   }
 
   /// แถวข้อมูลในการ์ด: ไอคอน + ชื่อหัวข้อทางซ้าย, ค่าทางขวา
@@ -415,65 +454,153 @@ class _AdoptchickenState extends State<Adoptchicken> {
       note: coop.note,
     );
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: ezCardColor(context),
-        borderRadius: BorderRadius.circular(18),
+    void openDetail() => Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CoopDetailPage(
+          coop: {
+            "id": coop.id,
+            "name": coop.name,
+            "amount": coop.count,
+            "import_date": importDate,
+            "birth_date": birthDate,
+            "healthy": (_healthyByCoop[coop.id] ?? 0).toString(),
+            "poor_health": (_poorByCoop[coop.id] ?? 0).toString(),
+            "temp": _tempByCoop[coop.id] ?? "0",
+            "ppm": _ppmByCoop[coop.id] ?? "0",
+            "egg_data": _eggStatsByCoop[coop.id] ?? {},
+          },
+        ),
       ),
-      // เปิดการ์ด "จัดการคอกไก่" ได้จากปุ่ม 3 จุดเท่านั้น กดที่อื่นในการ์ดไม่มีอะไรเกิดขึ้น
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 10, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // แถวบน: รูปไก่ + ชื่อคอก + จำนวนไก่ + ปุ่มจัดการ
-            Row(
+    );
+
+    return Material(
+      color: ezCardColor(context),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: openDetail,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          // แตะที่การ์ดเพื่อดูข้อมูลของคอกนี้ กดปุ่ม 3 จุดเพื่อจัดการ (แก้ไข/ลบ)
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 10, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: ez.textPrimary.withValues(alpha: 0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text('🐔', style: TextStyle(fontSize: 23)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'คอกไก่ ${coop.name}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.kanit(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: ez.textPrimary,
-                        ),
+                // แถวบน: รูปไก่ + ชื่อคอก + จำนวนไก่ + ปุ่มจัดการ
+                Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: ez.textPrimary.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 2),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      alignment: Alignment.center,
+                      child: const Text('🐔', style: TextStyle(fontSize: 23)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            cleanCount,
+                            'คอกไก่ ${coop.name}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.kanit(
-                              fontSize: 22,
+                              fontSize: 17,
                               fontWeight: FontWeight.bold,
-                              height: 1,
-                              color: ez.danger,
+                              color: ez.textPrimary,
                             ),
                           ),
-                          const SizedBox(width: 5),
-                          Text(
-                            'ตัว',
-                            style: GoogleFonts.kanit(
-                              fontSize: 13,
-                              color: ez.textPrimary,
+                          const SizedBox(height: 2),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                cleanCount,
+                                style: GoogleFonts.kanit(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1,
+                                  color: ez.danger,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'ตัว',
+                                style: GoogleFonts.kanit(
+                                  fontSize: 13,
+                                  color: ez.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: openActions,
+                      tooltip: 'จัดการคอกไก่',
+                      icon: Icon(Icons.more_vert, color: ez.textSecondary),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 6, top: 10),
+                  child: Column(
+                    children: [
+                      Divider(color: ez.border, height: 1),
+                      if (ageText != null)
+                        _buildInfoRow(
+                          Icons.hourglass_bottom_outlined,
+                          'อายุไก่',
+                          ageText,
+                        ),
+                      _buildInfoRow(
+                        Icons.calendar_today_outlined,
+                        'วันที่นำเข้า',
+                        importDate,
+                      ),
+                      _buildInfoRow(
+                        Icons.egg_outlined,
+                        'วันเกิดไก่',
+                        birthDate,
+                      ),
+                      if (hasNote)
+                        _buildInfoRow(
+                          Icons.sticky_note_2_outlined,
+                          'หมายเหตุ',
+                          note,
+                        ),
+                      const SizedBox(height: 14),
+                      _buildHealthSection(
+                        _healthyByCoop[coop.id] ?? 0,
+                        _poorByCoop[coop.id] ?? 0,
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildSensorChip(
+                              icon: Icons.thermostat,
+                              label: 'อุณหภูมิ',
+                              value: _tempByCoop[coop.id],
+                              unit: '°C',
+                              color: const Color(0xFF33C7CC),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildSensorChip(
+                              icon: Icons.air,
+                              label: 'แอมโมเนีย',
+                              value: _ppmByCoop[coop.id],
+                              unit: 'PPM',
+                              color: const Color(0xFFE58940),
                             ),
                           ),
                         ],
@@ -481,69 +608,9 @@ class _AdoptchickenState extends State<Adoptchicken> {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: openActions,
-                  tooltip: 'จัดการคอกไก่',
-                  icon: Icon(Icons.more_vert, color: ez.textSecondary),
-                ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.only(right: 6, top: 10),
-              child: Column(
-                children: [
-                  Divider(color: ez.border, height: 1),
-                  if (ageText != null)
-                    _buildInfoRow(
-                      Icons.hourglass_bottom_outlined,
-                      'อายุไก่',
-                      ageText,
-                    ),
-                  _buildInfoRow(
-                    Icons.calendar_today_outlined,
-                    'วันที่นำเข้า',
-                    importDate,
-                  ),
-                  _buildInfoRow(Icons.egg_outlined, 'วันเกิดไก่', birthDate),
-                  if (hasNote)
-                    _buildInfoRow(
-                      Icons.sticky_note_2_outlined,
-                      'หมายเหตุ',
-                      note,
-                    ),
-                  const SizedBox(height: 14),
-                  _buildHealthSection(
-                    _healthyByCoop[coop.id] ?? 0,
-                    _poorByCoop[coop.id] ?? 0,
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildSensorChip(
-                          icon: Icons.thermostat,
-                          label: 'อุณหภูมิ',
-                          value: _tempByCoop[coop.id],
-                          unit: '°C',
-                          color: const Color(0xFF33C7CC),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _buildSensorChip(
-                          icon: Icons.air,
-                          label: 'แอมโมเนีย',
-                          value: _ppmByCoop[coop.id],
-                          unit: 'PPM',
-                          color: const Color(0xFFE58940),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

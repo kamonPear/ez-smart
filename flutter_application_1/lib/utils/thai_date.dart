@@ -48,7 +48,17 @@ String thaiDateFromIso(String? isoString, {String fallback = '-'}) {
   if (isoString == null || isoString.isEmpty) return fallback;
   final datePart = isoString.split('T').first;
   if (datePart == '0001-01-01' || datePart.isEmpty) return fallback;
-  final date = DateTime.tryParse(isoString);
-  if (date == null) return fallback;
-  return thaiDate(date);
+  // ✅ อ่านปี-เดือน-วันตรงๆ จากสตริง ไม่ผ่าน DateTime.parse
+  // เพราะ backend ส่งวันที่แบบมี offset เช่น "+07:00" ซึ่ง Dart จะแปลงเป็น UTC
+  // ภายในให้อัตโนมัติ (เลื่อนถอยหลัง 7 ชม.) ทำให้ .day ที่อ่านได้ผิดไปวันนึง
+  // ถ้าไม่เรียก .toLocal() ก่อน — ตัดปัญหานี้ทิ้งไปเลยด้วยการไม่พึ่ง DateTime
+  final parts = datePart.split('-');
+  if (parts.length != 3) return fallback;
+  final year = int.tryParse(parts[0]);
+  final month = int.tryParse(parts[1]);
+  final day = int.tryParse(parts[2]);
+  if (year == null || month == null || day == null) return fallback;
+  if (month < 1 || month > 12) return fallback;
+  final thaiYear = year + 543;
+  return '$day ${kThaiMonthsShort[month - 1]} $thaiYear';
 }

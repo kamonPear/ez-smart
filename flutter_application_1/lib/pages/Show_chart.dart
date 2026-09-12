@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
-import 'package:flutter_application_1/pages/close_open_Door.dart';
+import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -148,7 +148,7 @@ class _ShowChartState extends State<ShowChart> {
     } else if (index == 1) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
       );
     } else {
       setState(() {
@@ -159,7 +159,9 @@ class _ShowChartState extends State<ShowChart> {
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
+    final mediaQuery = MediaQuery.of(context);
+    double minContentHeight =
+        mediaQuery.size.height - mediaQuery.viewInsets.bottom;
 
     return Scaffold(
       extendBody: true,
@@ -168,7 +170,7 @@ class _ShowChartState extends State<ShowChart> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Container(
-            constraints: BoxConstraints(minHeight: screenHeight),
+            constraints: BoxConstraints(minHeight: minContentHeight),
             child: Column(
               children: [
                 const EzHeader(pageTitle: 'กราฟข้อมูลการเก็บไข่'),

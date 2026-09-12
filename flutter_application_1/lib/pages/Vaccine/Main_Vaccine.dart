@@ -5,11 +5,9 @@ import 'package:http/http.dart' as http;
 // Import สำหรับการนำทาง (กรุณาปรับให้ตรงกับ Path ของโปรเจกต์คุณ)
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
-import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
-import 'package:flutter_application_1/pages/Vaccine/Show_Datavaccine.dart';
 import 'package:flutter_application_1/pages/calendar.dart';
-import 'package:flutter_application_1/pages/close_open_Door.dart';
+import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
 import '../main_dash.dart';
@@ -39,12 +37,62 @@ class _MainVaccineState extends State<MainVaccine> {
   bool _isLoading = true;
   Map<String, String> _coopNames =
       {}; // ✅ แผนที่ coop_id -> ชื่อคอก สำหรับแสดงผล
+  Map<String, String> _coopChickenCounts = {}; // coop_id -> จำนวนไก่ทั้งหมดในคอก
+  // ผลตรวจสุขภาพล่าสุดของแต่ละคอก ก่อนวันฉีดวัคซีน (key = "coopId_yyyy-MM-dd")
+  // ใช้บอกว่ามีไก่สุขภาพดีกี่ตัวที่พร้อมฉีดได้จริง (ตรวจก่อนฉีด 1 วันเสมอ)
+  final Map<String, int> _healthyByCoopDate = {};
 
   @override
   void initState() {
     super.initState();
     fetchVaccineAlerts();
     _fetchCoopNames();
+    _fetchHealthRecords();
+  }
+
+  Future<void> _fetchHealthRecords() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$backendBaseUrl/api/healths'),
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> healths = json.decode(response.body);
+        final Map<String, int> byKey = {};
+        for (final h in healths) {
+          final coopId = h['coop_id']?.toString();
+          if (coopId == null || h['record_date'] == null) continue;
+          try {
+            final d = DateTime.parse(h['record_date']).toLocal();
+            final key =
+                '${coopId}_${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+            byKey[key] = int.tryParse(h['healthy']?.toString() ?? '') ?? 0;
+          } catch (e) {
+            debugPrint('Error parsing health record date: $e');
+          }
+        }
+        if (mounted) setState(() => _healthyByCoopDate
+          ..clear()
+          ..addAll(byKey));
+      }
+    } catch (e) {
+      debugPrint('เกิดข้อผิดพลาดในการดึงผลตรวจสุขภาพ: $e');
+    }
+  }
+
+  /// จำนวนไก่สุขภาพดีที่พร้อมฉีดวัคซีนของ alert นี้ - ดูผลตรวจสุขภาพของคอกนั้น
+  /// ในวันก่อนวันฉีด 1 วัน (วันที่ควรตรวจตามกฎ) คืน null ถ้ายังไม่มีผลตรวจ
+  int? _readyCountFor(Map<String, dynamic> alert) {
+    final coopId = alert['coop_id']?.toString();
+    if (coopId == null || alert['date'] == null) return null;
+    try {
+      final vaccineDate = DateTime.parse(alert['date']).toLocal();
+      final checkDate = vaccineDate.subtract(const Duration(days: 1));
+      final key =
+          '${coopId}_${checkDate.year.toString().padLeft(4, '0')}-${checkDate.month.toString().padLeft(2, '0')}-${checkDate.day.toString().padLeft(2, '0')}';
+      return _healthyByCoopDate[key];
+    } catch (e) {
+      return null;
+    }
   }
 
   Future<void> _fetchCoopNames() async {
@@ -59,6 +107,15 @@ class _MainVaccineState extends State<MainVaccine> {
                   (item['name_coop']?.toString().trim().isNotEmpty == true)
                   ? item['name_coop'].toString()
                   : (item['coop_id'] ?? item['id']).toString(),
+          };
+          _coopChickenCounts = {
+            for (var item in data)
+              (item['coop_id'] ?? item['id']).toString():
+                  (item['chicken_count'] ??
+                          item['amount'] ??
+                          item['quantity'])
+                      ?.toString() ??
+                  '-',
           };
         });
       }
@@ -202,8 +259,22 @@ class _MainVaccineState extends State<MainVaccine> {
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
 
+        // ✅ กันข้อมูลนัดซ้ำ (คอกเดียวกัน + ชื่อวัคซีนเดียวกัน + วันเดียวกัน)
+        // ถ้าซ้ำ ให้เลือกรายการที่ "ให้วัคซีนแล้ว" ไว้ก่อน
+        final Map<String, dynamic> deduped = {};
+        for (final alert in data) {
+          final key =
+              '${alert['coop_id']}_${alert['vaccine_name']}_${alert['date']}';
+          final existing = deduped[key];
+          if (existing == null ||
+              (alert['is_completed'] == true &&
+                  existing['is_completed'] != true)) {
+            deduped[key] = alert;
+          }
+        }
+
         setState(() {
-          _vaccineAlerts = data;
+          _vaccineAlerts = deduped.values.toList();
           _updateDayMarkers();
           _isLoading = false;
         });
@@ -630,7 +701,7 @@ class _MainVaccineState extends State<MainVaccine> {
     } else if (index == 1) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const CloseOpenDoor()),
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
       );
     } else if (index == 2) {
       Navigator.pushReplacement(
@@ -735,7 +806,9 @@ class _MainVaccineState extends State<MainVaccine> {
                               return buildAlertCard(alert);
                             }).toList(),
                           ),
-                    const SizedBox(height: 40),
+                    // ✅ เผื่อพื้นที่ด้านล่างให้พ้นแถบเมนูลอย ไม่งั้นปุ่ม "เสร็จสิ้น (ให้วัคซีน)"
+                    // ของการ์ดใบสุดท้ายจะโดนแถบเมนูบังจนกดไม่ได้ (extendBody: true)
+                    const SizedBox(height: 110),
                   ],
                 ),
               ),
@@ -743,26 +816,6 @@ class _MainVaccineState extends State<MainVaccine> {
           ],
         ),
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 20.0, right: 5.0),
-        child: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ShowDatavaccine(
-                  vaccineTypeFilter: "ทั้งหมด",
-                  initialCoopId: widget.initialCoopId,
-                ),
-              ),
-            );
-          },
-          backgroundColor: const Color(0xFFE53935),
-          shape: const CircleBorder(),
-          child: Icon(Icons.add, color: Colors.white, size: 36),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: CustomBottomBar(
         selectedIndex: selectedIndex,
         onTabSelected: onTabSelected,
@@ -814,6 +867,7 @@ class _MainVaccineState extends State<MainVaccine> {
         : '-';
     String chickenAge = alert['chicken_age']?.toString() ?? '-';
     String remark = alert['description']?.toString() ?? '';
+    String totalCount = _coopChickenCounts[rawCoopId] ?? '-';
 
     late final Color statusBg;
     late final Color statusFg;
@@ -929,38 +983,108 @@ class _MainVaccineState extends State<MainVaccine> {
               color: ez.inputFill,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: _buildMiniInfo(
-                    ez,
-                    icon: Icons.home_work_outlined,
-                    label: 'คอก',
-                    value: coopId,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMiniInfo(
+                        ez,
+                        icon: Icons.home_work_outlined,
+                        label: 'คอก',
+                        value: coopId,
+                      ),
+                    ),
+                    Container(width: 1, height: 32, color: ez.border),
+                    Expanded(
+                      child: _buildMiniInfo(
+                        ez,
+                        icon: Icons.cake_outlined,
+                        label: 'อายุไก่',
+                        value: '$chickenAge วัน',
+                      ),
+                    ),
+                  ],
                 ),
-                Container(width: 1, height: 32, color: ez.border),
-                Expanded(
-                  child: _buildMiniInfo(
-                    ez,
-                    icon: Icons.cake_outlined,
-                    label: 'อายุไก่',
-                    value: '$chickenAge วัน',
-                  ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Divider(color: ez.border, height: 1, thickness: 1),
                 ),
-                Container(width: 1, height: 32, color: ez.border),
-                Expanded(
-                  child: _buildMiniInfo(
-                    ez,
-                    icon: Icons.medical_services_outlined,
-                    label: 'วิธีให้',
-                    value: injectionType,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMiniInfo(
+                        ez,
+                        icon: Icons.medical_services_outlined,
+                        label: 'วิธีให้',
+                        value: injectionType,
+                      ),
+                    ),
+                    Container(width: 1, height: 32, color: ez.border),
+                    Expanded(
+                      child: _buildMiniInfo(
+                        ez,
+                        icon: Icons.pets_outlined,
+                        label: 'จำนวนไก่',
+                        value: totalCount == '-' ? '-' : '$totalCount ตัว',
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
+
+          Builder(
+            builder: (_) {
+              final readyCount = _readyCountFor(alert);
+              final bool showBanner = !isCompleted;
+              if (!showBanner) return const SizedBox.shrink();
+              final bool hasCheck = readyCount != null;
+              final Color bannerColor = hasCheck ? ez.accentGreen : ez.danger;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: bannerColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        hasCheck
+                            ? Icons.vaccines_outlined
+                            : Icons.warning_amber_rounded,
+                        size: 16,
+                        color: bannerColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          hasCheck
+                              ? 'พร้อมให้วัคซีนได้ $readyCount จาก $totalCount ตัว (จากผลตรวจสุขภาพ)'
+                              : totalCount == '-'
+                              ? 'ยังไม่มีผลตรวจสุขภาพสำหรับนัดนี้'
+                              : 'ยังไม่มีผลตรวจสุขภาพสำหรับนัดนี้ (คอกนี้มีไก่ $totalCount ตัว)',
+                          style: GoogleFonts.kanit(
+                            color: bannerColor,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
 
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
