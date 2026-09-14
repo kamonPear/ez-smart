@@ -76,9 +76,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _fetchFoodStock() async {
     try {
-      final response = await http.get(
-        Uri.parse('$backendBaseUrl/api/foods'),
-      );
+      final response = await http.get(Uri.parse('$backendBaseUrl/api/foods'));
       if (response.statusCode == 200) {
         final dynamic decoded = jsonDecode(response.body);
         final List<dynamic> rows = decoded is List ? decoded : [];
@@ -854,21 +852,24 @@ class _MainScreenState extends State<MainScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              const MainHealthAppointments(),
+                          builder: (context) => const MainHealthAppointments(),
                         ),
                       );
                     },
                   ),
-                  _buildDrawerItem(Icons.vaccines_outlined, 'เพิ่มยาวัคซีน', () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddVaccineType(),
-                      ),
-                    );
-                  }),
+                  _buildDrawerItem(
+                    Icons.vaccines_outlined,
+                    'เพิ่มยาวัคซีน',
+                    () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AddVaccineType(),
+                        ),
+                      );
+                    },
+                  ),
                   Divider(color: ezColors(context).border, height: 24),
                   _buildThemeToggleItem(context),
                 ],

@@ -137,15 +137,18 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
         final alreadyChecked = checkedHealthDates.contains(
           '${coopId}_${dateKey(healthCheckDate)}',
         );
-        if (!alreadyChecked && daysUntilHealthCheck <= kNotificationAdvanceDays) {
+        if (!alreadyChecked &&
+            daysUntilHealthCheck <= kNotificationAdvanceDays) {
           String healthTitle;
           if (daysUntilHealthCheck < 0) {
             healthTitle =
                 "‼️ เลยกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $vaccineName มา ${-daysUntilHealthCheck} วันแล้ว";
           } else if (daysUntilHealthCheck == 0) {
-            healthTitle = "‼️ วันนี้ถึงกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $vaccineName";
+            healthTitle =
+                "‼️ วันนี้ถึงกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $vaccineName";
           } else if (daysUntilHealthCheck == 1) {
-            healthTitle = "🩺 พรุ่งนี้ถึงกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $vaccineName";
+            healthTitle =
+                "🩺 พรุ่งนี้ถึงกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $vaccineName";
           } else {
             healthTitle =
                 "🩺 อีก $daysUntilHealthCheck วันถึงกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $vaccineName";
@@ -177,7 +180,8 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
         } else if (daysUntilVaccine == 1) {
           notiTitle = "💉 พรุ่งนี้ถึงกำหนดให้ $vaccineName ที่ $coopName";
         } else {
-          notiTitle = "💉 อีก $daysUntilVaccine วันถึงกำหนดให้ $vaccineName ที่ $coopName";
+          notiTitle =
+              "💉 อีก $daysUntilVaccine วันถึงกำหนดให้ $vaccineName ที่ $coopName";
         }
 
         newNotifications.add({

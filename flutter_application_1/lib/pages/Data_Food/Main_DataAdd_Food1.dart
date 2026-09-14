@@ -12,6 +12,8 @@ import '../../widgets/ez_header.dart';
 import '../../widgets/ez_form_field.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_top_banner.dart';
+import '../../widgets/ez_date_picker.dart';
+import '../../theme/app_theme.dart';
 
 /// ประเภทอาหารที่รองรับ - ผูกกับช่วงอายุไก่ที่กินอาหารประเภทนั้น
 const String kFoodTypeSmallPellet = 'เม็ดเล็ก';
@@ -65,35 +67,52 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
   }
 
   // 🌟 ฟังก์ชันคำนวณวันที่อาหารใกล้หมดอัตโนมัติ
+  // ✅ ต้องกรอก "กำหนดปริมาณใกล้หมด" ก่อนเสมอ ไม่งั้นค่าเริ่มต้นจะถูกมองเป็น 0
+  // ซึ่งกลายเป็นคำนวณวันที่ (ผิดๆ) ขึ้นมาทั้งที่ผู้ใช้ยังไม่ได้กรอกอะไรเลย
   void _calculateExpiryDate() {
+    double amount = double.tryParse(_amountController.text) ?? 0.0;
+    final thresholdText = _thresholdController.text.trim();
+
+    if (amount <= 0 || thresholdText.isEmpty) {
+      setState(() {
+        _selectedExpiryDate = null;
+        _expireDateController.text = '';
+      });
+      return;
+    }
+
+    final threshold = double.tryParse(thresholdText);
+    if (threshold == null) {
+      setState(() {
+        _selectedExpiryDate = null;
+        _expireDateController.text = '';
+      });
+      return;
+    }
+
     // ถ้ายังไม่ได้เลือกวันนำเข้า ให้ใช้วันนี้เป็นฐานคำนวณไปก่อน
     DateTime startDate = _selectedImportDate ?? DateTime.now();
-
-    double amount = double.tryParse(_amountController.text) ?? 0.0;
-    double threshold = double.tryParse(_thresholdController.text) ?? 0.0;
 
     // อัตราการกิน/ตัดสต็อก ต่อวัน (20 กิโลกรัม)
     double consumePerDay = 20.0;
 
-    if (amount > 0) {
-      int daysLeft = 0;
-      // ถ้าปริมาณอาหาร มากกว่าปริมาณแจ้งเตือน ถึงจะคำนวณวันได้
-      if (amount > threshold) {
-        // หาว่าใช้เวลากี่วันถึงจะลดไปถึงจุด threshold
-        daysLeft = ((amount - threshold) / consumePerDay).ceil();
-      }
-
-      setState(() {
-        // เอาวันที่เริ่มต้น + จำนวนวันที่อยู่ได้
-        _selectedExpiryDate = startDate.add(Duration(days: daysLeft));
-
-        // อัปเดตไปแสดงผลที่ช่อง TextField ของวันหมดอายุ
-        int thaiYear = _selectedExpiryDate!.year + 543;
-        String day = _selectedExpiryDate!.day.toString().padLeft(2, '0');
-        String month = _selectedExpiryDate!.month.toString().padLeft(2, '0');
-        _expireDateController.text = "$day / $month / $thaiYear";
-      });
+    int daysLeft = 0;
+    // ถ้าปริมาณอาหาร มากกว่าปริมาณแจ้งเตือน ถึงจะคำนวณวันได้
+    if (amount > threshold) {
+      // หาว่าใช้เวลากี่วันถึงจะลดไปถึงจุด threshold
+      daysLeft = ((amount - threshold) / consumePerDay).ceil();
     }
+
+    setState(() {
+      // เอาวันที่เริ่มต้น + จำนวนวันที่อยู่ได้
+      _selectedExpiryDate = startDate.add(Duration(days: daysLeft));
+
+      // อัปเดตไปแสดงผลที่ช่อง TextField ของวันหมดอายุ
+      int thaiYear = _selectedExpiryDate!.year + 543;
+      String day = _selectedExpiryDate!.day.toString().padLeft(2, '0');
+      String month = _selectedExpiryDate!.month.toString().padLeft(2, '0');
+      _expireDateController.text = "$day / $month / $thaiYear";
+    });
   }
 
   // 🌟 ฟังก์ชันส่งข้อมูลไปยัง API
@@ -225,14 +244,10 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
   ) async {
     DateTime initialDate = DateTime.now();
 
-    final DateTime? picked = await showDatePicker(
-      context: context,
+    final DateTime? picked = await showEzDatePicker(
+      context,
       initialDate: initialDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
       helpText: 'เลือกวันที่',
-      cancelText: 'ยกเลิก',
-      confirmText: 'ตกลง',
     );
 
     if (picked != null) {
@@ -254,6 +269,69 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
         }
       });
     }
+  }
+
+  /// การ์ดเลือกประเภทอาหาร — แตะเลือกได้ทันที ไม่ต้องเปิดดรอปดาวน์ (เร็วกว่า
+  /// และเห็นช่วงอายุที่เหมาะกับแต่ละประเภทได้เลยโดยไม่ต้องเลือกก่อนถึงจะเห็น)
+  Widget _buildFoodTypeChoice(
+    EzColors ez, {
+    required String value,
+    required IconData icon,
+    required double iconSize,
+  }) {
+    final bool selected = _selectedFoodType == value;
+    return InkWell(
+      onTap: () => setState(() => _selectedFoodType = value),
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: selected ? ez.gold.withValues(alpha: 0.12) : ez.inputFill,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? ez.gold : ez.border,
+            width: selected ? 1.6 : 1.2,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  size: iconSize,
+                  color: selected ? ez.gold : ez.textSecondary,
+                ),
+                const Spacer(),
+                Icon(
+                  selected
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked,
+                  size: 20,
+                  color: selected ? ez.gold : ez.border,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              value,
+              style: GoogleFonts.kanit(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: selected ? ez.gold : ez.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              foodTypeAgeHint(value),
+              style: GoogleFonts.kanit(fontSize: 10.5, color: ez.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -322,41 +400,53 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
                     ),
                     const SizedBox(height: 20),
 
-                    EzFormDropdown<String>(
-                      label: 'ประเภทอาหาร',
-                      isRequired: true,
-                      value: _selectedFoodType,
-                      hint: 'เลือกประเภทอาหาร',
-                      items: const [
-                        DropdownMenuItem(
-                          value: kFoodTypeSmallPellet,
-                          child: Text(kFoodTypeSmallPellet),
-                        ),
-                        DropdownMenuItem(
-                          value: kFoodTypeLargePellet,
-                          child: Text(kFoodTypeLargePellet),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedFoodType = value;
-                        });
-                      },
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        left: kEzFormLabelWidth,
-                        top: 4,
+                    Text.rich(
+                      TextSpan(
+                        text: 'ประเภทอาหาร',
+                        children: [
+                          TextSpan(
+                            text: ' *',
+                            style: GoogleFonts.kanit(
+                              color: ez.danger,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Text(
-                        foodTypeAgeHint(_selectedFoodType),
-                        style: GoogleFonts.kanit(
-                          fontSize: 11,
-                          color: ez.textSecondary,
-                        ),
+                      style: GoogleFonts.kanit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: ez.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
+                    // ✅ IntrinsicHeight + stretch ให้การ์ดทั้ง 2 สูงเท่ากันเสมอ
+                    // ไม่ว่าข้อความช่วงอายุของแต่ละประเภทจะขึ้นบรรทัดเดียวหรือ 2 บรรทัด
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: _buildFoodTypeChoice(
+                              ez,
+                              value: kFoodTypeSmallPellet,
+                              icon: Icons.grain,
+                              iconSize: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildFoodTypeChoice(
+                              ez,
+                              value: kFoodTypeLargePellet,
+                              icon: Icons.grain,
+                              iconSize: 26,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
                     EzFormDateField(
                       label: 'วันที่นำอาหารเข้า',

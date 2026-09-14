@@ -10,6 +10,7 @@ import '../main_dash.dart';
 import '../Data_AdoptChicken/Main_DataChicken_2.dart';
 import '../Show_chart.dart';
 import '../Data_Food/Main_DataFood_ShowDataFood1.dart';
+import 'Main_DeviceTypeDetail.dart';
 
 /// สรุปอุปกรณ์/เซนเซอร์รวมทั้งฟาร์ม - นับจำนวนอุปกรณ์แต่ละชนิดรวมทุกคอก
 /// ไม่แสดงซ้ำแยกทีละคอก เอาแค่ยอดรวมทั้งฟาร์มว่ามีกี่ตัว ออนไลน์กี่ตัว
@@ -24,6 +25,7 @@ class _DeviceGroup {
   final String name;
   int total = 0;
   int online = 0;
+  final List<Map<String, dynamic>> devices = [];
 
   _DeviceGroup(this.name);
 }
@@ -98,11 +100,29 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
   Future<void> _fetchDevices() async {
     setState(() => _isLoading = true);
     try {
-      final response = await http.get(
-        Uri.parse('$backendBaseUrl/api/devices'),
-      );
-      if (response.statusCode == 200) {
-        final List<dynamic> devices = json.decode(response.body);
+      final results = await Future.wait([
+        http.get(Uri.parse('$backendBaseUrl/api/devices')),
+        http.get(Uri.parse('$backendBaseUrl/api/coops')),
+      ]);
+      final devicesResp = results[0];
+      final coopsResp = results[1];
+
+      // ✅ ห้ามพึ่ง name_coop ที่ติดมากับตัว device เอง (backend ส่งเป็นค่าว่าง
+      // เสมอ) ต้องดึงชื่อจริงจาก /api/coops มาจับคู่กับ coop_id เอง
+      Map<String, String> coopNames = {};
+      if (coopsResp.statusCode == 200) {
+        final List<dynamic> coops = json.decode(coopsResp.body);
+        coopNames = {
+          for (final c in coops)
+            (c['coop_id'] ?? c['id']).toString():
+                (c['name_coop']?.toString().trim().isNotEmpty == true)
+                ? c['name_coop'].toString()
+                : (c['coop_id'] ?? c['id']).toString(),
+        };
+      }
+
+      if (devicesResp.statusCode == 200) {
+        final List<dynamic> devices = json.decode(devicesResp.body);
         final Map<String, _DeviceGroup> byName = {};
 
         for (final d in devices) {
@@ -114,6 +134,10 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
           final group = byName.putIfAbsent(name, () => _DeviceGroup(name));
           group.total += 1;
           if (isOnline) group.online += 1;
+          final device = Map<String, dynamic>.from(d as Map<String, dynamic>);
+          final coopId = device['coop_id']?.toString() ?? '';
+          device['name_coop'] = coopNames[coopId] ?? 'คอก $coopId';
+          group.devices.add(device);
         }
 
         final groups = byName.values.toList()
@@ -138,57 +162,71 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
   Widget _buildGroupCard(_DeviceGroup g) {
     final ez = ezColors(context);
     final meta = _iconFor(g.name);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: ezCardDecoration(context, radius: 16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: meta.color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(meta.icon, color: meta.color, size: 22),
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MainDeviceTypeDetail(
+            deviceName: g.name,
+            icon: meta.icon,
+            color: meta.color,
+            devices: g.devices,
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  g.name,
-                  style: GoogleFonts.kanit(
-                    color: ez.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: ezCardDecoration(context, radius: 16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: meta.color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(meta.icon, color: meta.color, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    g.name,
+                    style: GoogleFonts.kanit(
+                      color: ez.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'ออนไลน์ ${g.online} / ${g.total} ตัว',
-                  style: GoogleFonts.kanit(
-                    color: ez.textSecondary,
-                    fontSize: 12.5,
+                  const SizedBox(height: 3),
+                  Text(
+                    'ออนไลน์ ${g.online} / ${g.total} ตัว',
+                    style: GoogleFonts.kanit(
+                      color: ez.textSecondary,
+                      fontSize: 12.5,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Text(
-            '${g.total}',
-            style: GoogleFonts.kanit(
-              color: ez.gold,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
+            Text(
+              '${g.total}',
+              style: GoogleFonts.kanit(
+                color: ez.gold,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            'ตัว',
-            style: GoogleFonts.kanit(color: ez.textSecondary, fontSize: 13),
-          ),
-        ],
+            const SizedBox(width: 4),
+            Text(
+              'ตัว',
+              style: GoogleFonts.kanit(color: ez.textSecondary, fontSize: 13),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -223,9 +261,11 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
                             4,
                             (_) => Padding(
                               padding: const EdgeInsets.only(bottom: 12),
-                              child: _buildGroupCard(_DeviceGroup('DHT22')
-                                ..total = 4
-                                ..online = 3),
+                              child: _buildGroupCard(
+                                _DeviceGroup('DHT22')
+                                  ..total = 4
+                                  ..online = 3,
+                              ),
                             ),
                           ),
                         ),

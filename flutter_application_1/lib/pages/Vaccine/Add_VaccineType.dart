@@ -7,6 +7,12 @@ import '../../widgets/ez_header.dart';
 import '../../widgets/ez_form_field.dart';
 import '../../widgets/ez_top_banner.dart';
 import '../../utils/vaccine_methods.dart';
+import '../bottombar.dart';
+import '../main_dash.dart';
+import '../Data_AdoptChicken/Main_DataChicken_2.dart';
+import '../Data_Food/Main_DataFood_ShowDataFood1.dart';
+import '../Main_SenSor/Main_DeviceSummary.dart';
+import '../Show_chart.dart';
 
 /// หน้าเพิ่ม "ประเภทวัคซีน/ยา" ใหม่เข้าไปในระบบ นอกเหนือจากที่ฟิกไว้เดิม
 /// เพื่อให้เจ้าของฟาร์มกรอกยาชนิดอื่นที่ยังไม่มีในระบบได้เอง
@@ -19,6 +25,7 @@ class AddVaccineType extends StatefulWidget {
 }
 
 class _AddVaccineTypeState extends State<AddVaccineType> {
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _minAgeController = TextEditingController();
   final TextEditingController _maxAgeController = TextEditingController();
@@ -39,17 +46,29 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
   Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      showEzTopBanner(context, 'กรุณากรอกชื่อยา/วัคซีน', type: EzBannerType.warning);
+      showEzTopBanner(
+        context,
+        'กรุณากรอกชื่อยา/วัคซีน',
+        type: EzBannerType.warning,
+      );
       return;
     }
     if (_selectedMethod == null) {
-      showEzTopBanner(context, 'กรุณาเลือกวิธีการให้', type: EzBannerType.warning);
+      showEzTopBanner(
+        context,
+        'กรุณาเลือกวิธีการให้',
+        type: EzBannerType.warning,
+      );
       return;
     }
     final minAge = int.tryParse(_minAgeController.text.trim());
     final maxAge = int.tryParse(_maxAgeController.text.trim());
     if (minAge == null || maxAge == null) {
-      showEzTopBanner(context, 'กรุณากรอกช่วงอายุให้ครบถ้วน', type: EzBannerType.warning);
+      showEzTopBanner(
+        context,
+        'กรุณากรอกช่วงอายุให้ครบถ้วน',
+        type: EzBannerType.warning,
+      );
       return;
     }
     if (minAge > maxAge) {
@@ -87,9 +106,46 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
       }
     } catch (e) {
       if (!mounted) return;
-      showEzTopBanner(context, 'เชื่อมต่อ backend ไม่สำเร็จ', type: EzBannerType.error);
+      showEzTopBanner(
+        context,
+        'เชื่อมต่อ backend ไม่สำเร็จ',
+        type: EzBannerType.error,
+      );
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void onTabSelected(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
+      );
+    } else if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Mainchicken()),
+      );
+    } else if (index == 4) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
+      );
+    } else {
+      setState(() {
+        selectedIndex = index;
+      });
     }
   }
 
@@ -97,8 +153,10 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
   Widget build(BuildContext context) {
     final ez = ezColors(context);
     return Scaffold(
+      extendBody: true,
       backgroundColor: ezBackgroundColor(context),
       body: SafeArea(
+        bottom: false,
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           physics: const BouncingScrollPhysics(),
@@ -154,7 +212,9 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
                       value: _selectedMethod,
                       hint: 'เลือกวิธีการให้',
                       items: kVaccineMethodOptions
-                          .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                          .map(
+                            (m) => DropdownMenuItem(value: m, child: Text(m)),
+                          )
                           .toList(),
                       onChanged: (val) => setState(() => _selectedMethod = val),
                     ),
@@ -207,10 +267,14 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
                   ),
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 100),
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomBar(
+        selectedIndex: selectedIndex,
+        onTabSelected: onTabSelected,
       ),
     );
   }

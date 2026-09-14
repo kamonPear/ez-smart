@@ -12,6 +12,12 @@ import '../../widgets/ez_header.dart';
 import '../../widgets/ez_gauge.dart';
 import '../../widgets/ez_egg_chart.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import '../bottombar.dart';
+import '../main_dash.dart';
+import 'Main_DataChicken_2.dart';
+import '../Data_Food/Main_DataFood_ShowDataFood1.dart';
+import '../Main_SenSor/Main_DeviceSummary.dart';
+import '../Show_chart.dart';
 
 class CoopDetailPage extends StatefulWidget {
   final Map<String, dynamic> coop;
@@ -23,6 +29,7 @@ class CoopDetailPage extends StatefulWidget {
 }
 
 class _CoopDetailPageState extends State<CoopDetailPage> {
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   bool isLoading = true;
   List<Map<String, dynamic>> dailyActivity = [];
 
@@ -113,7 +120,8 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
           }
 
           final daysUntil = dueOnly.difference(todayOnly).inDays;
-          if (daysUntil > 3) continue; // เตือนล่วงหน้าแค่ 3 วัน เหมือนหน้าแจ้งเตือน
+          if (daysUntil > 3)
+            continue; // เตือนล่วงหน้าแค่ 3 วัน เหมือนหน้าแจ้งเตือน
 
           merged.add({
             'type': 'vaccine',
@@ -128,9 +136,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
 
           // ตรวจสุขภาพก่อนฉีดวัคซีน 1 วัน (คัดเอาแต่ไก่แข็งแรงไปฉีด)
           final healthDueOnly = dueOnly.subtract(const Duration(days: 1));
-          final healthDaysUntil = healthDueOnly
-              .difference(todayOnly)
-              .inDays;
+          final healthDaysUntil = healthDueOnly.difference(todayOnly).inDays;
           if (healthDaysUntil <= 3) {
             merged.add({
               'type': 'health_due',
@@ -182,8 +188,10 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
     );
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: ezBackgroundColor(context),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             Padding(
@@ -587,9 +595,8 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                         ),
                       )
                     else
-                      ...dailyActivity.map(
-                        (item) => _buildActivityItem(item),
-                      ),
+                      ...dailyActivity.map((item) => _buildActivityItem(item)),
+                    const SizedBox(height: 60),
                   ],
                 ),
               ),
@@ -597,7 +604,44 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
           ],
         ),
       ),
+      bottomNavigationBar: CustomBottomBar(
+        selectedIndex: selectedIndex,
+        onTabSelected: onTabSelected,
+      ),
     );
+  }
+
+  void onTabSelected(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
+      );
+    } else if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Mainchicken()),
+      );
+    } else if (index == 4) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
+      );
+    } else {
+      setState(() {
+        selectedIndex = index;
+      });
+    }
   }
 
   Widget _buildMenuButton({

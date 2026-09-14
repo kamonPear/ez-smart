@@ -6,6 +6,12 @@ import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
 import '../../widgets/ez_top_banner.dart';
 import '../calendar.dart';
+import '../bottombar.dart';
+import '../main_dash.dart';
+import '../Data_AdoptChicken/Main_DataChicken_2.dart';
+import '../Data_Food/Main_DataFood_ShowDataFood1.dart';
+import '../Main_SenSor/Main_DeviceSummary.dart';
+import '../Show_chart.dart';
 
 /// ปฏิทินนัดตรวจสุขภาพของคอกนี้โดยเฉพาะ - นัดคำนวณอัตโนมัติจากวันครบกำหนดวัคซีน
 /// (ตรวจก่อนให้วัคซีน 1 วันเสมอ) แตะวันที่มีนัดเพื่อบันทึกผลตรวจ:
@@ -54,6 +60,7 @@ class _HealthRecordInfo {
 const Color kUpcomingAmber = Color(0xFFFFA726);
 
 class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   bool _isLoading = true;
   DateTime _calendarKeyDate = DateTime.now();
   Map<DateTime, DayMarkerInfo> _dayMarkers = {};
@@ -198,8 +205,7 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
         headers: {'Content-Type': 'application/json; charset=utf-8'},
         body: jsonEncode({
           'coop_id': int.tryParse(widget.coopId) ?? 0,
-          'record_date':
-              '${date.toIso8601String().split('T').first}T00:00:00Z',
+          'record_date': '${date.toIso8601String().split('T').first}T00:00:00Z',
           'healthy': healthy,
           'poor_health': poor,
           'note': note,
@@ -208,7 +214,11 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
       if (!mounted) return;
       if (response.statusCode == 200 || response.statusCode == 201) {
         Navigator.pop(context);
-        showEzTopBanner(context, 'บันทึกผลตรวจสุขภาพแล้ว', type: EzBannerType.success);
+        showEzTopBanner(
+          context,
+          'บันทึกผลตรวจสุขภาพแล้ว',
+          type: EzBannerType.success,
+        );
         _fetchData();
       } else {
         showEzTopBanner(
@@ -219,12 +229,17 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
       }
     } catch (e) {
       if (!mounted) return;
-      showEzTopBanner(context, 'เชื่อมต่อ backend ไม่สำเร็จ', type: EzBannerType.error);
+      showEzTopBanner(
+        context,
+        'เชื่อมต่อ backend ไม่สำเร็จ',
+        type: EzBannerType.error,
+      );
     }
   }
 
   void _onDayTap(DateTime day) {
-    if (!_dayMarkers.containsKey(day)) return; // ไม่มีนัด/ไม่มีบันทึก ไม่ต้องเปิดป็อบอัพ
+    if (!_dayMarkers.containsKey(day))
+      return; // ไม่มีนัด/ไม่มีบันทึก ไม่ต้องเปิดป็อบอัพ
 
     if (_records.containsKey(day)) {
       _showReadOnlyPopup(day, _records[day]!);
@@ -559,7 +574,9 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
                           filled: true,
                           fillColor: ez.inputFill,
                           labelText: 'จำนวนไก่สุขภาพดี *',
-                          labelStyle: GoogleFonts.kanit(color: ez.textSecondary),
+                          labelStyle: GoogleFonts.kanit(
+                            color: ez.textSecondary,
+                          ),
                           suffixText: 'ตัว',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -576,7 +593,9 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
                           filled: true,
                           fillColor: ez.inputFill,
                           labelText: 'จำนวนไก่ป่วย *',
-                          labelStyle: GoogleFonts.kanit(color: ez.textSecondary),
+                          labelStyle: GoogleFonts.kanit(
+                            color: ez.textSecondary,
+                          ),
                           suffixText: 'ตัว',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -592,7 +611,9 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
                           filled: true,
                           fillColor: ez.inputFill,
                           labelText: 'หมายเหตุ (ถ้ามี)',
-                          labelStyle: GoogleFonts.kanit(color: ez.textSecondary),
+                          labelStyle: GoogleFonts.kanit(
+                            color: ez.textSecondary,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
@@ -658,8 +679,7 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
                                       // ✅ กันกรอกจำนวนไก่ผิด: สุขภาพดี + ป่วย
                                       // ต้องรวมได้เท่ากับจำนวนไก่ทั้งหมดของคอกนี้
                                       if (_totalChickens != null &&
-                                          healthy + poor !=
-                                              _totalChickens) {
+                                          healthy + poor != _totalChickens) {
                                         showEzTopBanner(
                                           dialogContext,
                                           'จำนวนไก่ไม่ตรงกับที่มีจริง (คอกนี้มี $_totalChickens ตัว '
@@ -718,12 +738,47 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     );
   }
 
+  void onTabSelected(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
+      );
+    } else if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Mainchicken()),
+      );
+    } else if (index == 4) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
+      );
+    } else {
+      setState(() {
+        selectedIndex = index;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ez = ezColors(context);
     return Scaffold(
+      extendBody: true,
       backgroundColor: ezBackgroundColor(context),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             Padding(
@@ -773,13 +828,17 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: CustomBottomBar(
+        selectedIndex: selectedIndex,
+        onTabSelected: onTabSelected,
       ),
     );
   }

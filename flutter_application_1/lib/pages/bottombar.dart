@@ -34,13 +34,13 @@ class CustomBottomBar extends StatelessWidget {
       _destination(
         icon: Icons.sensors_outlined,
         selectedIcon: Icons.sensors,
-        label: 'อุปกรณ์',
+        label: 'อุปกรณ์รวม',
         hasSelection: hasSelection,
       ),
       _destination(
         icon: Icons.bar_chart_outlined,
         selectedIcon: Icons.bar_chart,
-        label: 'สถิติเก็บไข่',
+        label: 'สถิติไข่รวม',
         hasSelection: hasSelection,
       ),
       _destination(
@@ -52,7 +52,7 @@ class CustomBottomBar extends StatelessWidget {
       _destination(
         icon: Icons.restaurant_outlined,
         selectedIcon: Icons.restaurant,
-        label: 'อาหาร',
+        label: 'สต็อกอาหาร',
         hasSelection: hasSelection,
       ),
     ];

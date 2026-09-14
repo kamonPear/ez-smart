@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
-import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
@@ -13,6 +12,7 @@ import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
 import '../../widgets/ez_form_field.dart';
 import '../../widgets/ez_top_banner.dart';
+import '../../widgets/ez_date_picker.dart';
 
 class EditDataAdoptchicken extends StatefulWidget {
   final Map<String, String> initialData;
@@ -134,14 +134,10 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
       }
     }
 
-    final DateTime? picked = await showDatePicker(
-      context: context,
+    final DateTime? picked = await showEzDatePicker(
+      context,
       initialDate: initialDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
       helpText: 'เลือกวันที่',
-      cancelText: 'ยกเลิก',
-      confirmText: 'ตกลง',
     );
 
     if (picked != null) {

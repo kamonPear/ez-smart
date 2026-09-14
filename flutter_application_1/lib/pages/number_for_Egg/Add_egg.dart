@@ -16,6 +16,7 @@ import '../../widgets/ez_skeleton.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_top_banner.dart';
+import '../../widgets/ez_date_picker.dart';
 
 class AddEgg extends StatefulWidget {
   final String? initialCoopId;
@@ -479,9 +480,11 @@ class _AddEggState extends State<AddEgg> {
                   label: 'ชื่อคอก',
                   isRequired: true,
                   child: Text(
-                    _coopNames[widget.initialCoopId] ??
-                        widget.initialCoopId!,
-                    style: GoogleFonts.kanit(color: ez.textPrimary, fontSize: 14),
+                    _coopNames[widget.initialCoopId] ?? widget.initialCoopId!,
+                    style: GoogleFonts.kanit(
+                      color: ez.textPrimary,
+                      fontSize: 14,
+                    ),
                   ),
                 )
               : EzFormDropdown<String>(
@@ -572,8 +575,8 @@ class _AddEggState extends State<AddEgg> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await showEzDatePicker(
+      context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),

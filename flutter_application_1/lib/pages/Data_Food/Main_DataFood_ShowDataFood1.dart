@@ -4,20 +4,17 @@ import 'package:http/http.dart' as http;
 
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataAdd_Food1.dart';
-import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
-import 'Main_EditData_ShowFood1.dart';
 import 'Main_FoodTypeSummary.dart';
 import '../../services/backend_config.dart';
 import '../../utils/thai_date.dart';
 import '../../widgets/ez_header.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../widgets/ez_top_banner.dart';
-import '../../widgets/ez_confirm_dialog.dart';
 
 class MainShowDataFood extends StatefulWidget {
   const MainShowDataFood({super.key});
@@ -25,12 +22,6 @@ class MainShowDataFood extends StatefulWidget {
   @override
   State<MainShowDataFood> createState() => _MainShowDataFoodState();
 }
-
-// จำนวน กก./วัน ที่ตัดออกจากสต็อกแต่ละประเภทตอนกดปุ่มตัดสต็อกแมนนวล (ต้องตรงกับฝั่ง backend)
-const Map<String, int> kDailyDeductAmounts = {
-  kFoodTypeSmallPellet: 20,
-  kFoodTypeLargePellet: 30,
-};
 
 class _MainShowDataFoodState extends State<MainShowDataFood> {
   int selectedIndex = 4;
@@ -44,6 +35,9 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   String? _selectedDeductType;
 
   List<dynamic> foodHistory = [];
+  // ประวัติ "นำเข้า" และ "นำออก/แจกจ่าย" แยกกล่องกันคนละกล่อง เรียงใหม่สุดก่อน
+  List<Map<String, dynamic>> _importHistory = [];
+  List<Map<String, dynamic>> _distributeHistory = [];
 
   // 🌟 ปริมาณอาหารที่แต่ละคอกกินโดยประมาณต่อวัน (คำนวณจากอายุไก่ -> ประเภทอาหาร
   // แล้วหารสัดส่วนยอดตัดสต็อกรายวันตามจำนวนไก่ในคอก)
@@ -105,25 +99,98 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     });
   }
 
+  // ดึงทั้งประวัติ "นำเข้า" (importfood) และ "นำออก/แจกจ่าย" (food_distribution)
+  // มารวมเป็นตารางเดียว เรียงตามวันที่ใหม่สุดก่อน ให้เห็นภาพรวมของอาหารทั้งเข้า-ออก
   Future<void> _fetchFoodHistory() async {
     try {
-      final url = Uri.parse('$backendBaseUrl/api/food_history');
-      final response = await http.get(url);
+      final results = await Future.wait([
+        http.get(Uri.parse('$backendBaseUrl/api/food_history')),
+        http.get(Uri.parse('$backendBaseUrl/api/foods/distribution')),
+      ]);
 
-      if (response.statusCode == 200) {
-        final decodedData = json.decode(response.body);
-
-        if (decodedData is List) {
-          setState(() {
-            foodHistory = decodedData;
-          });
-        } else if (decodedData is Map && decodedData.containsKey('data')) {
-          setState(() {
-            foodHistory = decodedData['data'];
-          });
+      List<dynamic> importRows = [];
+      final importResp = results[0];
+      if (importResp.statusCode == 200) {
+        final decoded = json.decode(importResp.body);
+        if (decoded is List) {
+          importRows = decoded;
+        } else if (decoded is Map && decoded.containsKey('data')) {
+          importRows = decoded['data'];
         }
       } else {
-        debugPrint("Error fetching history: ${response.statusCode}");
+        debugPrint("Error fetching history: ${importResp.statusCode}");
+      }
+
+      final List<Map<String, dynamic>> combined = [];
+      for (final row in importRows) {
+        final date = DateTime.tryParse(
+          (row['import_date'] ?? row['created_at'] ?? '').toString(),
+        )?.toLocal();
+        if (date == null) continue;
+        double amount = 0;
+        if (row['import_volume'] != null && row['import_volume'] != 0) {
+          amount = (row['import_volume'] as num).toDouble();
+        } else if (row['quantity_current'] != null) {
+          amount = (row['quantity_current'] as num).toDouble();
+        }
+        combined.add({
+          'kind': 'import',
+          'foodType': (row['food_type'] ?? '-').toString(),
+          'amount': amount,
+          'date': date,
+        });
+      }
+
+      // นำออก/แจกจ่าย: หนึ่งครั้งที่กดตัดสต็อกจะได้หลายแถว (แถวละ 1 คอก) ที่แชร์
+      // เวลาเดียวกันเป๊ะ (distributed_at) จึงรวมยอดของทุกคอกในครั้งนั้นเป็นแถวเดียว
+      final distResp = results[1];
+      if (distResp.statusCode == 200) {
+        final decoded = json.decode(distResp.body);
+        if (decoded is List) {
+          final Map<String, Map<String, dynamic>> grouped = {};
+          for (final row in decoded) {
+            final date = DateTime.tryParse(
+              (row['distributed_at'] ?? '').toString(),
+            )?.toLocal();
+            if (date == null) continue;
+            final foodType = (row['food_type'] ?? '-').toString();
+            final key = '${foodType}_${date.toIso8601String()}';
+            final kg = (row['kg_given'] as num?)?.toDouble() ?? 0.0;
+            if (grouped.containsKey(key)) {
+              grouped[key]!['amount'] =
+                  (grouped[key]!['amount'] as double) + kg;
+            } else {
+              grouped[key] = {
+                'kind': 'distribute',
+                'foodType': foodType,
+                'amount': kg,
+                'date': date,
+              };
+            }
+          }
+          combined.addAll(grouped.values);
+        }
+      } else {
+        debugPrint(
+          "Error fetching distribution history: ${distResp.statusCode}",
+        );
+      }
+
+      int byDateDesc(Map<String, dynamic> a, Map<String, dynamic> b) =>
+          (b['date'] as DateTime).compareTo(a['date'] as DateTime);
+
+      final imports = combined.where((e) => e['kind'] == 'import').toList()
+        ..sort(byDateDesc);
+      final distributes =
+          combined.where((e) => e['kind'] == 'distribute').toList()
+            ..sort(byDateDesc);
+
+      if (mounted) {
+        setState(() {
+          foodHistory = importRows;
+          _importHistory = imports;
+          _distributeHistory = distributes;
+        });
       }
     } catch (e) {
       debugPrint("Connection error (History): $e");
@@ -143,9 +210,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
           });
         }
       } else {
-        debugPrint(
-          "Error fetching coop consumption: ${response.statusCode}",
-        );
+        debugPrint("Error fetching coop consumption: ${response.statusCode}");
       }
     } catch (e) {
       debugPrint("Connection error (Coop consumption): $e");
@@ -153,6 +218,8 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   }
 
   // 🌟 ตัดสต็อกแมนนวล — ต้องเลือกประเภทอาหารก่อนเสมอ
+  // ไม่มียอดตายตัวอีกแล้ว: กดปุ่มนี้แล้วไปกรอกจำนวนที่แจกแต่ละคอกก่อน
+  // แล้วค่อยตัดสต็อกจริงตามยอดรวมที่กรอก (ทำพร้อมกันในหน้ากรอก)
   Future<void> _forceDeductStock() async {
     final String? foodType = _selectedDeductType;
     if (foodType == null) {
@@ -164,58 +231,18 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
       return;
     }
 
-    final int amount = kDailyDeductAmounts[foodType] ?? 0;
-
-    final bool confirm = await showEzConfirmDialog(
+    await Navigator.push(
       context,
-      title: 'ยืนยันการตัดสต็อก',
-      message: 'คุณต้องการตัดสต็อกอาหาร$foodType $amount กิโลกรัม ใช่หรือไม่?',
-      confirmText: 'ยืนยัน',
-      icon: Icons.remove_circle_outline_rounded,
+      MaterialPageRoute(
+        builder: (_) => MainFoodTypeSummary(
+          initialFoodType: foodType,
+          startEntryMode: true,
+        ),
+      ),
     );
-
-    if (!confirm) return;
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final url = Uri.parse('$backendBaseUrl/api/foodstocks/force-deduct');
-
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: json.encode({"food_type": foodType}),
-      );
-
-      if (response.statusCode == 200) {
-        showEzTopBanner(
-          context,
-          "ตัดสต็อก$foodType $amount กก. สำเร็จ!",
-          type: EzBannerType.success,
-        );
-        await _fetchFoodData();
-        await _fetchFoodHistory();
-      } else {
-        showEzTopBanner(
-          context,
-          "ตัดสต็อกไม่สำเร็จ (${response.statusCode})",
-          type: EzBannerType.error,
-        );
-      }
-    } catch (e) {
-      debugPrint("Error deducting foodstock: $e");
-      showEzTopBanner(
-        context,
-        "เกิดข้อผิดพลาดในการเชื่อมต่อ",
-        type: EzBannerType.error,
-      );
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
+    // กลับมาจากหน้ากรอก (ไม่ว่าจะตัดสต็อกสำเร็จหรือกดย้อนกลับ) รีเฟรชข้อมูลให้ตรงล่าสุด
+    _fetchFoodData();
+    _fetchFoodHistory();
   }
 
   String _formatAmount(dynamic amount) {
@@ -335,11 +362,21 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     );
   }
 
-  /// การ์ดย่อยแสดงยอดคงเหลือของอาหารประเภทหนึ่ง (เม็ดเล็ก/เม็ดใหญ่)
-  Widget _buildTypeStockTile(String foodType, Map<String, dynamic>? data) {
+  /// การ์ดย่อยแสดงยอดคงเหลือของอาหารประเภทหนึ่ง (เม็ดเล็ก/เม็ดใหญ่) ดีไซน์แบบ
+  /// แดชบอร์ด: ไอคอนวงกลม + ป้ายสถานะ + ตัวเลขเด่น + เวลาที่อัปเดตล่าสุด
+  Widget _buildTypeStockTile(
+    String foodType,
+    Map<String, dynamic>? data,
+    IconData icon,
+    double iconSize,
+  ) {
     final ez = ezColors(context);
+    final double quantity =
+        (data?['quantity_current'] as num?)?.toDouble() ?? 0.0;
     final String amount = _formatAmount(data?['quantity_current']);
     final String lastUpdate = _formatDateTime(data?['date_up']);
+    final bool isEmpty = data == null || quantity <= 0;
+    final Color statusColor = isEmpty ? ez.danger : ez.accentGreen;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -351,27 +388,85 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: ez.gold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: iconSize, color: ez.gold),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  isEmpty ? 'หมดแล้ว' : 'ปกติ',
+                  style: GoogleFonts.kanit(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           Text(
             foodType,
             style: GoogleFonts.kanit(
               fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: ez.textPrimary,
+              fontWeight: FontWeight.w600,
+              color: ez.textSecondary,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            '$amount กก.',
-            style: GoogleFonts.kanit(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: ez.textPrimary,
+          const SizedBox(height: 2),
+          Text.rich(
+            TextSpan(
+              text: amount,
+              style: GoogleFonts.kanit(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: ez.textPrimary,
+              ),
+              children: [
+                TextSpan(
+                  text: ' กก.',
+                  style: GoogleFonts.kanit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: ez.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            data == null ? 'ยังไม่มีข้อมูล' : 'อัปเดต $lastUpdate',
-            style: GoogleFonts.kanit(fontSize: 10, color: ez.textSecondary),
+          const Spacer(),
+          Row(
+            children: [
+              Icon(
+                Icons.access_time_rounded,
+                size: 11,
+                color: ez.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  data == null ? 'ยังไม่มีข้อมูล' : lastUpdate,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.kanit(
+                    fontSize: 9.5,
+                    color: ez.textSecondary,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -561,22 +656,29 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                             subtitle: 'แยกยอดตามประเภทอาหาร',
                           ),
                           const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildTypeStockTile(
-                                  kFoodTypeSmallPellet,
-                                  _smallStock,
+                          IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: _buildTypeStockTile(
+                                    kFoodTypeSmallPellet,
+                                    _smallStock,
+                                    Icons.grain,
+                                    18,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildTypeStockTile(
-                                  kFoodTypeLargePellet,
-                                  _largeStock,
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildTypeStockTile(
+                                    kFoodTypeLargePellet,
+                                    _largeStock,
+                                    Icons.grain,
+                                    26,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -616,79 +718,15 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
 
                     // การ์ดที่ 2: ประวัติการนำเข้า — แยกชัดจากยอดคงเหลือด้านบน
                     // (การ์ดแรกคือ "ยอดตอนนี้", การ์ดนี้คือ "ประวัติการนำเข้าทีละครั้ง")
-                    _buildDarkCard(
-                      child: Column(
-                        children: [
-                          _sectionHeader(
-                            Icons.history_rounded,
-                            'ประวัติการนำเข้าอาหาร',
-                            subtitle: 'ทั้งหมด ${foodHistory.length} ครั้ง',
-                          ),
-                          const SizedBox(height: 14),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              Text(
-                                "ประเภท",
-                                style: GoogleFonts.kanit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: ezColors(context).textSecondary,
-                                ),
-                              ),
-                              Text(
-                                "ปริมาณ (กก.)",
-                                style: GoogleFonts.kanit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: ezColors(context).textSecondary,
-                                ),
-                              ),
-                              Text(
-                                "วันที่นำอาหารเข้า",
-                                style: GoogleFonts.kanit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: ezColors(context).textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Divider(
-                            color: ezColors(context).border,
-                            thickness: 1,
-                            height: 20,
-                          ),
-
-                          if (foodHistory.isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 20),
-                              child: Text(
-                                "ไม่มีข้อมูลประวัติ",
-                                style: GoogleFonts.kanit(
-                                  color: ezColors(context).textSecondary,
-                                ),
-                              ),
-                            )
-                          else
-                            ...foodHistory.map((data) {
-                              String amount = "0";
-                              if (data['import_volume'] != null &&
-                                  data['import_volume'] != 0) {
-                                amount = data['import_volume'].toString();
-                              } else if (data['quantity_current'] != null) {
-                                amount = data['quantity_current'].toString();
-                              }
-                              String date = _formatDateSimple(
-                                data['import_date'] ?? data['created_at'],
-                              );
-                              String type = (data['food_type'] ?? '-')
-                                  .toString();
-                              return _buildTableRow(type, amount, date);
-                            }),
-                        ],
-                      ),
+                    _buildHistoryCard(
+                      icon: Icons.arrow_downward_rounded,
+                      title: 'ประวัติการนำเข้าอาหาร',
+                      entries: _importHistory,
+                    ),
+                    _buildHistoryCard(
+                      icon: Icons.arrow_upward_rounded,
+                      title: 'ประวัติการนำออก/แจกจ่ายอาหาร',
+                      entries: _distributeHistory,
                     ),
 
                     // การ์ดที่ 3: การจัดการสต็อก — ปุ่มหลักเดียวสำหรับ "เพิ่มสต็อก"
@@ -776,7 +814,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                                 icon: Icons.remove_circle_outline,
                                 text: _selectedDeductType == null
                                     ? 'ตัดสต็อก'
-                                    : 'ตัดสต็อก${_selectedDeductType!} ${kDailyDeductAmounts[_selectedDeductType!]} กก.',
+                                    : 'ตัดสต็อก${_selectedDeductType!}',
                                 color: const Color(0xFFFFA726),
                                 onTap: _forceDeductStock,
                               ),
@@ -801,18 +839,14 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     );
   }
 
-  /// การ์ดย่อยสรุปอาหารประเภทหนึ่ง — จำนวนคอกที่กินประเภทนี้ + ยอดรวม กก./วัน
+  /// การ์ดย่อยสรุปอาหารประเภทหนึ่ง — จำนวนคอกที่กินประเภทนี้ (ไม่โชว์ยอดกิโลรวม
+  /// อีกต่อไป เพราะการตัดสต็อกจริงตอนนี้เป็นยอดที่กรอกเองแต่ละครั้ง ไม่มียอดตายตัว)
   /// แตะแล้วเปิดหน้ารายละเอียดแยกตามคอกของประเภทนั้น
   Widget _buildFoodTypeSummaryTile(String foodType) {
     final ez = ezColors(context);
-    final matching = coopConsumption.where(
-      (c) => c['food_type'] == foodType,
-    );
-    final int coopCount = matching.length;
-    final double totalKg = matching.fold<double>(
-      0.0,
-      (sum, c) => sum + ((c['estimated_kg_per_day'] ?? 0) as num).toDouble(),
-    );
+    final int coopCount = coopConsumption
+        .where((c) => c['food_type'] == foodType)
+        .length;
 
     return InkWell(
       borderRadius: BorderRadius.circular(14),
@@ -838,23 +872,14 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
             Text(
               foodType,
               style: GoogleFonts.kanit(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: ez.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${totalKg.toStringAsFixed(1)} กก./วัน',
-              style: GoogleFonts.kanit(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: ez.gold,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
-              '$coopCount คอก • ดูรายละเอียด',
+              '$coopCount คอก • ประมาณการจากอายุไก่ • ดูรายละเอียด',
               style: GoogleFonts.kanit(fontSize: 10, color: ez.textSecondary),
             ),
           ],
@@ -863,43 +888,176 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     );
   }
 
-  Widget _buildTableRow(String foodType, String amount, String date) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+  /// กล่องประวัติ 1 กล่อง (นำเข้า หรือ นำออก แยกกันคนละกล่อง) — หัวตาราง 3 คอลัมน์
+  /// ความกว้างตายตัว + รายการสูงตายตัวเลื่อนในตัวเอง ไม่ต้องเลื่อนทั้งหน้า
+  Widget _buildHistoryCard({
+    required IconData icon,
+    required String title,
+    required List<Map<String, dynamic>> entries,
+  }) {
+    return _buildDarkCard(
+      child: Column(
+        children: [
+          _sectionHeader(
+            icon,
+            title,
+            subtitle: 'ทั้งหมด ${entries.length} ครั้ง',
+          ),
+          const SizedBox(height: 14),
+
+          Row(
             children: [
-              Text(
-                foodType,
-                style: GoogleFonts.kanit(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: ezColors(context).textPrimary,
+              Expanded(
+                flex: 3,
+                child: Text(
+                  "ประเภท",
+                  style: GoogleFonts.kanit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: ezColors(context).textSecondary,
+                  ),
                 ),
               ),
-              Text(
-                amount,
-                style: GoogleFonts.kanit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: ezColors(context).textPrimary,
+              Expanded(
+                flex: 3,
+                child: Text(
+                  "ปริมาณ (กก.)",
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.kanit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: ezColors(context).textSecondary,
+                  ),
                 ),
               ),
-              Text(
-                date,
-                style: GoogleFonts.kanit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: ezColors(context).textPrimary,
+              Expanded(
+                flex: 4,
+                child: Text(
+                  "วันที่",
+                  textAlign: TextAlign.right,
+                  style: GoogleFonts.kanit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: ezColors(context).textSecondary,
+                  ),
                 ),
               ),
             ],
           ),
-        ),
-        Divider(color: ezColors(context).border, thickness: 1, height: 5),
-      ],
+          Divider(color: ezColors(context).border, thickness: 1, height: 20),
+
+          if (entries.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Text(
+                "ไม่มีข้อมูลประวัติ",
+                style: GoogleFonts.kanit(
+                  color: ezColors(context).textSecondary,
+                ),
+              ),
+            )
+          else
+            // ✅ กล่องสูงตายตัว เลื่อนดูในกล่องนี้เองถ้ารายการยาว
+            // ไม่ต้องเลื่อนทั้งหน้าเวลามีประวัติเพิ่มขึ้นเรื่อยๆ
+            SizedBox(
+              height: 200,
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                itemCount: entries.length,
+                separatorBuilder: (_, __) => Divider(
+                  color: ezColors(context).border,
+                  thickness: 1,
+                  height: 5,
+                ),
+                itemBuilder: (context, index) {
+                  final entry = entries[index];
+                  return _buildTableRow(
+                    kind: entry['kind'] as String,
+                    foodType: entry['foodType'] as String,
+                    amount: entry['amount'] as double,
+                    date: _formatDateSimple(
+                      (entry['date'] as DateTime).toIso8601String(),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// แถวประวัติ 1 รายการ — [kind] "import" (นำเข้า, สีเขียว +) หรือ "distribute"
+  /// (นำออก/แจกจ่าย, สีแดง -) ใช้ Expanded คอลัมน์ความกว้างตายตัวเท่ากับหัวตาราง
+  /// เสมอ กันปัญหาคอลัมน์เอียงเวลาข้อความยาว-สั้นไม่เท่ากันในแต่ละแถว
+  Widget _buildTableRow({
+    required String kind,
+    required String foodType,
+    required double amount,
+    required String date,
+  }) {
+    final ez = ezColors(context);
+    final bool isImport = kind == 'import';
+    final Color amountColor = isImport ? ez.accentGreen : ez.danger;
+    final String sign = isImport ? '+' : '-';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isImport
+                      ? Icons.arrow_downward_rounded
+                      : Icons.arrow_upward_rounded,
+                  size: 13,
+                  color: amountColor,
+                ),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(
+                    foodType,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.kanit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: ez.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              '$sign${amount.toStringAsFixed(0)}',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.kanit(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: amountColor,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: Text(
+              date,
+              textAlign: TextAlign.right,
+              style: GoogleFonts.kanit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: ez.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

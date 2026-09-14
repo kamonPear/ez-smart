@@ -37,7 +37,8 @@ class _MainVaccineState extends State<MainVaccine> {
   bool _isLoading = true;
   Map<String, String> _coopNames =
       {}; // ✅ แผนที่ coop_id -> ชื่อคอก สำหรับแสดงผล
-  Map<String, String> _coopChickenCounts = {}; // coop_id -> จำนวนไก่ทั้งหมดในคอก
+  Map<String, String> _coopChickenCounts =
+      {}; // coop_id -> จำนวนไก่ทั้งหมดในคอก
   // ผลตรวจสุขภาพล่าสุดของแต่ละคอก ก่อนวันฉีดวัคซีน (key = "coopId_yyyy-MM-dd")
   // ใช้บอกว่ามีไก่สุขภาพดีกี่ตัวที่พร้อมฉีดได้จริง (ตรวจก่อนฉีด 1 วันเสมอ)
   final Map<String, int> _healthyByCoopDate = {};
@@ -52,9 +53,7 @@ class _MainVaccineState extends State<MainVaccine> {
 
   Future<void> _fetchHealthRecords() async {
     try {
-      final response = await http.get(
-        Uri.parse('$backendBaseUrl/api/healths'),
-      );
+      final response = await http.get(Uri.parse('$backendBaseUrl/api/healths'));
       if (response.statusCode == 200) {
         final List<dynamic> healths = json.decode(response.body);
         final Map<String, int> byKey = {};
@@ -70,9 +69,12 @@ class _MainVaccineState extends State<MainVaccine> {
             debugPrint('Error parsing health record date: $e');
           }
         }
-        if (mounted) setState(() => _healthyByCoopDate
-          ..clear()
-          ..addAll(byKey));
+        if (mounted)
+          setState(
+            () => _healthyByCoopDate
+              ..clear()
+              ..addAll(byKey),
+          );
       }
     } catch (e) {
       debugPrint('เกิดข้อผิดพลาดในการดึงผลตรวจสุขภาพ: $e');
@@ -111,9 +113,7 @@ class _MainVaccineState extends State<MainVaccine> {
           _coopChickenCounts = {
             for (var item in data)
               (item['coop_id'] ?? item['id']).toString():
-                  (item['chicken_count'] ??
-                          item['amount'] ??
-                          item['quantity'])
+                  (item['chicken_count'] ?? item['amount'] ?? item['quantity'])
                       ?.toString() ??
                   '-',
           };
@@ -797,8 +797,7 @@ class _MainVaccineState extends State<MainVaccine> {
                     const SizedBox(height: 10),
                     CustomCalendar(
                       key: ValueKey(
-                        _selectedDay.toString() +
-                            _dayMarkers.length.toString(),
+                        _selectedDay.toString() + _dayMarkers.length.toString(),
                       ),
                       initialDate: _selectedDay,
                       dayMarkers: _dayMarkers,

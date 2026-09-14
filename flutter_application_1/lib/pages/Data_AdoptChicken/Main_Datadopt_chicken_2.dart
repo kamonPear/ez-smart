@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
-import 'package:flutter_application_1/pages/Notifications_.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
@@ -474,14 +473,16 @@ class _AdoptchickenState extends State<Adoptchicken> {
       ),
     );
 
-    return Material(
-      color: ezCardColor(context),
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: openDetail,
+    // ✅ ระยะห่างระหว่างการ์ดต้องอยู่นอก Material เท่านั้น ไม่งั้นสีพื้นการ์ด
+    // (ezCardColor) จะทาสีทับช่องว่างนั้นไปด้วย ทำให้มองไม่เห็นช่องว่างจริงๆ
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: ezCardColor(context),
         borderRadius: BorderRadius.circular(18),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 14),
+        child: InkWell(
+          onTap: openDetail,
+          borderRadius: BorderRadius.circular(18),
           // แตะที่การ์ดเพื่อดูข้อมูลของคอกนี้ กดปุ่ม 3 จุดเพื่อจัดการ (แก้ไข/ลบ)
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 10, 16),

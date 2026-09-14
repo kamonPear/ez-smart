@@ -268,93 +268,96 @@ class _MainchickenState extends State<Mainchicken> {
                 physics: const BouncingScrollPhysics(),
                 child: Column(
                   children: [
-                  // 1. ปฏิทินรวม (แทนตารางคอกรวมเดิม)
-                  CustomCalendar(
-                    key: ValueKey(
-                      _selectedDay.toString() + _dayMarkers.length.toString(),
-                    ),
-                    initialDate: _selectedDay,
-                    dayMarkers: _dayMarkers,
-                    onDateSelected: (day) =>
-                        setState(() => _selectedDay = day),
-                    onDayLongPress: (day, m) => _showDayPopup(day, m),
-                  ),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 16,
-                    runSpacing: 6,
-                    children: [
-                      _legendDot(kCalendarGreen, 'แจ้งให้ทราบ / ทำแล้ว'),
-                      _legendDot(kCalendarAmber, 'นัดล่วงหน้า - ยังไม่ถึงกำหนด'),
-                      _legendDot(kCalendarRed, 'เกินกำหนด - ยังไม่ทำ'),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'รายการวันที่ ${_selectedDay.day}/${_selectedDay.month}/${_selectedDay.year}',
-                      style: GoogleFonts.kanit(
-                        color: ez.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                    // 1. ปฏิทินรวม (แทนตารางคอกรวมเดิม)
+                    CustomCalendar(
+                      key: ValueKey(
+                        _selectedDay.toString() + _dayMarkers.length.toString(),
                       ),
+                      initialDate: _selectedDay,
+                      dayMarkers: _dayMarkers,
+                      onDateSelected: (day) =>
+                          setState(() => _selectedDay = day),
+                      onDayLongPress: (day, m) => _showDayPopup(day, m),
                     ),
-                  ),
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 16,
+                      runSpacing: 6,
+                      children: [
+                        _legendDot(kCalendarGreen, 'แจ้งให้ทราบ / ทำแล้ว'),
+                        _legendDot(
+                          kCalendarAmber,
+                          'นัดล่วงหน้า - ยังไม่ถึงกำหนด',
+                        ),
+                        _legendDot(kCalendarRed, 'เกินกำหนด - ยังไม่ทำ'),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
 
-                  if (_isLoading)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: CircularProgressIndicator(color: ez.gold),
-                    )
-                  else if (marker == null || marker.details.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
+                    Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
-                        'ไม่มีรายการในวันนี้',
+                        'รายการวันที่ ${_selectedDay.day}/${_selectedDay.month}/${_selectedDay.year}',
                         style: GoogleFonts.kanit(
-                          color: ez.textSecondary,
-                          fontSize: 14,
+                          color: ez.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ),
-                    )
-                  else
-                    ...marker.details.map(
-                      (item) => Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: ez.card,
-                          borderRadius: BorderRadius.circular(14),
-                          border: item.status == CalendarItemStatus.overdue
-                              ? Border.all(
-                                  color: kCalendarRed.withValues(alpha: 0.5),
-                                  width: 1.3,
-                                )
-                              : null,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: _detailRow(item, rowContext: context),
                       ),
                     ),
+                    const SizedBox(height: 10),
 
-                  const SizedBox(height: 50),
-                ],
+                    if (_isLoading)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: CircularProgressIndicator(color: ez.gold),
+                      )
+                    else if (marker == null || marker.details.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          'ไม่มีรายการในวันนี้',
+                          style: GoogleFonts.kanit(
+                            color: ez.textSecondary,
+                            fontSize: 14,
+                          ),
+                        ),
+                      )
+                    else
+                      ...marker.details.map(
+                        (item) => Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: ez.card,
+                            borderRadius: BorderRadius.circular(14),
+                            border: item.status == CalendarItemStatus.overdue
+                                ? Border.all(
+                                    color: kCalendarRed.withValues(alpha: 0.5),
+                                    width: 1.3,
+                                  )
+                                : null,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: _detailRow(item, rowContext: context),
+                        ),
+                      ),
+
+                    const SizedBox(height: 50),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
       bottomNavigationBar: CustomBottomBar(
         selectedIndex: selectedIndex,

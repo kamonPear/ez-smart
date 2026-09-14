@@ -28,8 +28,8 @@ Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
 
   final Map<String, String> coopNames = {
     for (final c in coops)
-      (c['coop_id'] ?? c['id']).toString():
-          (c['name_coop']?.toString().trim().isNotEmpty == true)
+      (c['coop_id'] ?? c['id'])
+          .toString(): (c['name_coop']?.toString().trim().isNotEmpty == true)
           ? c['name_coop'].toString()
           : (c['coop_id'] ?? c['id']).toString(),
   };

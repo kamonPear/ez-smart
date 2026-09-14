@@ -13,6 +13,7 @@ import '../../widgets/ez_header.dart';
 import '../../widgets/ez_form_field.dart';
 import '../../utils/thai_date.dart';
 import '../../widgets/ez_top_banner.dart';
+import '../../widgets/ez_date_picker.dart';
 
 class EditNumbereggchicken extends StatefulWidget {
   final Map<String, dynamic> initialData;
@@ -89,8 +90,8 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await showEzDatePicker(
+      context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),

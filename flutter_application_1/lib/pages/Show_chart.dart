@@ -140,9 +140,8 @@ class _ShowChartState extends State<ShowChart> {
         .toList();
   }
 
-  List<String> get _coopsToShow => _selectedCoopId == _kAllCoops
-      ? availableCoops
-      : [_selectedCoopId];
+  List<String> get _coopsToShow =>
+      _selectedCoopId == _kAllCoops ? availableCoops : [_selectedCoopId];
 
   void onTabSelected(int index) {
     if (index == 0) {

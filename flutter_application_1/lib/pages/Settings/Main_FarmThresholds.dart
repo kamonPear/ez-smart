@@ -161,7 +161,7 @@ class _MainFarmThresholdsState extends State<MainFarmThresholds> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             children: [
-              const EzHeader(pageTitle: 'ค่ามาตรฐานทุกคอก'),
+              const EzHeader(pageTitle: "ตั้งค่ามาตรฐานของฟาร์ม"),
               const SizedBox(height: 20),
               Container(
                 width: double.infinity,
@@ -216,7 +216,7 @@ class _MainFarmThresholdsState extends State<MainFarmThresholds> {
                           icon: Icons.thermostat_outlined,
                           value: _temp.toStringAsFixed(0),
                           unit: '°',
-                          subTitle: 'อุณหภูมิเป้าหมาย',
+                          subTitle: 'อุณหภูมิที่คงที่',
                           color: Colors.cyan,
                           percent: (_temp / 50).clamp(0, 1),
                         ),
@@ -224,7 +224,7 @@ class _MainFarmThresholdsState extends State<MainFarmThresholds> {
                           icon: Icons.air_outlined,
                           value: _ammonia.toStringAsFixed(0),
                           unit: 'PPM',
-                          subTitle: 'แอมโมเนียเป้าหมาย',
+                          subTitle: 'แอมโมเนียที่คงที่',
                           color: Colors.orange.shade800,
                           percent: (_ammonia / 100).clamp(0, 1),
                         ),

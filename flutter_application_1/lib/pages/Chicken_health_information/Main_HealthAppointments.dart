@@ -6,6 +6,12 @@ import 'package:skeletonizer/skeletonizer.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
 import 'Main_HealthCheckCalendar.dart';
+import '../bottombar.dart';
+import '../main_dash.dart';
+import '../Data_AdoptChicken/Main_DataChicken_2.dart';
+import '../Data_Food/Main_DataFood_ShowDataFood1.dart';
+import '../Main_SenSor/Main_DeviceSummary.dart';
+import '../Show_chart.dart';
 
 /// หน้า "นัดตรวจสุขภาพ" รวมทั้งฟาร์ม - คำนวณอัตโนมัติว่าคอกไหนควรตรวจสุขภาพวันไหน
 /// โดยใช้กฎ: ตรวจสุขภาพก่อนให้วัคซีน 1 วันเสมอ (เพราะจะฉีดวัคซีนแค่ไก่ที่แข็งแรง)
@@ -14,8 +20,7 @@ class MainHealthAppointments extends StatefulWidget {
   const MainHealthAppointments({super.key});
 
   @override
-  State<MainHealthAppointments> createState() =>
-      _MainHealthAppointmentsState();
+  State<MainHealthAppointments> createState() => _MainHealthAppointmentsState();
 }
 
 class _Appointment {
@@ -38,6 +43,7 @@ class _Appointment {
 }
 
 class _MainHealthAppointmentsState extends State<MainHealthAppointments> {
+  int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   bool _isLoading = true;
   List<_Appointment> _appointments = [];
 
@@ -147,10 +153,8 @@ class _MainHealthAppointmentsState extends State<MainHealthAppointments> {
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => MainHealthCheckCalendar(
-              coopId: a.coopId,
-              coopName: a.coopName,
-            ),
+            builder: (context) =>
+                MainHealthCheckCalendar(coopId: a.coopId, coopName: a.coopName),
           ),
         );
         _fetchAppointments();
@@ -221,23 +225,54 @@ class _MainHealthAppointmentsState extends State<MainHealthAppointments> {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right,
-              color: ez.textSecondary,
-              size: 20,
-            ),
+            Icon(Icons.chevron_right, color: ez.textSecondary, size: 20),
           ],
         ),
       ),
     );
   }
 
+  void onTabSelected(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
+      );
+    } else if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const Mainchicken()),
+      );
+    } else if (index == 4) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const MainShowDataFood()),
+      );
+    } else {
+      setState(() {
+        selectedIndex = index;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ez = ezColors(context);
     return Scaffold(
+      extendBody: true,
       backgroundColor: ezBackgroundColor(context),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             Padding(
@@ -302,6 +337,10 @@ class _MainHealthAppointmentsState extends State<MainHealthAppointments> {
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: CustomBottomBar(
+        selectedIndex: selectedIndex,
+        onTabSelected: onTabSelected,
       ),
     );
   }
