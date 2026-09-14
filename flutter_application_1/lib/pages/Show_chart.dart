@@ -10,8 +10,11 @@ import 'bottombar.dart';
 import '../widgets/ez_header.dart';
 import '../widgets/ez_skeleton.dart';
 import '../widgets/ez_egg_chart.dart';
+import '../widgets/ez_form_field.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../services/backend_config.dart';
+
+const String _kAllCoops = '__all__';
 
 class ShowChart extends StatefulWidget {
   const ShowChart({super.key});
@@ -33,6 +36,9 @@ class _ShowChartState extends State<ShowChart> {
   List<String> availableCoops = [];
   Map<String, String> _coopNames =
       {}; // ✅ แผนที่ coop_id -> ชื่อคอก สำหรับแสดงผล
+
+  // เลือกดูคอกใดคอกหนึ่ง แทนการเลื่อนดูทุกคอก (มีประโยชน์มากเวลามีคอกเยอะ)
+  String _selectedCoopId = _kAllCoops;
 
   @override
   void initState() {
@@ -64,6 +70,11 @@ class _ShowChartState extends State<ShowChart> {
                   ? item['name_coop'].toString()
                   : item['coop_id'].toString(),
           };
+
+          if (_selectedCoopId != _kAllCoops &&
+              !availableCoops.contains(_selectedCoopId)) {
+            _selectedCoopId = _kAllCoops;
+          }
         });
       } else {
         debugPrint("Error fetching coops: ${response.statusCode}");
@@ -128,6 +139,10 @@ class _ShowChartState extends State<ShowChart> {
         .where((item) => item['coop_id']?.toString() == coopId)
         .toList();
   }
+
+  List<String> get _coopsToShow => _selectedCoopId == _kAllCoops
+      ? availableCoops
+      : [_selectedCoopId];
 
   void onTabSelected(int index) {
     if (index == 0) {
@@ -196,7 +211,8 @@ class _ShowChartState extends State<ShowChart> {
                   Column(
                     children: [
                       _buildSummaryCard(),
-                      ...availableCoops.map(
+                      if (availableCoops.length > 1) _buildCoopSelector(),
+                      ..._coopsToShow.map(
                         (coopId) => _buildCoopChartCard(coopId),
                       ),
                     ],
@@ -264,6 +280,39 @@ class _ShowChartState extends State<ShowChart> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCoopSelector() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      child: EzFormDropdown<String>(
+        label: 'เลือกคอก',
+        value: _selectedCoopId,
+        hint: 'ทั้งหมด',
+        items: [
+          DropdownMenuItem(
+            value: _kAllCoops,
+            child: Text(
+              'ทั้งหมด (${availableCoops.length} คอก)',
+              style: GoogleFonts.kanit(fontSize: 14),
+            ),
+          ),
+          ...availableCoops.map(
+            (coopId) => DropdownMenuItem(
+              value: coopId,
+              child: Text(
+                _coopNames[coopId] ?? coopId,
+                style: GoogleFonts.kanit(fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+        onChanged: (value) {
+          if (value == null) return;
+          setState(() => _selectedCoopId = value);
+        },
       ),
     );
   }
