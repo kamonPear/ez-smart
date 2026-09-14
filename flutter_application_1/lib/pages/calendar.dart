@@ -5,14 +5,63 @@ import '../utils/thai_date.dart';
 
 const Color kCalendarGreen = Color(0xFF66E07A);
 const Color kCalendarRed = Color(0xFFE53935);
+const Color kCalendarAmber = Color(0xFFFFA726);
 
-/// รายการย่อยหนึ่งบรรทัดของวันนั้น เช่น "💉 นิวคาสเซิล – คอกX (ถึงกำหนด)"
-/// isPending = true หมายถึง "ยังไม่ทำ" (ต้องมาร์คสีแดงเตือน), false = แจ้งให้ทราบ/ทำแล้ว (เขียว)
+/// ประเภทของรายการในปฏิทิน ใช้กำหนดไอคอน/ป้ายกำกับให้ดูออกทันทีว่าเป็นเรื่องอะไร
+enum CalendarItemCategory { vaccine, health, birthday, adopt }
+
+extension CalendarItemCategoryX on CalendarItemCategory {
+  String get label => switch (this) {
+    CalendarItemCategory.vaccine => 'วัคซีน',
+    CalendarItemCategory.health => 'ตรวจสุขภาพ',
+    CalendarItemCategory.birthday => 'วันเกิดไก่',
+    CalendarItemCategory.adopt => 'รับเข้าเลี้ยง',
+  };
+
+  IconData get icon => switch (this) {
+    CalendarItemCategory.vaccine => Icons.vaccines_rounded,
+    CalendarItemCategory.health => Icons.medical_services_rounded,
+    CalendarItemCategory.birthday => Icons.cake_rounded,
+    CalendarItemCategory.adopt => Icons.home_rounded,
+  };
+}
+
+/// สถานะของรายการ ใช้แยกให้ชัดว่า "ทำแล้ว/แจ้งให้ทราบ" (เขียว), "นัดล่วงหน้า
+/// ยังไม่ถึงกำหนด" (เหลือง) หรือ "เกินกำหนด ยังไม่ทำ" (แดง) เพื่อไม่ให้สับสน
+/// กับวันที่ในอนาคตที่ยังไม่ถึงกำหนดจริง
+enum CalendarItemStatus { done, upcoming, overdue, info }
+
+extension CalendarItemStatusX on CalendarItemStatus {
+  String get label => switch (this) {
+    CalendarItemStatus.done => 'ทำแล้ว',
+    CalendarItemStatus.upcoming => 'ยังไม่ถึงกำหนด',
+    CalendarItemStatus.overdue => 'เกินกำหนด - ยังไม่ทำ',
+    CalendarItemStatus.info => 'แจ้งให้ทราบ',
+  };
+
+  Color get color => switch (this) {
+    CalendarItemStatus.done => kCalendarGreen,
+    CalendarItemStatus.upcoming => kCalendarAmber,
+    CalendarItemStatus.overdue => kCalendarRed,
+    CalendarItemStatus.info => kCalendarGreen,
+  };
+}
+
+/// รายการย่อยหนึ่งบรรทัดของวันนั้น เช่น "นิวคาสเซิล – คอกX"
+/// category บอกว่าเป็นเรื่องอะไร (วัคซีน/ตรวจสุขภาพ/...) ส่วน status บอกสถานะ
+/// เพื่อให้แสดงป้ายกำกับสี+ข้อความที่ชัดเจน แทนการเดาความหมายจากไอคอนอย่างเดียว
 class DayDetailItem {
   final String text;
-  final bool isPending;
+  final CalendarItemCategory category;
+  final CalendarItemStatus status;
 
-  const DayDetailItem({required this.text, this.isPending = false});
+  const DayDetailItem({
+    required this.text,
+    required this.category,
+    required this.status,
+  });
+
+  bool get isPending => status == CalendarItemStatus.overdue;
 }
 
 /// ข้อมูลมาร์กของวันหนึ่งๆ สำหรับปฏิทินรวม (สีจุด + รายละเอียดที่โชว์ตอนกดค้าง)
@@ -21,6 +70,18 @@ class DayMarkerInfo {
   final List<DayDetailItem> details;
 
   const DayMarkerInfo({required this.color, required this.details});
+
+  /// เลือกสีจุดของวันนั้นตามสถานะที่ "ร้ายแรงที่สุด" ในบรรดารายการของวัน:
+  /// เกินกำหนด (แดง) > นัดล่วงหน้ายังไม่ถึงกำหนด (เหลือง) > ทำแล้ว/แจ้งให้ทราบ (เขียว)
+  static Color colorForDetails(List<DayDetailItem> details) {
+    if (details.any((d) => d.status == CalendarItemStatus.overdue)) {
+      return kCalendarRed;
+    }
+    if (details.any((d) => d.status == CalendarItemStatus.upcoming)) {
+      return kCalendarAmber;
+    }
+    return kCalendarGreen;
+  }
 }
 
 class CustomCalendar extends StatefulWidget {

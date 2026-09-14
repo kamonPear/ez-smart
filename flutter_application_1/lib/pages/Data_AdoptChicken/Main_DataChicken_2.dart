@@ -96,18 +96,8 @@ class _MainchickenState extends State<Mainchicken> {
                 ),
                 ...marker.details.map(
                   (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Text(
-                      item.text,
-                      style: GoogleFonts.kanit(
-                        color: item.isPending ? kCalendarRed : ez.textPrimary,
-                        fontWeight: item.isPending
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                        fontSize: 14.5,
-                        height: 1.4,
-                      ),
-                    ),
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _detailRow(item, rowContext: dialogContext),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -167,6 +157,74 @@ class _MainchickenState extends State<Mainchicken> {
     }
   }
 
+  Widget _statusBadge(CalendarItemStatus status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: status.color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status.label,
+        style: GoogleFonts.kanit(
+          color: status.color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(DayDetailItem item, {required BuildContext rowContext}) {
+    final ez = ezColors(rowContext);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: item.status.color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(item.category.icon, color: item.status.color, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.category.label,
+                      style: GoogleFonts.kanit(
+                        color: ez.textSecondary,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  _statusBadge(item.status),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                item.text,
+                style: GoogleFonts.kanit(
+                  color: ez.textPrimary,
+                  fontWeight: FontWeight.normal,
+                  fontSize: 13.5,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _legendDot(Color color, String label) {
     final ez = ezColors(context);
     return Row(
@@ -222,12 +280,14 @@ class _MainchickenState extends State<Mainchicken> {
                     onDayLongPress: (day, m) => _showDayPopup(day, m),
                   ),
                   const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 16,
+                    runSpacing: 6,
                     children: [
                       _legendDot(kCalendarGreen, 'แจ้งให้ทราบ / ทำแล้ว'),
-                      const SizedBox(width: 16),
-                      _legendDot(kCalendarRed, 'ยังไม่ทำ - เตือน'),
+                      _legendDot(kCalendarAmber, 'นัดล่วงหน้า - ยังไม่ถึงกำหนด'),
+                      _legendDot(kCalendarRed, 'เกินกำหนด - ยังไม่ทำ'),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -270,7 +330,7 @@ class _MainchickenState extends State<Mainchicken> {
                         decoration: BoxDecoration(
                           color: ez.card,
                           borderRadius: BorderRadius.circular(14),
-                          border: item.isPending
+                          border: item.status == CalendarItemStatus.overdue
                               ? Border.all(
                                   color: kCalendarRed.withValues(alpha: 0.5),
                                   width: 1.3,
@@ -284,19 +344,7 @@ class _MainchickenState extends State<Mainchicken> {
                             ),
                           ],
                         ),
-                        child: Text(
-                          item.text,
-                          style: GoogleFonts.kanit(
-                            color: item.isPending
-                                ? kCalendarRed
-                                : ez.textPrimary,
-                            fontWeight: item.isPending
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                            fontSize: 13.5,
-                            height: 1.4,
-                          ),
-                        ),
+                        child: _detailRow(item, rowContext: context),
                       ),
                     ),
 

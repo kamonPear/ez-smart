@@ -145,7 +145,9 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
             color: kCalendarGreen,
             details: [
               DayDetailItem(
-                text: '🩺 ตรวจแล้ว: สุขภาพดี ${r.healthy} / ป่วย ${r.poor} ตัว',
+                text: 'ตรวจแล้ว: สุขภาพดี ${r.healthy} / ป่วย ${r.poor} ตัว',
+                category: CalendarItemCategory.health,
+                status: CalendarItemStatus.done,
               ),
             ],
           );
@@ -159,9 +161,12 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
           details: [
             DayDetailItem(
               text: isFuture
-                  ? '🩺 นัดตรวจ (เตรียมให้${appt.vaccineName} วันที่ ${appt.vaccineDate.day}/${appt.vaccineDate.month})'
-                  : '🩺 ถึงกำหนดตรวจแล้ว (เตรียมให้${appt.vaccineName} วันที่ ${appt.vaccineDate.day}/${appt.vaccineDate.month})',
-              isPending: !isFuture,
+                  ? 'นัดตรวจ (เตรียมให้${appt.vaccineName} วันที่ ${appt.vaccineDate.day}/${appt.vaccineDate.month})'
+                  : 'ถึงกำหนดตรวจแล้ว (เตรียมให้${appt.vaccineName} วันที่ ${appt.vaccineDate.day}/${appt.vaccineDate.month})',
+              category: CalendarItemCategory.health,
+              status: isFuture
+                  ? CalendarItemStatus.upcoming
+                  : CalendarItemStatus.overdue,
             ),
           ],
         );

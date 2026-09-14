@@ -35,7 +35,6 @@ Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
   };
 
   final Map<DateTime, List<DayDetailItem>> detailsByDate = {};
-  final Map<DateTime, bool> hasIncompleteVaccineByDate = {};
 
   DateTime? dateOnly(dynamic raw) {
     if (raw == null) return null;
@@ -45,15 +44,16 @@ Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
     return DateTime(local.year, local.month, local.day);
   }
 
-  // isPending = true -> ยังไม่ทำ มาร์คสีแดง, false -> แจ้งให้ทราบ/ทำแล้ว มาร์คสีเขียว
-  void addDetail(DateTime? date, String text, {bool isPending = false}) {
+  void addDetail(
+    DateTime? date,
+    String text, {
+    required CalendarItemCategory category,
+    required CalendarItemStatus status,
+  }) {
     if (date == null) return;
     detailsByDate
         .putIfAbsent(date, () => [])
-        .add(DayDetailItem(text: text, isPending: isPending));
-    if (isPending) {
-      hasIncompleteVaccineByDate[date] = true;
-    }
+        .add(DayDetailItem(text: text, category: category, status: status));
   }
 
   for (final coop in coops) {
@@ -61,10 +61,20 @@ Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
     final name = coopNames[coopId] ?? coopId;
 
     final birthday = dateOnly(coop['birthday'] ?? coop['Birthday']);
-    addDetail(birthday, '🎂 วันเกิดไก่ – คอก$name');
+    addDetail(
+      birthday,
+      'วันเกิดไก่ – คอก$name',
+      category: CalendarItemCategory.birthday,
+      status: CalendarItemStatus.info,
+    );
 
     final adoptDate = dateOnly(coop['date_adopt_animals']);
-    addDetail(adoptDate, '🏠 วันที่รับเข้าเลี้ยง – คอก$name');
+    addDetail(
+      adoptDate,
+      'วันที่รับเข้าเลี้ยง – คอก$name',
+      category: CalendarItemCategory.adopt,
+      status: CalendarItemStatus.info,
+    );
   }
 
   for (final h in healths) {
@@ -73,8 +83,16 @@ Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
     final date = dateOnly(h['record_date']);
     final healthy = h['healthy']?.toString() ?? '0';
     final poor = h['poor_health']?.toString() ?? '0';
-    addDetail(date, '🩺 ตรวจสุขภาพ – คอก$name (สุขภาพดี $healthy / ป่วย $poor)');
+    addDetail(
+      date,
+      'ตรวจสุขภาพ – คอก$name (สุขภาพดี $healthy / ป่วย $poor)',
+      category: CalendarItemCategory.health,
+      status: CalendarItemStatus.info,
+    );
   }
+
+  final today = DateTime.now();
+  final todayOnly = DateTime(today.year, today.month, today.day);
 
   for (final a in alerts) {
     final coopId = (a['coop_id'])?.toString() ?? '-';
@@ -82,23 +100,31 @@ Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
     final date = dateOnly(a['date']);
     final vaccineName = a['vaccine_name']?.toString() ?? 'วัคซีน';
     final isCompleted = a['is_completed'] == true;
-    final isOverdue = a['is_overdue'] == true;
-    final status = isCompleted
-        ? 'ให้แล้ว'
-        : (isOverdue ? 'เกินกำหนด' : 'ถึงกำหนด');
+
+    // ตัดสินสถานะจากวันที่จริงเทียบกับวันนี้ แทนการเชื่อ flag is_overdue
+    // จาก backend อย่างเดียว เพื่อไม่ให้วันที่ยังมาไม่ถึงถูกมาร์คว่า "ถึงกำหนด"
+    // (สีแดง/ต้องทำ) ทั้งที่จริงๆ ยังเป็นแค่นัดล่วงหน้า
+    final CalendarItemStatus status;
+    if (isCompleted) {
+      status = CalendarItemStatus.done;
+    } else if (date != null && !date.isAfter(todayOnly)) {
+      status = CalendarItemStatus.overdue;
+    } else {
+      status = CalendarItemStatus.upcoming;
+    }
+
     addDetail(
       date,
-      '💉 $vaccineName – คอก$name ($status)',
-      isPending: !isCompleted,
+      '$vaccineName – คอก$name',
+      category: CalendarItemCategory.vaccine,
+      status: status,
     );
   }
 
   return {
     for (final entry in detailsByDate.entries)
       entry.key: DayMarkerInfo(
-        color: hasIncompleteVaccineByDate[entry.key] == true
-            ? kCalendarRed
-            : kCalendarGreen,
+        color: DayMarkerInfo.colorForDetails(entry.value),
         details: entry.value,
       ),
   };

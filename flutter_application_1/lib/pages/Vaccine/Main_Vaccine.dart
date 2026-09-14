@@ -132,10 +132,12 @@ class _MainVaccineState extends State<MainVaccine> {
     }).toList();
   }
 
-  // 🌟 มาร์คสีเขียว = ให้วัคซีนแล้ว, สีแดง = ยังไม่ให้ (ถึงกำหนด/เกินกำหนด) ต้องรีบเตือน
+  // 🌟 มาร์คสีเขียว = ให้วัคซีนแล้ว, สีเหลือง = นัดล่วงหน้ายังไม่ถึงกำหนด,
+  // สีแดง = ถึง/เกินกำหนดแล้วแต่ยังไม่ให้ ต้องรีบเตือน
   void _updateDayMarkers() {
     final Map<DateTime, List<DayDetailItem>> byDate = {};
-    final Map<DateTime, bool> hasPending = {};
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
 
     for (var alert in _coopFilteredAlerts) {
       if (alert['date'] == null) continue;
@@ -147,29 +149,34 @@ class _MainVaccineState extends State<MainVaccine> {
       }
       final dateOnly = DateTime(d.year, d.month, d.day);
       final bool isCompleted = alert['is_completed'] ?? false;
-      final bool isOverdue = alert['is_overdue'] ?? false;
       final String vaccineName = alert['vaccine_name'] ?? 'วัคซีน';
       final String coopId = alert['coop_id']?.toString() ?? '-';
       final String coopName = _coopNames[coopId] ?? 'คอก $coopId';
-      final String status = isCompleted
-          ? 'ให้แล้ว'
-          : (isOverdue ? 'เกินกำหนด' : 'ถึงกำหนด');
+
+      final CalendarItemStatus itemStatus;
+      if (isCompleted) {
+        itemStatus = CalendarItemStatus.done;
+      } else if (!dateOnly.isAfter(todayOnly)) {
+        itemStatus = CalendarItemStatus.overdue;
+      } else {
+        itemStatus = CalendarItemStatus.upcoming;
+      }
 
       byDate
           .putIfAbsent(dateOnly, () => [])
           .add(
             DayDetailItem(
-              text: '💉 $vaccineName – $coopName ($status)',
-              isPending: !isCompleted,
+              text: '$vaccineName – $coopName',
+              category: CalendarItemCategory.vaccine,
+              status: itemStatus,
             ),
           );
-      if (!isCompleted) hasPending[dateOnly] = true;
     }
 
     _dayMarkers = {
       for (final entry in byDate.entries)
         entry.key: DayMarkerInfo(
-          color: hasPending[entry.key] == true ? kCalendarRed : kCalendarGreen,
+          color: DayMarkerInfo.colorForDetails(entry.value),
           details: entry.value,
         ),
     };
@@ -206,15 +213,44 @@ class _MainVaccineState extends State<MainVaccine> {
                 ...marker.details.map(
                   (item) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: Text(
-                      item.text,
-                      style: GoogleFonts.kanit(
-                        color: item.isPending ? kCalendarRed : ez.textPrimary,
-                        fontWeight: item.isPending
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                        fontSize: 14.5,
-                      ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.text,
+                            style: GoogleFonts.kanit(
+                              color: item.status == CalendarItemStatus.overdue
+                                  ? kCalendarRed
+                                  : ez.textPrimary,
+                              fontWeight:
+                                  item.status == CalendarItemStatus.overdue
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              fontSize: 14.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: item.status.color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            item.status.label,
+                            style: GoogleFonts.kanit(
+                              color: item.status.color,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
