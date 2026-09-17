@@ -141,8 +141,10 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
         });
       }
 
-      // นำออก/แจกจ่าย: หนึ่งครั้งที่กดตัดสต็อกจะได้หลายแถว (แถวละ 1 คอก) ที่แชร์
-      // เวลาเดียวกันเป๊ะ (distributed_at) จึงรวมยอดของทุกคอกในครั้งนั้นเป็นแถวเดียว
+      // นำออก/แจกจ่าย: หนึ่งครั้งที่กดตัดสต็อกจะได้หลายแถว (แถวละ 1 คอก) และในวันเดียวกัน
+      // อาจมีการกดตัดสต็อกหลายครั้งด้วย (คนละเวลากันเป๊ะ) แต่ในตารางประวัติจะโชว์แค่
+      // ระดับวันที่ (ไม่มีเวลา) จึงรวมยอดของทุกคอก+ทุกครั้งในวันเดียวกัน (แยกตามประเภท
+      // อาหาร) เป็นแถวเดียว ไม่ให้ดูเหมือนมีรายการซ้ำวันที่กันหลายแถว
       final distResp = results[1];
       if (distResp.statusCode == 200) {
         final decoded = json.decode(distResp.body);
@@ -154,11 +156,16 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
             )?.toLocal();
             if (date == null) continue;
             final foodType = (row['food_type'] ?? '-').toString();
-            final key = '${foodType}_${date.toIso8601String()}';
+            final dayKey =
+                '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+            final key = '${foodType}_$dayKey';
             final kg = (row['kg_given'] as num?)?.toDouble() ?? 0.0;
             if (grouped.containsKey(key)) {
               grouped[key]!['amount'] =
                   (grouped[key]!['amount'] as double) + kg;
+              if (date.isAfter(grouped[key]!['date'] as DateTime)) {
+                grouped[key]!['date'] = date;
+              }
             } else {
               grouped[key] = {
                 'kind': 'distribute',

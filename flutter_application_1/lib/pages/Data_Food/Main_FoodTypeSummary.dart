@@ -83,6 +83,24 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
   });
 
   Future<void> _saveDistribution() async {
+    final missingCoops = _coopsForSelectedType.where((c) {
+      final id = (c['coop_id'] ?? '').toString();
+      final text = _kgControllers[id]?.text.trim() ?? '';
+      return text.isEmpty || double.tryParse(text) == null;
+    }).toList();
+
+    if (missingCoops.isNotEmpty) {
+      final names = missingCoops
+          .map((c) => (c['name_coop'] ?? '-').toString())
+          .join(', ');
+      showEzTopBanner(
+        context,
+        'กรุณากรอกจำนวนกิโลให้ครบทุกคอกก่อนตัดสต็อก (เหลือ: $names)',
+        type: EzBannerType.warning,
+      );
+      return;
+    }
+
     if (_enteredTotal <= 0) {
       showEzTopBanner(
         context,

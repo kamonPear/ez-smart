@@ -50,6 +50,28 @@ class _AddEggState extends State<AddEgg> {
   List<String> availableCoops = [];
   Map<String, String> _coopNames =
       {}; // ✅ แผนที่ coop_id -> ชื่อคอก สำหรับแสดงผล
+  Map<String, DateTime> _coopBirthdays = {}; // coop_id -> วันเกิดไก่ ใช้เช็คอายุก่อนเก็บไข่
+
+  // ไก่ต้องอายุอย่างน้อย 5 เดือนถึงจะเริ่มเก็บไข่ได้ (ไข่ยังไม่สมบูรณ์ก่อนหน้านั้น)
+  static const int kMinAgeMonthsForEggCollection = 5;
+
+  int? get _selectedCoopAgeMonths {
+    final birthday = _selectedCoop == null
+        ? null
+        : _coopBirthdays[_selectedCoop];
+    if (birthday == null) return null;
+    final now = DateTime.now();
+    int months = (now.year - birthday.year) * 12 + (now.month - birthday.month);
+    if (now.day < birthday.day) months -= 1;
+    return months < 0 ? 0 : months;
+  }
+
+  // ไม่ทราบวันเกิดไก่ (ข้อมูลยังไม่ครบ) ให้ปล่อยผ่านไปก่อน ไม่บล็อกเพราะข้อมูลขาด
+  bool get _canCollectEggs {
+    final ageMonths = _selectedCoopAgeMonths;
+    if (ageMonths == null) return true;
+    return ageMonths >= kMinAgeMonthsForEggCollection;
+  }
 
   @override
   void initState() {
@@ -86,6 +108,15 @@ class _AddEggState extends State<AddEgg> {
                   (item['name_coop']?.toString().trim().isNotEmpty == true)
                   ? item['name_coop'].toString()
                   : item['coop_id'].toString(),
+          };
+
+          _coopBirthdays = {
+            for (var item in data)
+              if (DateTime.tryParse(item['birthday']?.toString() ?? '') !=
+                  null)
+                item['coop_id'].toString(): DateTime.parse(
+                  item['birthday'].toString(),
+                ),
           };
 
           if (widget.initialCoopId != null &&
@@ -166,6 +197,13 @@ class _AddEggState extends State<AddEgg> {
   Future<void> _submitEggData() async {
     if (_selectedCoop == null) {
       _showBanner('กรุณาเลือกคอกไก่');
+      return;
+    }
+
+    if (!_canCollectEggs) {
+      _showBanner(
+        'ไก่คอกนี้อายุยังไม่ถึง $kMinAgeMonthsForEggCollection เดือน ยังไม่สามารถเก็บไข่ได้',
+      );
       return;
     }
 
@@ -309,7 +347,7 @@ class _AddEggState extends State<AddEgg> {
                     children: [
                       _buildSummaryCard(),
                       _buildRecordFormCard(),
-                      _buildEggChart(),
+                      if (_canCollectEggs) _buildEggChart(),
                       _buildHistoryList(),
                     ],
                   ),
@@ -506,67 +544,107 @@ class _AddEggState extends State<AddEgg> {
                     _recalculateStats();
                   },
                 ),
-          const SizedBox(height: 12),
-          EzFormDateField(
-            label: 'วันที่',
-            isRequired: true,
-            controller: _dateController,
-            onTap: _pickDate,
-          ),
-          const SizedBox(height: 12),
-          EzFormTextField(
-            label: 'จำนวนไข่',
-            isRequired: true,
-            controller: _eggCountController,
-            keyboardType: TextInputType.number,
-            hintText: 'เช่น 100',
-            suffixText: 'ฟอง',
-          ),
-          const SizedBox(height: 12),
-          EzFormTextField(
-            label: 'หมายเหตุ',
-            controller: _noteController,
-            hintText: 'ไม่บังคับ',
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ez.accentGreen,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+          if (!_canCollectEggs) ...[
+            const SizedBox(height: 14),
+            _buildNotOldEnoughNotice(),
+          ] else ...[
+            const SizedBox(height: 12),
+            EzFormDateField(
+              label: 'วันที่',
+              isRequired: true,
+              controller: _dateController,
+              onTap: _pickDate,
+            ),
+            const SizedBox(height: 12),
+            EzFormTextField(
+              label: 'จำนวนไข่',
+              isRequired: true,
+              controller: _eggCountController,
+              keyboardType: TextInputType.number,
+              hintText: 'เช่น 100',
+              suffixText: 'ฟอง',
+            ),
+            const SizedBox(height: 12),
+            EzFormTextField(
+              label: 'หมายเหตุ',
+              controller: _noteController,
+              hintText: 'ไม่บังคับ',
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ez.accentGreen,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
-              ),
-              onPressed: isSubmitting ? null : _submitEggData,
-              child: isSubmitting
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.add_circle_outline,
+                onPressed: isSubmitting ? null : _submitEggData,
+                child: isSubmitting
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
                           color: Colors.white,
+                          strokeWidth: 2,
                         ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'บันทึกยอดเก็บไข่ไก่',
-                          style: GoogleFonts.kanit(
-                            fontSize: 16,
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.add_circle_outline,
                             color: Colors.white,
-                            fontWeight: FontWeight.bold,
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'บันทึกยอดเก็บไข่ไก่',
+                            style: GoogleFonts.kanit(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// ข้อความแจ้งเตือนตอนไก่ในคอกที่เลือกยังอายุไม่ถึงเกณฑ์เก็บไข่
+  Widget _buildNotOldEnoughNotice() {
+    final ez = ezColors(context);
+    final ageMonths = _selectedCoopAgeMonths;
+    final ageText = ageMonths != null ? ' (อายุปัจจุบัน $ageMonths เดือน)' : '';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: ez.danger.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ez.danger.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: ez.danger, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'ไก่คอกนี้อายุยังไม่ถึง $kMinAgeMonthsForEggCollection เดือน'
+              '$ageText ยังไม่สามารถเก็บไข่ได้',
+              style: GoogleFonts.kanit(
+                color: ez.danger,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
             ),
           ),
         ],

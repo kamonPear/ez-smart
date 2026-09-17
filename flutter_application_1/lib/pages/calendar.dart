@@ -54,11 +54,14 @@ class DayDetailItem {
   final String text;
   final CalendarItemCategory category;
   final CalendarItemStatus status;
+  // รหัสคอกที่รายการนี้เกี่ยวข้อง (ใช้กดแล้วพาไปหน้ารายละเอียดคอกนั้น) - null ถ้าไม่ผูกกับคอกไหน
+  final String? coopId;
 
   const DayDetailItem({
     required this.text,
     required this.category,
     required this.status,
+    this.coopId,
   });
 
   bool get isPending => status == CalendarItemStatus.overdue;

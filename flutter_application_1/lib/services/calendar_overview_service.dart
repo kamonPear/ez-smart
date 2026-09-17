@@ -49,11 +49,19 @@ Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
     String text, {
     required CalendarItemCategory category,
     required CalendarItemStatus status,
+    String? coopId,
   }) {
     if (date == null) return;
     detailsByDate
         .putIfAbsent(date, () => [])
-        .add(DayDetailItem(text: text, category: category, status: status));
+        .add(
+          DayDetailItem(
+            text: text,
+            category: category,
+            status: status,
+            coopId: coopId,
+          ),
+        );
   }
 
   for (final coop in coops) {
@@ -66,6 +74,7 @@ Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
       'วันเกิดไก่ – คอก$name',
       category: CalendarItemCategory.birthday,
       status: CalendarItemStatus.info,
+      coopId: coopId,
     );
 
     final adoptDate = dateOnly(coop['date_adopt_animals']);
@@ -74,6 +83,7 @@ Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
       'วันที่รับเข้าเลี้ยง – คอก$name',
       category: CalendarItemCategory.adopt,
       status: CalendarItemStatus.info,
+      coopId: coopId,
     );
   }
 
@@ -88,6 +98,7 @@ Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
       'ตรวจสุขภาพ – คอก$name (สุขภาพดี $healthy / ป่วย $poor)',
       category: CalendarItemCategory.health,
       status: CalendarItemStatus.info,
+      coopId: coopId,
     );
   }
 
@@ -118,6 +129,7 @@ Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
       '$vaccineName – คอก$name',
       category: CalendarItemCategory.vaccine,
       status: status,
+      coopId: coopId,
     );
   }
 

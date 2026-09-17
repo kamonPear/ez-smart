@@ -22,9 +22,9 @@ const String kFoodTypeLargePellet = 'เม็ดใหญ่';
 String foodTypeAgeHint(String? foodType) {
   switch (foodType) {
     case kFoodTypeSmallPellet:
-      return 'สำหรับไก่อายุ 0-6 สัปดาห์';
+      return 'สำหรับไก่อายุ 0-14 สัปดาห์';
     case kFoodTypeLargePellet:
-      return 'สำหรับไก่อายุมากกว่า 6 สัปดาห์';
+      return 'สำหรับไก่อายุตั้งแต่ 14 สัปดาห์ขึ้นไป';
     default:
       return 'เลือกประเภทอาหารให้ตรงกับช่วงอายุไก่';
   }

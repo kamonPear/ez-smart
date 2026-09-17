@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
@@ -8,6 +10,9 @@ import '../bottombar.dart';
 import '../main_dash.dart';
 import '../../widgets/ez_header.dart';
 import '../../services/calendar_overview_service.dart';
+import '../../services/backend_config.dart';
+import '../../utils/thai_date.dart';
+import 'Main_CoopDetail.dart';
 
 class Mainchicken extends StatefulWidget {
   const Mainchicken({super.key});
@@ -41,6 +46,134 @@ class _MainchickenState extends State<Mainchicken> {
     } catch (e) {
       debugPrint('❌ โหลดข้อมูลปฏิทินรวมไม่สำเร็จ: $e');
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // กดรายการในปฏิทินรวมแล้วพาไปหน้ารายละเอียดของคอกนั้น (ต้องมี coopId ผูกมากับรายการ)
+  // CoopDetailPage ไม่ได้ดึงข้อมูลพื้นฐานของคอก (ชื่อ/จำนวน/อุณหภูมิ/PPM/สุขภาพ/ไข่) เอง
+  // ต้องประกอบให้ครบก่อนส่งไป ไม่งั้นจะโชว์เป็น "null" เต็มหน้า (เหมือนหน้าคอกไก่รวมที่ทำไว้)
+  Future<void> _openCoop(String? coopId) async {
+    if (coopId == null || coopId.isEmpty || coopId == '-') return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: CircularProgressIndicator(color: ezColors(context).gold),
+      ),
+    );
+
+    try {
+      final results = await Future.wait([
+        http.get(Uri.parse('$backendBaseUrl/api/coops')),
+        http.get(Uri.parse('$backendBaseUrl/api/healths')),
+        http.get(Uri.parse('$backendBaseUrl/api/devices')),
+        http.get(Uri.parse('$backendBaseUrl/api/eggs')),
+      ]);
+
+      Map<String, dynamic>? coopRaw;
+      if (results[0].statusCode == 200) {
+        final List<dynamic> coops = jsonDecode(results[0].body);
+        for (final c in coops) {
+          if ((c['coop_id'] ?? c['id']).toString() == coopId) {
+            coopRaw = c;
+            break;
+          }
+        }
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context); // ปิด dialog โหลด
+
+      if (coopRaw == null) {
+        debugPrint('❌ ไม่พบข้อมูลคอก $coopId');
+        return;
+      }
+      final coop = coopRaw;
+
+      int healthy = 0;
+      int poor = 0;
+      if (results[1].statusCode == 200) {
+        final List<dynamic> healths = jsonDecode(results[1].body);
+        for (final h in healths) {
+          if (h['coop_id']?.toString() != coopId) continue;
+          healthy = int.tryParse(h['healthy']?.toString() ?? '') ?? 0;
+          poor = int.tryParse(h['poor_health']?.toString() ?? '') ?? 0;
+        }
+      }
+
+      String temp = '0';
+      String ppm = '0';
+      if (results[2].statusCode == 200) {
+        final List<dynamic> devices = jsonDecode(results[2].body);
+        for (final d in devices) {
+          if (d['coop_id']?.toString() != coopId) continue;
+          final name = (d['name'] ?? '').toString().toLowerCase();
+          final value = d['value']?.toString() ?? '';
+          if (name.contains('อุณหภูมิ') || name.contains('dht')) {
+            temp = value;
+          } else if (name.contains('แอมโมเนีย') || name.contains('mq')) {
+            ppm = value;
+          }
+        }
+      }
+
+      final Map<String, List<double>> eggByYear = {};
+      if (results[3].statusCode == 200) {
+        final List<dynamic> eggs = jsonDecode(results[3].body);
+        for (final egg in eggs) {
+          if (egg['coop_id']?.toString() != coopId) continue;
+          String year = DateTime.now().year.toString();
+          int month = DateTime.now().month;
+          if (egg['date_collect_egg'] != null) {
+            try {
+              final parsed = DateTime.parse(
+                egg['date_collect_egg'].toString(),
+              ).toLocal();
+              year = parsed.year.toString();
+              month = parsed.month;
+            } catch (_) {
+              // ใช้วันที่ปัจจุบันแทนถ้าพาร์สไม่ได้
+            }
+          }
+          final amount =
+              double.tryParse((egg['number_egg'] ?? '0').toString()) ?? 0.0;
+          eggByYear.putIfAbsent(year, () => List.filled(12, 0.0));
+          if (month >= 1 && month <= 12) {
+            eggByYear[year]![month - 1] += amount;
+          }
+        }
+      }
+
+      final name = (coop['name_coop']?.toString().trim().isNotEmpty == true)
+          ? coop['name_coop'].toString()
+          : coopId;
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CoopDetailPage(
+            coop: {
+              'id': coopId,
+              'name': name,
+              'amount': coop['amount']?.toString() ?? '0',
+              'import_date': thaiDateFromIso(
+                coop['date_adopt_animals']?.toString(),
+              ),
+              'birth_date': thaiDateFromIso(coop['birthday']?.toString()),
+              'healthy': healthy.toString(),
+              'poor_health': poor.toString(),
+              'temp': temp,
+              'ppm': ppm,
+              'egg_data': eggByYear,
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // ปิด dialog โหลดถ้าพลาด
+      debugPrint('❌ โหลดข้อมูลคอกไม่สำเร็จ: $e');
     }
   }
 
@@ -97,7 +230,16 @@ class _MainchickenState extends State<Mainchicken> {
                 ...marker.details.map(
                   (item) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _detailRow(item, rowContext: dialogContext),
+                    child: InkWell(
+                      onTap: item.coopId == null
+                          ? null
+                          : () {
+                              Navigator.pop(dialogContext);
+                              _openCoop(item.coopId);
+                            },
+                      borderRadius: BorderRadius.circular(10),
+                      child: _detailRow(item, rowContext: dialogContext),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -326,28 +468,40 @@ class _MainchickenState extends State<Mainchicken> {
                       )
                     else
                       ...marker.details.map(
-                        (item) => Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: ez.card,
+                        (item) => Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => _openCoop(item.coopId),
                             borderRadius: BorderRadius.circular(14),
-                            border: item.status == CalendarItemStatus.overdue
-                                ? Border.all(
-                                    color: kCalendarRed.withValues(alpha: 0.5),
-                                    width: 1.3,
-                                  )
-                                : null,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
+                            child: Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: ez.card,
+                                borderRadius: BorderRadius.circular(14),
+                                border:
+                                    item.status == CalendarItemStatus.overdue
+                                    ? Border.all(
+                                        color: kCalendarRed.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        width: 1.3,
+                                      )
+                                    : null,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(
+                                      alpha: 0.15,
+                                    ),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                            ],
+                              child: _detailRow(item, rowContext: context),
+                            ),
                           ),
-                          child: _detailRow(item, rowContext: context),
                         ),
                       ),
 
