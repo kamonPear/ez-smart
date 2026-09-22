@@ -5,7 +5,7 @@ import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import 'dart:convert';
 import '../bottombar.dart';
 import '../../services/backend_config.dart';
@@ -147,7 +147,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
       });
 
       debugPrint('POST /api/coops body: $body');
-      final response = await http.post(
+      final response = await ApiClient.post(
         Uri.parse('$backendBaseUrl/api/coops'),
         headers: {
           'Content-Type': 'application/json',

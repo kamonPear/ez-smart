@@ -6,7 +6,7 @@ import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart'
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:flutter_application_1/pages/number_for_Egg/Edit_NumberEggchicken_3.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import '../bottombar.dart';
 import '../../widgets/ez_header.dart';
 import '../../widgets/ez_egg_chart.dart';
@@ -69,7 +69,7 @@ class _AddEggState extends State<AddEgg> {
 
   Future<void> _fetchCoops() async {
     try {
-      final response = await http.get(Uri.parse('$backendBaseUrl/api/coops'));
+      final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/coops'));
 
       if (response.statusCode == 200) {
         List<dynamic> data = jsonDecode(response.body);
@@ -109,7 +109,7 @@ class _AddEggState extends State<AddEgg> {
     });
 
     try {
-      final response = await http.get(Uri.parse('$backendBaseUrl/api/eggs'));
+      final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/eggs'));
 
       if (response.statusCode == 200) {
         _rawEggData = jsonDecode(response.body);
@@ -196,7 +196,7 @@ class _AddEggState extends State<AddEgg> {
     };
 
     try {
-      final response = await http.post(
+      final response = await ApiClient.post(
         Uri.parse('$backendBaseUrl/api/eggs'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(payload),

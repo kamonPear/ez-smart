@@ -6,7 +6,7 @@ import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart'
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import 'dart:async'; // 🔥 เพิ่มเข้ามาเพื่อรองรับการทำระบบ Real-time
 import '../bottombar.dart';
 import '../../widgets/ez_header.dart';
@@ -65,7 +65,7 @@ class _DataSystemState extends State<DataSystem> {
 
   Future<void> fetchCoops() async {
     try {
-      final response = await http.get(Uri.parse('$backendBaseUrl/api/coops'));
+      final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/coops'));
       if (response.statusCode == 200) {
         setState(() {
           coops = json.decode(response.body);
@@ -88,7 +88,7 @@ class _DataSystemState extends State<DataSystem> {
       if (selectedCoopId != null && selectedCoopId!.isNotEmpty) {
         url = '$backendBaseUrl/api/devices?coop_id=$selectedCoopId';
       }
-      final response = await http.get(Uri.parse(url));
+      final response = await ApiClient.get(Uri.parse(url));
       if (response.statusCode == 200) {
         // 🔥 เพิ่มบรรทัดนี้เข้าไปชั่วคราวเพื่อดูข้อมูลที่ส่งมาจากหลังบ้าน
         print("📡 ข้อมูลจาก API: ${response.body}");

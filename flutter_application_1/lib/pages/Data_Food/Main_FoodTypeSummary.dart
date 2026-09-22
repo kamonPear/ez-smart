@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -105,7 +105,7 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
 
     setState(() => isSaving = true);
     try {
-      final response = await http.post(
+      final response = await ApiClient.post(
         Uri.parse('$backendBaseUrl/api/foods/distribution'),
         headers: {'Content-Type': 'application/json; charset=utf-8'},
         body: json.encode({'food_type': _selectedFoodType, 'items': items}),
@@ -142,7 +142,7 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
     setState(() => isLoading = true);
     try {
       final url = Uri.parse('$backendBaseUrl/api/foods/coop-consumption');
-      final response = await http.get(url);
+      final response = await ApiClient.get(url);
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);
@@ -164,7 +164,7 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
   Future<void> _fetchDistributionHistory() async {
     try {
       final url = Uri.parse('$backendBaseUrl/api/foods/distribution');
-      final response = await http.get(url);
+      final response = await ApiClient.get(url);
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);

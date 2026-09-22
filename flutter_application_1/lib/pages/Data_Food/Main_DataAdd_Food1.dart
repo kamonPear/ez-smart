@@ -4,7 +4,7 @@ import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood
 import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import 'dart:convert';
 import '../bottombar.dart';
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
@@ -166,7 +166,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     }
 
     try {
-      final response = await http.post(
+      final response = await ApiClient.post(
         url,
         headers: {"Content-Type": "application/json"},
         body: json.encode({

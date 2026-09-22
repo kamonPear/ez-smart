@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 
 // Import สำหรับการนำทาง (กรุณาปรับให้ตรงกับ Path ของโปรเจกต์คุณ)
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
@@ -53,7 +53,7 @@ class _MainVaccineState extends State<MainVaccine> {
 
   Future<void> _fetchHealthRecords() async {
     try {
-      final response = await http.get(Uri.parse('$backendBaseUrl/api/healths'));
+      final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/healths'));
       if (response.statusCode == 200) {
         final List<dynamic> healths = json.decode(response.body);
         final Map<String, int> byKey = {};
@@ -99,7 +99,7 @@ class _MainVaccineState extends State<MainVaccine> {
 
   Future<void> _fetchCoopNames() async {
     try {
-      final response = await http.get(Uri.parse('$backendBaseUrl/api/coops'));
+      final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/coops'));
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
@@ -288,7 +288,7 @@ class _MainVaccineState extends State<MainVaccine> {
     });
 
     try {
-      final response = await http.get(
+      final response = await ApiClient.get(
         Uri.parse('$backendBaseUrl/api/vaccines/alerts'),
       );
 
@@ -332,7 +332,7 @@ class _MainVaccineState extends State<MainVaccine> {
     if (id.isEmpty) return;
 
     try {
-      final response = await http.put(
+      final response = await ApiClient.put(
         Uri.parse('$backendBaseUrl/api/vaccines/alerts?id=$id'),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
@@ -501,7 +501,7 @@ class _MainVaccineState extends State<MainVaccine> {
       String url =
           '$backendBaseUrl/api/vaccines/schedule/update?old_name=${Uri.encodeComponent(oldName)}';
 
-      final response = await http.put(
+      final response = await ApiClient.put(
         Uri.parse(url),
         headers: {"Content-Type": "application/json"},
         // ตรวจสอบในฟังก์ชัน editVaccineAlertData ของ Flutter ว่า body เขียนแบบนี้ไหม

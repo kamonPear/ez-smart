@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataAdd_Food1.dart';
@@ -57,7 +57,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     });
 
     try {
-      final response = await http.get(Uri.parse('$backendBaseUrl/api/foods'));
+      final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/foods'));
 
       if (response.statusCode == 200) {
         final dynamic decodedData = json.decode(response.body);
@@ -104,8 +104,8 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   Future<void> _fetchFoodHistory() async {
     try {
       final results = await Future.wait([
-        http.get(Uri.parse('$backendBaseUrl/api/food_history')),
-        http.get(Uri.parse('$backendBaseUrl/api/foods/distribution')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/food_history')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/foods/distribution')),
       ]);
 
       List<dynamic> importRows = [];
@@ -200,7 +200,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   Future<void> _fetchCoopConsumption() async {
     try {
       final url = Uri.parse('$backendBaseUrl/api/foods/coop-consumption');
-      final response = await http.get(url);
+      final response = await ApiClient.get(url);
 
       if (response.statusCode == 200) {
         final decodedData = json.decode(response.body);

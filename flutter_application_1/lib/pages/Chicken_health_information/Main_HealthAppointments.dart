@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../services/backend_config.dart';
@@ -57,8 +57,8 @@ class _MainHealthAppointmentsState extends State<MainHealthAppointments> {
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
-        http.get(Uri.parse('$backendBaseUrl/api/coops')),
-        http.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/coops')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
       ]);
 
       final Map<String, String> coopNames = {};
