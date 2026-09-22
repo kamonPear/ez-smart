@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter_application_1/pages/Chicken_health_information/Main_HealthAppointments.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_Datadopt_chicken_2.dart';
 import 'package:flutter_application_1/pages/Vaccine/Add_VaccineType.dart';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Notifications_.dart';
@@ -13,6 +13,7 @@ import 'bottombar.dart';
 import 'Main_SenSor/Main_DeviceSummary.dart';
 import 'Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'Data_AdoptChicken/Main_CoopDetail.dart';
+import '../../services/auth_service.dart';
 import '../../services/backend_config.dart';
 import '../../services/notifications_service.dart';
 import '../widgets/ez_header.dart';
@@ -76,7 +77,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _fetchFoodStock() async {
     try {
-      final response = await http.get(Uri.parse('$backendBaseUrl/api/foods'));
+      final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/foods'));
       if (response.statusCode == 200) {
         final dynamic decoded = jsonDecode(response.body);
         final List<dynamic> rows = decoded is List ? decoded : [];
@@ -101,14 +102,14 @@ class _MainScreenState extends State<MainScreen> {
     });
 
     try {
-      final coopResponse = await http.get(
+      final coopResponse = await ApiClient.get(
         Uri.parse('$backendBaseUrl/api/coops'),
       );
-      final healthResponse = await http.get(
+      final healthResponse = await ApiClient.get(
         Uri.parse('$backendBaseUrl/api/healths'),
       );
-      final eggResponse = await http.get(Uri.parse('$backendBaseUrl/api/eggs'));
-      final deviceResponse = await http.get(
+      final eggResponse = await ApiClient.get(Uri.parse('$backendBaseUrl/api/eggs'));
+      final deviceResponse = await ApiClient.get(
         Uri.parse('$backendBaseUrl/api/devices'),
       );
 
@@ -872,6 +873,11 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                   Divider(color: ezColors(context).border, height: 24),
                   _buildThemeToggleItem(context),
+                  _buildDrawerItem(
+                    Icons.logout_rounded,
+                    'ออกจากระบบ',
+                    () => _confirmLogout(context),
+                  ),
                 ],
               ),
             ),
@@ -879,6 +885,48 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    Navigator.pop(context); // ปิด drawer ก่อนเปิด dialog ยืนยัน
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: ezCardColor(dialogContext),
+        title: Text(
+          'ออกจากระบบ',
+          style: GoogleFonts.kanit(
+            fontWeight: FontWeight.bold,
+            color: ezColors(dialogContext).textPrimary,
+          ),
+        ),
+        content: Text(
+          'ต้องการออกจากระบบใช่หรือไม่?',
+          style: GoogleFonts.kanit(color: ezColors(dialogContext).textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text('ยกเลิก', style: GoogleFonts.kanit()),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              'ออกจากระบบ',
+              style: GoogleFonts.kanit(color: ezColors(dialogContext).danger),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await AuthService().logout();
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
   Widget _buildThemeToggleItem(BuildContext context) {

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
@@ -79,9 +79,9 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
-        http.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
-        http.get(Uri.parse('$backendBaseUrl/api/healths')),
-        http.get(Uri.parse('$backendBaseUrl/api/coops')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/healths')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/coops')),
       ]);
 
       int? totalChickens;
@@ -200,7 +200,7 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     String note,
   ) async {
     try {
-      final response = await http.post(
+      final response = await ApiClient.post(
         Uri.parse('$backendBaseUrl/api/healths'),
         headers: {'Content-Type': 'application/json; charset=utf-8'},
         body: jsonEncode({

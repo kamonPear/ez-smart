@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Chicken_health_information/Main_HealthCheckCalendar.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
@@ -56,7 +56,7 @@ class _NotificationsState extends State<Notifications> {
     if (type == 'vaccine') {
       String id = data['id'].toString();
       try {
-        await http.put(
+        await ApiClient.put(
           Uri.parse('$backendBaseUrl/api/vaccines/alerts?id=$id'),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode({

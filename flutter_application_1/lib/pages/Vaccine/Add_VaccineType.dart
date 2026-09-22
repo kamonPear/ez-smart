@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
@@ -82,7 +82,7 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
 
     setState(() => _isSaving = true);
     try {
-      final response = await http.post(
+      final response = await ApiClient.post(
         Uri.parse('$backendBaseUrl/api/vaccines/schedule'),
         headers: {'Content-Type': 'application/json; charset=utf-8'},
         body: jsonEncode({

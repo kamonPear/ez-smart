@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_application_1/pages/Login/login_page.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
+import 'package:flutter_application_1/services/api_client.dart';
+import 'package:flutter_application_1/services/auth_service.dart';
 import 'package:flutter_application_1/theme/app_theme.dart';
 import 'package:flutter_application_1/theme/farm_settings.dart';
 
@@ -8,12 +11,15 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await themeController.load();
   await farmThresholdController.load();
+  final bool isLoggedIn = await AuthService().isLoggedIn();
 
-  runApp(const MyApp());
+  runApp(MyApp(isLoggedIn: isLoggedIn));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isLoggedIn;
+
+  const MyApp({super.key, required this.isLoggedIn});
 
   // This widget is the root of your application.
   @override
@@ -24,6 +30,10 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'EZ - SmartFram',
+          // ผูก navigatorKey ไว้ที่นี่ เพื่อให้ ApiClient นำทางไปหน้า Login ได้
+          // จากทุกที่ในแอป (เช่นตอนเจอ 401 ลึกๆ ใน service function ที่ไม่มี
+          // BuildContext ของตัวเอง) โดยไม่ต้องส่ง context ผ่านหลายชั้น
+          navigatorKey: ApiClient.navigatorKey,
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: themeController.themeMode,
@@ -36,7 +46,11 @@ class MyApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          home: const MainScreen(),
+          home: isLoggedIn ? const MainScreen() : const LoginPage(),
+          routes: {
+            '/login': (context) => const LoginPage(),
+            '/main': (context) => const MainScreen(),
+          },
         );
       },
     );

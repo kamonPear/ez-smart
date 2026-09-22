@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'api_client.dart';
 import 'backend_config.dart';
 import '../pages/calendar.dart';
 
@@ -7,9 +7,9 @@ import '../pages/calendar.dart';
 /// มาผสานเป็นมาร์กปฏิทินรวมจุดเดียว ใช้กับหน้า "ปฏิทินรวม"
 Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
   final results = await Future.wait([
-    http.get(Uri.parse('$backendBaseUrl/api/coops')),
-    http.get(Uri.parse('$backendBaseUrl/api/healths')),
-    http.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
+    ApiClient.get(Uri.parse('$backendBaseUrl/api/coops')),
+    ApiClient.get(Uri.parse('$backendBaseUrl/api/healths')),
+    ApiClient.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
   ]);
 
   final coopsResp = results[0];

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import '../../services/backend_config.dart';
 import '../Chicken_health_information/Main_HealthCheckCalendar.dart';
 import '../Main_SenSor/Data_System.dart';
@@ -53,9 +53,9 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
 
     try {
       final results = await Future.wait([
-        http.get(Uri.parse('$backendBaseUrl/api/eggs')),
-        http.get(Uri.parse('$backendBaseUrl/api/healths')),
-        http.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/eggs')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/healths')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
       ]);
 
       // ไข่ที่เก็บแล้ว
