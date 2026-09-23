@@ -248,6 +248,7 @@ class _PillField extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: ez.inputFill,
+        border: Border.all(color: ez.border),
         borderRadius: BorderRadius.circular(30),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -274,7 +275,15 @@ class _PillField extends StatelessWidget {
                   color: ez.textSecondary.withValues(alpha: 0.8),
                   fontWeight: FontWeight.w400,
                 ),
+                // ต้องปิดทุกสถานะของ border เอง (ไม่ใช่แค่ border เฉยๆ) เพราะ
+                // InputDecorationTheme ของทั้งแอป (app_theme.dart) ตั้ง
+                // enabledBorder/focusedBorder เป็น OutlineInputBorder ไว้ตายตัว
+                // ซึ่งมีลำดับความสำคัญเหนือกว่า border เฉยๆ ตอน field ยังไม่โฟกัส/
+                // โฟกัสอยู่ - ถ้าไม่ปิดครบจะเห็นเป็นกรอบเหลี่ยมเล็กซ้อนอยู่ในเม็ดแคปซูล
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 14),
               ),
