@@ -10,11 +10,10 @@ import 'backend_config.dart';
 class AuthService {
   static const String tokenKey = 'auth_token';
   static const String usernameKey = 'auth_username';
-  static const String roleKey = 'auth_role';
 
   /// เข้าสู่ระบบด้วย username/password ตาม API contract:
-  /// POST /api/auth/login -> { token, user: { id, username, role } }
-  /// สำเร็จแล้วจะบันทึก token/username/role ลง SharedPreferences ให้อัตโนมัติ
+  /// POST /api/auth/login -> { token, user: { id, username } }
+  /// สำเร็จแล้วจะบันทึก token/username ลง SharedPreferences ให้อัตโนมัติ
   /// ไม่สำเร็จจะโยน Exception ที่มีข้อความผิดพลาดจากเซิร์ฟเวอร์ (หรือข้อความ
   /// อธิบายทั่วไปถ้าเชื่อมต่อไม่ได้/รูปแบบข้อมูลผิด) ให้หน้า Login แสดงต่อได้เลย
   Future<Map<String, dynamic>> login(String username, String password) async {
@@ -54,12 +53,10 @@ class AuthService {
       }
 
       final resolvedUsername = user['username']?.toString() ?? username;
-      final role = user['role']?.toString() ?? '';
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(tokenKey, token);
       await prefs.setString(usernameKey, resolvedUsername);
-      await prefs.setString(roleKey, role);
 
       return body;
     }
@@ -77,7 +74,6 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(tokenKey);
     await prefs.remove(usernameKey);
-    await prefs.remove(roleKey);
   }
 
   Future<String?> getToken() async {
@@ -88,11 +84,6 @@ class AuthService {
   Future<String?> getUsername() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(usernameKey);
-  }
-
-  Future<String?> getRole() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(roleKey);
   }
 
   Future<bool> isLoggedIn() async {
