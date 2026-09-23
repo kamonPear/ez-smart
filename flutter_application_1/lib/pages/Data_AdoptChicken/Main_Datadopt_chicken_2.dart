@@ -6,7 +6,7 @@ import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import '../bottombar.dart';
 import 'Main_CoopDetail.dart';
 import 'Main_Dataadd_adopt2.dart';
@@ -110,13 +110,13 @@ class _AdoptchickenState extends State<Adoptchicken> {
   /// ถ้าดึงไม่ได้จะปล่อยว่างไว้ แล้วการ์ดจะแสดงว่ายังไม่มีข้อมูล
   Future<void> _fetchCoopMetrics() async {
     try {
-      final healthResponse = await http.get(
+      final healthResponse = await ApiClient.get(
         Uri.parse('$backendBaseUrl/api/healths'),
       );
-      final deviceResponse = await http.get(
+      final deviceResponse = await ApiClient.get(
         Uri.parse('$backendBaseUrl/api/devices'),
       );
-      final eggResponse = await http.get(Uri.parse('$backendBaseUrl/api/eggs'));
+      final eggResponse = await ApiClient.get(Uri.parse('$backendBaseUrl/api/eggs'));
 
       _healthyByCoop.clear();
       _poorByCoop.clear();

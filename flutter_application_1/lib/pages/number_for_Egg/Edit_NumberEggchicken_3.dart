@@ -6,7 +6,7 @@ import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import '../bottombar.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
@@ -66,7 +66,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
 
   Future<void> _fetchCoops() async {
     try {
-      final response = await http.get(Uri.parse('$backendBaseUrl/api/coops'));
+      final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/coops'));
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         if (!mounted) return;
@@ -184,7 +184,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
         "note": _noteController.text,
       };
 
-      final response = await http.put(
+      final response = await ApiClient.put(
         Uri.parse('$backendBaseUrl/api/eggs?id=$id'),
         headers: {
           'Content-Type': 'application/json',

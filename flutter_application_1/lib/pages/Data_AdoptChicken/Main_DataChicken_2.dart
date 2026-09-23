@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
@@ -9,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../bottombar.dart';
 import '../main_dash.dart';
 import '../../widgets/ez_header.dart';
+import '../../services/api_client.dart';
 import '../../services/calendar_overview_service.dart';
 import '../../services/backend_config.dart';
 import '../../utils/thai_date.dart';
@@ -65,10 +65,10 @@ class _MainchickenState extends State<Mainchicken> {
 
     try {
       final results = await Future.wait([
-        http.get(Uri.parse('$backendBaseUrl/api/coops')),
-        http.get(Uri.parse('$backendBaseUrl/api/healths')),
-        http.get(Uri.parse('$backendBaseUrl/api/devices')),
-        http.get(Uri.parse('$backendBaseUrl/api/eggs')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/coops')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/healths')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/devices')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/eggs')),
       ]);
 
       Map<String, dynamic>? coopRaw;

@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/coop.dart';
+import 'api_client.dart';
 
 class ApiService {
   final String baseUrl;
@@ -9,9 +9,7 @@ class ApiService {
   /// Fetch list of adopt chicken coops from endpoint: GET {baseUrl}/api/coops
   Future<List<Coop>> fetchCoops() async {
     final uri = Uri.parse('$baseUrl/api/coops');
-    final resp = await http
-        .get(uri, headers: {'Accept': 'application/json'})
-        .timeout(const Duration(seconds: 10));
+    final resp = await ApiClient.get(uri).timeout(const Duration(seconds: 10));
 
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
       final body = json.decode(resp.body);

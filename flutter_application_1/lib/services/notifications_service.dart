@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../utils/thai_date.dart';
+import 'api_client.dart';
 import 'backend_config.dart';
 
 /// โหลดรายการแจ้งเตือนทั้งหมดของฟาร์ม (อาหารใกล้หมด/หมด, ใกล้ถึงกำหนดให้วัคซีน,
@@ -26,7 +26,7 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
   // 1. แจ้งเตือนปริมาณอาหาร (ใกล้หมด / หมดแล้ว) - เช็คทุกประเภทอาหาร
   // ---------------------------------------------------------
   try {
-    final response = await http.get(Uri.parse('$backendBaseUrl/api/foods'));
+    final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/foods'));
 
     if (response.statusCode == 200 &&
         response.body.isNotEmpty &&
@@ -77,9 +77,9 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
   // ---------------------------------------------------------
   try {
     final results = await Future.wait([
-      http.get(Uri.parse('$backendBaseUrl/api/coops')),
-      http.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
-      http.get(Uri.parse('$backendBaseUrl/api/healths')),
+      ApiClient.get(Uri.parse('$backendBaseUrl/api/coops')),
+      ApiClient.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
+      ApiClient.get(Uri.parse('$backendBaseUrl/api/healths')),
     ]);
     final coopResp = results[0];
     final alertResp = results[1];

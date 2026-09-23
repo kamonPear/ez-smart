@@ -6,7 +6,7 @@ import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:http/http.dart' as http;
+import '../../services/api_client.dart';
 import '../bottombar.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
@@ -203,7 +203,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
         "note": noteRaw.isEmpty ? "-" : noteRaw,
       });
 
-      final response = await http.put(
+      final response = await ApiClient.put(
         Uri.parse('$backendBaseUrl/api/coops?id=$id'),
         headers: {
           'Content-Type': 'application/json',
