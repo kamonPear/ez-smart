@@ -248,7 +248,6 @@ class _PillField extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: ez.inputFill,
-        border: Border.all(color: ez.border),
         borderRadius: BorderRadius.circular(30),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20),
