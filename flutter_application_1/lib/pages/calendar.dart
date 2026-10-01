@@ -8,7 +8,7 @@ const Color kCalendarRed = Color(0xFFE53935);
 const Color kCalendarAmber = Color(0xFFFFA726);
 
 /// ประเภทของรายการในปฏิทิน ใช้กำหนดไอคอน/ป้ายกำกับให้ดูออกทันทีว่าเป็นเรื่องอะไร
-enum CalendarItemCategory { vaccine, health, birthday, adopt }
+enum CalendarItemCategory { vaccine, health, birthday, adopt, appointment }
 
 extension CalendarItemCategoryX on CalendarItemCategory {
   String get label => switch (this) {
@@ -16,6 +16,7 @@ extension CalendarItemCategoryX on CalendarItemCategory {
     CalendarItemCategory.health => 'ตรวจสุขภาพ',
     CalendarItemCategory.birthday => 'วันเกิดไก่',
     CalendarItemCategory.adopt => 'รับเข้าเลี้ยง',
+    CalendarItemCategory.appointment => 'นัดตรวจสุขภาพ',
   };
 
   IconData get icon => switch (this) {
@@ -23,6 +24,7 @@ extension CalendarItemCategoryX on CalendarItemCategory {
     CalendarItemCategory.health => Icons.medical_services_rounded,
     CalendarItemCategory.birthday => Icons.cake_rounded,
     CalendarItemCategory.adopt => Icons.home_rounded,
+    CalendarItemCategory.appointment => Icons.event_available_rounded,
   };
 }
 
@@ -87,6 +89,82 @@ class DayMarkerInfo {
   }
 }
 
+/// เปิดปฏิทินแบบเดียวกับที่ใช้ทั้งแอป (CustomCalendar สีเขียว การ์ดเดียวกับหน้า
+/// วัคซีน/ตรวจสุขภาพ/ปฏิทินรวม) เป็นป็อบอัพให้เลือกวันที่เดียว - ใช้แทน
+/// showEzDatePicker (ปฏิทิน Material ของ Flutter เอง สีทอง หน้าตาต่างจากปฏิทิน
+/// หลักของแอป) ในจุดที่อยากให้ตัวเลือกวันที่หน้าตาเหมือนปฏิทินอื่นๆ ในแอป
+/// แตะวันที่แล้วปิดป็อบอัพพร้อมคืนค่าทันที ไม่ต้องกดยืนยันซ้ำอีกขั้น (พฤติกรรม
+/// เดียวกับที่ CustomCalendar ทำอยู่แล้วตอนฝังอยู่ในหน้าเต็ม)
+Future<DateTime?> showCustomCalendarPicker(
+  BuildContext context, {
+  DateTime? initialDate,
+  String title = 'เลือกวันที่',
+}) {
+  return showDialog<DateTime>(
+    context: context,
+    builder: (dialogContext) {
+      final ez = ezColors(dialogContext);
+      return Dialog(
+        backgroundColor: ez.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 14, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: kCalendarGreen.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.calendar_month_rounded,
+                      color: kCalendarGreen,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: GoogleFonts.kanit(
+                        color: ez.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.pop(dialogContext),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.close_rounded,
+                        color: ez.textSecondary,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              CustomCalendar(
+                initialDate: initialDate,
+                onDateSelected: (day) => Navigator.pop(dialogContext, day),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
 class CustomCalendar extends StatefulWidget {
   final DateTime? initialDate;
   final Function(DateTime) onDateSelected; // ส่งค่ากลับเมื่อมีการเลือกวันที่
@@ -95,6 +173,9 @@ class CustomCalendar extends StatefulWidget {
   final Map<DateTime, DayMarkerInfo>?
   dayMarkers; // 🌟 มาร์กแบบมีสี+รายละเอียด ใช้แยกจาก markedDates เพื่อไม่กระทบของเดิม
   final void Function(DateTime day, DayMarkerInfo marker)? onDayLongPress;
+  // แจ้งหน้าที่เรียกใช้ว่าตอนนี้ผู้ใช้กำลังดูเดือนไหนอยู่ (กดลูกศรเปลี่ยนเดือน) -
+  // ใช้ทำรายการสรุป "ของเดือนที่กำลังดูเป็นต้นไป" ให้ตรงกับเดือนที่เลื่อนดูจริงๆ
+  final void Function(DateTime month)? onMonthChanged;
 
   const CustomCalendar({
     super.key,
@@ -103,6 +184,7 @@ class CustomCalendar extends StatefulWidget {
     this.markedDates, // 🌟 2. เพิ่มใน Constructor
     this.dayMarkers,
     this.onDayLongPress,
+    this.onMonthChanged,
   });
 
   @override
@@ -119,6 +201,13 @@ class _CustomCalendarState extends State<CustomCalendar> {
     // ตั้งค่าวันเริ่มต้น
     selectedDate = widget.initialDate ?? DateTime.now();
     currentMonth = DateTime(selectedDate!.year, selectedDate!.month, 1);
+    // แจ้งเดือนเริ่มต้นให้หน้าที่เรียกใช้รู้ด้วย (รอ frame แรกเสร็จก่อน กัน
+    // setState ของ widget อื่นชนกับตอน initState/build ของตัวเองยังไม่เสร็จ)
+    if (widget.onMonthChanged != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.onMonthChanged?.call(currentMonth);
+      });
+    }
   }
 
   Widget _buildDayCell(int day) {
@@ -264,13 +353,16 @@ class _CustomCalendarState extends State<CustomCalendar> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               GestureDetector(
-                onTap: () => setState(
-                  () => currentMonth = DateTime(
-                    currentMonth.year,
-                    currentMonth.month - 1,
-                    1,
-                  ),
-                ),
+                onTap: () {
+                  setState(
+                    () => currentMonth = DateTime(
+                      currentMonth.year,
+                      currentMonth.month - 1,
+                      1,
+                    ),
+                  );
+                  widget.onMonthChanged?.call(currentMonth);
+                },
                 child: Icon(
                   Icons.chevron_left,
                   color: ezColors(context).textPrimary,
@@ -286,13 +378,16 @@ class _CustomCalendarState extends State<CustomCalendar> {
                 ),
               ),
               GestureDetector(
-                onTap: () => setState(
-                  () => currentMonth = DateTime(
-                    currentMonth.year,
-                    currentMonth.month + 1,
-                    1,
-                  ),
-                ),
+                onTap: () {
+                  setState(
+                    () => currentMonth = DateTime(
+                      currentMonth.year,
+                      currentMonth.month + 1,
+                      1,
+                    ),
+                  );
+                  widget.onMonthChanged?.call(currentMonth);
+                },
                 child: Icon(
                   Icons.chevron_right,
                   color: ezColors(context).textPrimary,

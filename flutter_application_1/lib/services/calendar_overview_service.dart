@@ -3,141 +3,87 @@ import 'api_client.dart';
 import 'backend_config.dart';
 import '../pages/calendar.dart';
 
-/// ดึงข้อมูลวันเกิดไก่/วันรับเข้าเลี้ยง (จากคอก), ตรวจสุขภาพ, และวัคซีน
-/// มาผสานเป็นมาร์กปฏิทินรวมจุดเดียว ใช้กับหน้า "ปฏิทินรวม"
-Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers() async {
-  final results = await Future.wait([
-    ApiClient.get(Uri.parse('$backendBaseUrl/api/coops')),
-    ApiClient.get(Uri.parse('$backendBaseUrl/api/healths')),
-    ApiClient.get(Uri.parse('$backendBaseUrl/api/vaccines/alerts')),
-  ]);
+/// ดึงปฏิทินรวม (วัคซีน/ตรวจสุขภาพ/วันเกิดไก่-วันรับเข้าเลี้ยง/นัดตรวจสุขภาพกำหนดเอง)
+/// จาก backend endpoint เดียว (`/api/calendar/markers`) ซึ่งเป็น single source of
+/// truth ที่คำนวณ+รวมข้อมูลให้แล้วฝั่ง server (เดิมหน้านี้ต้องยิง 3 คำขอแยก
+/// แล้วมารวม/คำนวณสถานะเองฝั่ง client) - ใช้กับทั้งหน้า "ปฏิทินรวม" ของทั้งฟาร์ม
+/// (ไม่ส่ง coopId) และปฏิทินเฉพาะคอก (ส่ง coopId) ในอนาคต
+///
+/// ใส่ [coopId] เพื่อขอเฉพาะคอกนั้น ไม่ใส่ (null) เพื่อขอทั้งฟาร์ม
+Future<Map<DateTime, DayMarkerInfo>> loadCalendarOverviewMarkers({
+  String? coopId,
+}) async {
+  final query = (coopId != null && coopId.isNotEmpty) ? '?coop_id=$coopId' : '';
+  final response = await ApiClient.get(
+    Uri.parse('$backendBaseUrl/api/calendar/markers$query'),
+  );
 
-  final coopsResp = results[0];
-  final healthResp = results[1];
-  final alertsResp = results[2];
-
-  final List<dynamic> coops = coopsResp.statusCode == 200
-      ? jsonDecode(coopsResp.body)
-      : [];
-  final List<dynamic> healths = healthResp.statusCode == 200
-      ? jsonDecode(healthResp.body)
-      : [];
-  final List<dynamic> alerts = alertsResp.statusCode == 200
-      ? jsonDecode(alertsResp.body)
-      : [];
-
-  final Map<String, String> coopNames = {
-    for (final c in coops)
-      (c['coop_id'] ?? c['id'])
-          .toString(): (c['name_coop']?.toString().trim().isNotEmpty == true)
-          ? c['name_coop'].toString()
-          : (c['coop_id'] ?? c['id']).toString(),
-  };
-
-  final Map<DateTime, List<DayDetailItem>> detailsByDate = {};
-
-  DateTime? dateOnly(dynamic raw) {
-    if (raw == null) return null;
-    final parsed = DateTime.tryParse(raw.toString());
-    if (parsed == null) return null;
-    final local = parsed.toLocal();
-    return DateTime(local.year, local.month, local.day);
+  if (response.statusCode != 200) {
+    return {};
   }
 
-  void addDetail(
-    DateTime? date,
-    String text, {
-    required CalendarItemCategory category,
-    required CalendarItemStatus status,
-    String? coopId,
-  }) {
-    if (date == null) return;
-    detailsByDate
-        .putIfAbsent(date, () => [])
-        .add(
-          DayDetailItem(
-            text: text,
-            category: category,
-            status: status,
-            coopId: coopId,
-          ),
-        );
+  final Map<String, dynamic> raw = jsonDecode(response.body);
+
+  CalendarItemCategory parseCategory(dynamic value) {
+    return switch (value?.toString()) {
+      'vaccine' => CalendarItemCategory.vaccine,
+      'health' => CalendarItemCategory.health,
+      'birthday' => CalendarItemCategory.birthday,
+      'adopt' => CalendarItemCategory.adopt,
+      'appointment' => CalendarItemCategory.appointment,
+      // ไม่รู้จักหมวดนี้ (เช่น backend เพิ่มหมวดใหม่ในอนาคต) - fallback ไปใช้
+      // "ตรวจสุขภาพ" เพื่อไม่ให้แอปพัง
+      _ => CalendarItemCategory.health,
+    };
   }
 
-  for (final coop in coops) {
-    final coopId = (coop['coop_id'] ?? coop['id']).toString();
-    final name = coopNames[coopId] ?? coopId;
+  CalendarItemStatus parseStatus(dynamic value) {
+    return switch (value?.toString()) {
+      'done' => CalendarItemStatus.done,
+      'upcoming' => CalendarItemStatus.upcoming,
+      'overdue' => CalendarItemStatus.overdue,
+      'info' => CalendarItemStatus.info,
+      // สถานะที่ไม่รู้จัก - fallback เป็น "info" (เขียว/แจ้งให้ทราบ) ซึ่งปลอดภัย
+      // ที่สุด แทนที่จะโยน error หรือเดาว่าเกินกำหนด
+      _ => CalendarItemStatus.info,
+    };
+  }
 
-    final birthday = dateOnly(coop['birthday'] ?? coop['Birthday']);
-    addDetail(
-      birthday,
-      'วันเกิดไก่ – คอก$name',
-      category: CalendarItemCategory.birthday,
-      status: CalendarItemStatus.info,
-      coopId: coopId,
-    );
+  DateTime? dateKeyToDate(String key) {
+    final parts = key.split('-');
+    if (parts.length != 3) return null;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+    if (year == null || month == null || day == null) return null;
+    return DateTime(year, month, day);
+  }
 
-    final adoptDate = dateOnly(coop['date_adopt_animals']);
-    addDetail(
-      adoptDate,
-      'วันที่รับเข้าเลี้ยง – คอก$name',
-      category: CalendarItemCategory.adopt,
-      status: CalendarItemStatus.info,
-      coopId: coopId,
+  final Map<DateTime, DayMarkerInfo> markers = {};
+
+  for (final entry in raw.entries) {
+    final date = dateKeyToDate(entry.key);
+    if (date == null) continue;
+
+    final Map<String, dynamic> dayData =
+        (entry.value as Map<String, dynamic>?) ?? {};
+    final List<dynamic> rawDetails = dayData['details'] ?? [];
+
+    final details = <DayDetailItem>[
+      for (final d in rawDetails)
+        DayDetailItem(
+          text: d['text']?.toString() ?? '',
+          category: parseCategory(d['category']),
+          status: parseStatus(d['status']),
+          coopId: d['coop_id']?.toString(),
+        ),
+    ];
+
+    markers[date] = DayMarkerInfo(
+      color: DayMarkerInfo.colorForDetails(details),
+      details: details,
     );
   }
 
-  for (final h in healths) {
-    final coopId = (h['coop_id'])?.toString() ?? '-';
-    final name = coopNames[coopId] ?? coopId;
-    final date = dateOnly(h['record_date']);
-    final healthy = h['healthy']?.toString() ?? '0';
-    final poor = h['poor_health']?.toString() ?? '0';
-    addDetail(
-      date,
-      'ตรวจสุขภาพ – คอก$name (สุขภาพดี $healthy / ป่วย $poor)',
-      category: CalendarItemCategory.health,
-      status: CalendarItemStatus.info,
-      coopId: coopId,
-    );
-  }
-
-  final today = DateTime.now();
-  final todayOnly = DateTime(today.year, today.month, today.day);
-
-  for (final a in alerts) {
-    final coopId = (a['coop_id'])?.toString() ?? '-';
-    final name = coopNames[coopId] ?? coopId;
-    final date = dateOnly(a['date']);
-    final vaccineName = a['vaccine_name']?.toString() ?? 'วัคซีน';
-    final isCompleted = a['is_completed'] == true;
-
-    // ตัดสินสถานะจากวันที่จริงเทียบกับวันนี้ แทนการเชื่อ flag is_overdue
-    // จาก backend อย่างเดียว เพื่อไม่ให้วันที่ยังมาไม่ถึงถูกมาร์คว่า "ถึงกำหนด"
-    // (สีแดง/ต้องทำ) ทั้งที่จริงๆ ยังเป็นแค่นัดล่วงหน้า
-    final CalendarItemStatus status;
-    if (isCompleted) {
-      status = CalendarItemStatus.done;
-    } else if (date != null && !date.isAfter(todayOnly)) {
-      status = CalendarItemStatus.overdue;
-    } else {
-      status = CalendarItemStatus.upcoming;
-    }
-
-    addDetail(
-      date,
-      '$vaccineName – คอก$name',
-      category: CalendarItemCategory.vaccine,
-      status: status,
-      coopId: coopId,
-    );
-  }
-
-  return {
-    for (final entry in detailsByDate.entries)
-      entry.key: DayMarkerInfo(
-        color: DayMarkerInfo.colorForDetails(entry.value),
-        details: entry.value,
-      ),
-  };
+  return markers;
 }

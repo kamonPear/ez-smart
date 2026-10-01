@@ -11,6 +11,7 @@ import 'bottombar.dart';
 import '../../services/backend_config.dart';
 import '../../services/notifications_service.dart';
 import '../widgets/ez_header.dart';
+import '../widgets/ez_top_banner.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class Notifications extends StatefulWidget {
@@ -56,7 +57,7 @@ class _NotificationsState extends State<Notifications> {
     if (type == 'vaccine') {
       String id = data['id'].toString();
       try {
-        await ApiClient.put(
+        final response = await ApiClient.put(
           Uri.parse('$backendBaseUrl/api/vaccines/alerts?id=$id'),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode({
@@ -66,8 +67,33 @@ class _NotificationsState extends State<Notifications> {
             "note": data['note'] ?? '',
           }),
         );
+        // 🛑 เดิมไม่เช็ค statusCode เลย - ตราบใดที่คำขอ "ไปถึงเซิร์ฟเวอร์" (ไม่ throw
+        // exception) ก็ถือว่าสำเร็จแล้วลบออกจากรายการทันที ทั้งที่ server อาจตอบกลับ
+        // เป็น error (400/404/500) จริงๆ ทำให้ดูเหมือนบันทึกสำเร็จ (การ์ดหายไปจาก
+        // หน้าจอ) ทั้งที่ยังไม่มีอะไรถูกบันทึกลงฐานข้อมูลเลย
+        if (response.statusCode != 200) {
+          debugPrint(
+            "Failed to update vaccine status: ${response.statusCode} ${response.body}",
+          );
+          if (mounted) {
+            showEzTopBanner(
+              context,
+              'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+              type: EzBannerType.error,
+            );
+          }
+          return; // ไม่ลบออกจากรายการ เพราะยังไม่สำเร็จจริง
+        }
       } catch (e) {
         debugPrint("Error updating vaccine status: $e");
+        if (mounted) {
+          showEzTopBanner(
+            context,
+            'เชื่อมต่อ backend ไม่สำเร็จ',
+            type: EzBannerType.error,
+          );
+        }
+        return; // ไม่ลบออกจากรายการ เพราะยังไม่สำเร็จจริง
       }
     } else if (type == 'health') {
       // ไปหน้าปฏิทินตรวจสุขภาพของคอกนั้นให้กรอกผลตรวจจริง แล้วรีเฟรชรายการทั้งหมด

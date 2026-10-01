@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/farm_settings.dart';
 import '../../widgets/ez_header.dart';
 
 /// หน้าเข้าสู่ระบบ — ไม่มีลิงก์สมัครสมาชิก เพราะบัญชีผู้ใช้ถูกสร้างโดยแอดมิน
@@ -51,6 +52,11 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       await _authService.login(username, password);
+      // ✅ ตอนแอปเพิ่งเปิด (ยังไม่เคยล็อกอิน) main() จะยังไม่มี token ให้
+      // farmThresholdController.load() ใช้ ค่าที่โชว์เลยยังเป็นค่า default ตายตัว
+      // อยู่ - พอล็อกอินสำเร็จแล้วมี token จริง ต้องโหลดค่าจาก backend ซ้ำอีกรอบ
+      // ตรงนี้ ไม่ต้องรอ (fire-and-forget) กันหน่วงการนำทางเข้าแอป
+      farmThresholdController.load();
       if (!mounted) return;
       // ล้าง stack ทั้งหมดตอนเข้าสู่ระบบสำเร็จ กันปุ่มย้อนกลับพากลับมาหน้า Login
       Navigator.of(

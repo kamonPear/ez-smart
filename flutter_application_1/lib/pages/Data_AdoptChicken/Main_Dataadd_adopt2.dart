@@ -12,7 +12,7 @@ import '../../services/backend_config.dart';
 import '../../widgets/ez_header.dart';
 import '../../widgets/ez_form_field.dart';
 import '../../widgets/ez_top_banner.dart';
-import '../../widgets/ez_date_picker.dart';
+import '../calendar.dart';
 
 class AddDataadopt extends StatefulWidget {
   const AddDataadopt({super.key});
@@ -91,10 +91,10 @@ class _AddDataadoptState extends State<AddDataadopt> {
     BuildContext context,
     TextEditingController controller,
   ) async {
-    final DateTime? picked = await showEzDatePicker(
+    final DateTime? picked = await showCustomCalendarPicker(
       context,
       initialDate: DateTime.now(),
-      helpText: 'เลือกวันที่',
+      title: 'เลือกวันที่',
     );
     if (picked != null) {
       setState(() {
@@ -122,6 +122,22 @@ class _AddDataadoptState extends State<AddDataadopt> {
       showEzTopBanner(
         context,
         'จำนวนไก่ต้องเป็นตัวเลขที่มากกว่า 0',
+        type: EzBannerType.warning,
+      );
+      return;
+    }
+
+    // วันนำเข้าต้องไม่ก่อนวันเกิดไก่ (เอาไก่เข้าคอกก่อนไก่เกิดไม่ได้อยู่แล้ว) -
+    // ทั้งคู่ผ่าน _toISO8601 มาเป็น "yyyy-mm-ddT..." ซึ่งเทียบลำดับวันที่ด้วย
+    // string comparison ตรงๆ ได้เลยเพราะ zero-padded ครบทุกหลัก
+    final String importIso = _toISO8601(importDateController.text);
+    final String birthIso = _toISO8601(birthDateController.text);
+    if (importIso.isNotEmpty &&
+        birthIso.isNotEmpty &&
+        importIso.compareTo(birthIso) < 0) {
+      showEzTopBanner(
+        context,
+        'วันที่นำเข้าต้องไม่ก่อนวันเกิดไก่ (เอาไก่เข้าคอกก่อนไก่เกิดไม่ได้)',
         type: EzBannerType.warning,
       );
       return;

@@ -7,7 +7,6 @@ import 'package:skeletonizer/skeletonizer.dart';
 import '../../services/backend_config.dart';
 import '../../utils/thai_date.dart';
 import '../../widgets/ez_header.dart';
-import '../../widgets/ez_top_banner.dart';
 import 'Main_DataAdd_Food1.dart';
 import '../bottombar.dart';
 import '../main_dash.dart';
@@ -17,25 +16,16 @@ import '../Main_SenSor/Main_DeviceSummary.dart';
 import '../Show_chart.dart';
 
 /// หน้าสรุปผลอาหารแยกตามประเภท — เลือกประเภทอาหาร (เม็ดเล็ก/เม็ดใหญ่) แล้วดูว่า
-/// แต่ละคอกที่กินอาหารประเภทนั้นกินไปวันละกี่กิโล (ประมาณจากอายุไก่ในคอก)
-/// ใช้เทียบกับสุขภาพไก่/ผลไข่ของคอกนั้นได้ว่ากินเยอะ-น้อยผิดปกติไหม
-///
-/// ถ้าเปิดมาพร้อม [startEntryMode] = true (เพิ่งกดปุ่ม "ตัดสต็อก" มา) จะสลับเป็น
-/// โหมดกรอกจำนวนกิโลที่แจกจริงให้แต่ละคอกเอง แทนตัวเลขประมาณการอัตโนมัติ — ไม่มี
-/// ยอดตายตัวอีกต่อไป ระบบจะตัดสต็อกตามยอดรวมที่กรอกจริง (เก็บเป็นประวัติทุกครั้ง)
+/// แต่ละคอกที่กินอาหารประเภทนั้นกินไปวันละกี่กิโล (ประมาณจากอายุไก่ในคอก) แตะคอก
+/// ไหนดูประวัติการตัดสต็อกจริงของคอกนั้นได้ ใช้เทียบกับสุขภาพไก่/ผลไข่ของคอกนั้น
+/// ได้ว่ากินเยอะ-น้อยผิดปกติไหม — การตัดสต็อกจริงทำที่หน้าคลังอาหาร (ปุ่ม
+/// "ตัดสต็อก") หรือ Cron อัตโนมัติทุกเที่ยงคืน ไม่มีโหมดกรอกจำนวนเองในหน้านี้แล้ว
+/// (คำนวณให้อัตโนมัติทั้งหมดจากจำนวนไก่จริง)
 class MainFoodTypeSummary extends StatefulWidget {
   /// ประเภทที่ต้องการให้เลือกไว้ตั้งแต่เปิดหน้ามา (null = เริ่มที่เม็ดเล็ก)
   final String? initialFoodType;
 
-  /// true = เพิ่งกดปุ่มตัดสต็อกมา เปิดเข้าโหมดกรอกกิโลต่อคอกทันที
-  /// (ล็อกประเภทอาหารไว้ที่ [initialFoodType] สลับแท็บไม่ได้)
-  final bool startEntryMode;
-
-  const MainFoodTypeSummary({
-    super.key,
-    this.initialFoodType,
-    this.startEntryMode = false,
-  });
+  const MainFoodTypeSummary({super.key, this.initialFoodType});
 
   @override
   State<MainFoodTypeSummary> createState() => _MainFoodTypeSummaryState();
@@ -44,13 +34,10 @@ class MainFoodTypeSummary extends StatefulWidget {
 class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
   int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   bool isLoading = true;
-  bool isSaving = false;
   List<dynamic> coopConsumption = [];
   late String _selectedFoodType;
-  late bool _isEntryMode;
-  final Map<String, TextEditingController> _kgControllers = {};
   // จำนวนกิโลที่กรอกจริงล่าสุดของแต่ละคอก (key = "coopId_foodType") — ดึงจาก
-  // ประวัติการแจกจ่ายที่บันทึกไว้จริง ใช้แทนตัวเลขประมาณการตอนแสดงผลแบบดูอย่างเดียว
+  // ประวัติการแจกจ่ายที่บันทึกไว้จริง ใช้แทนตัวเลขประมาณการตอนแสดงผล
   Map<String, double> _actualKgByCoopType = {};
   // ประวัติการแจกจ่ายทั้งหมด (ไม่กรองซ้ำ) ใช้ตอนกดดูประวัติของคอกใดคอกหนึ่ง
   List<dynamic> _distributionHistory = [];
@@ -59,101 +46,8 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
   void initState() {
     super.initState();
     _selectedFoodType = widget.initialFoodType ?? kFoodTypeSmallPellet;
-    _isEntryMode = widget.startEntryMode;
     _fetchCoopConsumption();
     _fetchDistributionHistory();
-  }
-
-  @override
-  void dispose() {
-    for (final c in _kgControllers.values) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  TextEditingController _controllerFor(String coopId) {
-    return _kgControllers.putIfAbsent(coopId, () => TextEditingController());
-  }
-
-  double get _enteredTotal => _coopsForSelectedType.fold(0.0, (sum, c) {
-    final id = (c['coop_id'] ?? '').toString();
-    final text = _kgControllers[id]?.text.trim() ?? '';
-    return sum + (double.tryParse(text) ?? 0.0);
-  });
-
-  Future<void> _saveDistribution() async {
-    final missingCoops = _coopsForSelectedType.where((c) {
-      final id = (c['coop_id'] ?? '').toString();
-      final text = _kgControllers[id]?.text.trim() ?? '';
-      return text.isEmpty || double.tryParse(text) == null;
-    }).toList();
-
-    if (missingCoops.isNotEmpty) {
-      final names = missingCoops
-          .map((c) => (c['name_coop'] ?? '-').toString())
-          .join(', ');
-      showEzTopBanner(
-        context,
-        'กรุณากรอกจำนวนกิโลให้ครบทุกคอกก่อนตัดสต็อก (เหลือ: $names)',
-        type: EzBannerType.warning,
-      );
-      return;
-    }
-
-    if (_enteredTotal <= 0) {
-      showEzTopBanner(
-        context,
-        'กรุณากรอกจำนวนกิโลให้อย่างน้อย 1 คอก',
-        type: EzBannerType.warning,
-      );
-      return;
-    }
-
-    final items = _coopsForSelectedType
-        .map((c) {
-          final id = int.tryParse((c['coop_id'] ?? '').toString()) ?? 0;
-          final text =
-              _kgControllers[c['coop_id'].toString()]?.text.trim() ?? '';
-          final kg = double.tryParse(text) ?? 0.0;
-          return {'coop_id': id, 'kg_given': kg};
-        })
-        .where((item) => (item['kg_given'] as double) > 0)
-        .toList();
-
-    setState(() => isSaving = true);
-    try {
-      final response = await ApiClient.post(
-        Uri.parse('$backendBaseUrl/api/foods/distribution'),
-        headers: {'Content-Type': 'application/json; charset=utf-8'},
-        body: json.encode({'food_type': _selectedFoodType, 'items': items}),
-      );
-
-      if (!mounted) return;
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        showEzTopBanner(
-          context,
-          'ตัดสต็อก$_selectedFoodType ${_enteredTotal.toStringAsFixed(1)} กก. สำเร็จ!',
-          type: EzBannerType.success,
-        );
-        Navigator.pop(context);
-      } else {
-        showEzTopBanner(
-          context,
-          'บันทึกไม่สำเร็จ กรุณาตรวจสอบยอดกิโลอีกครั้ง',
-          type: EzBannerType.error,
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      showEzTopBanner(
-        context,
-        'เชื่อมต่อ backend ไม่สำเร็จ',
-        type: EzBannerType.error,
-      );
-    } finally {
-      if (mounted) setState(() => isSaving = false);
-    }
   }
 
   Future<void> _fetchCoopConsumption() async {
@@ -308,66 +202,23 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
               ],
             ),
           ),
-          if (_isEntryMode)
-            SizedBox(
-              width: 110,
-              child: TextField(
-                controller: _controllerFor(coopId),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                textAlign: TextAlign.right,
-                onChanged: (_) => setState(() {}),
-                style: GoogleFonts.kanit(
-                  color: ez.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-                decoration: InputDecoration(
-                  isDense: true,
-                  filled: true,
-                  fillColor: ez.inputFill,
-                  hintText: '0',
-                  suffixText: 'กก.',
-                  suffixStyle: GoogleFonts.kanit(
-                    color: ez.textSecondary,
-                    fontSize: 12,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: ez.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: ez.gold, width: 1.4),
-                  ),
-                ),
-              ),
-            )
-          else ...[
-            Text(
-              actualKg != null ? '${actualKg.toStringAsFixed(1)} กก.' : '-',
-              style: GoogleFonts.kanit(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: actualKg != null ? ez.gold : ez.textSecondary,
-              ),
+          Text(
+            actualKg != null ? '${actualKg.toStringAsFixed(1)} กก.' : '-',
+            style: GoogleFonts.kanit(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: actualKg != null ? ez.gold : ez.textSecondary,
             ),
-            const SizedBox(width: 6),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: ez.textSecondary,
-            ),
-          ],
+          ),
+          const SizedBox(width: 6),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: ez.textSecondary,
+          ),
         ],
       ),
     );
-
-    if (_isEntryMode) return card;
 
     return InkWell(
       borderRadius: BorderRadius.circular(14),
@@ -558,9 +409,7 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
                     icon: Icon(Icons.arrow_back, color: ez.textPrimary),
                   ),
                   Text(
-                    _isEntryMode
-                        ? 'กรอกจำนวนที่แจกจ่าย'
-                        : 'สรุปผลอาหารแต่ละประเภท',
+                    'สรุปผลอาหารแต่ละประเภท',
                     style: GoogleFonts.kanit(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -571,36 +420,13 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
               ),
               const SizedBox(height: 16),
 
-              if (_isEntryMode)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: ez.gold.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: ez.gold, width: 1.3),
-                  ),
-                  child: Text(
-                    'กรอกจำนวนกิโลอาหาร$_selectedFoodType ที่แจกให้แต่ละคอก '
-                    'ระบบจะตัดสต็อกตามยอดรวมที่กรอกทั้งหมด',
-                    style: GoogleFonts.kanit(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: ez.gold,
-                    ),
-                  ),
-                )
-              else
-                Row(
-                  children: [
-                    _buildTypeTab(kFoodTypeSmallPellet),
-                    const SizedBox(width: 12),
-                    _buildTypeTab(kFoodTypeLargePellet),
-                  ],
-                ),
+              Row(
+                children: [
+                  _buildTypeTab(kFoodTypeSmallPellet),
+                  const SizedBox(width: 12),
+                  _buildTypeTab(kFoodTypeLargePellet),
+                ],
+              ),
               const SizedBox(height: 18),
 
               if (isLoading)
@@ -618,50 +444,6 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
                   ),
                 )
               else ...[
-                if (_isEntryMode) ...[
-                  Builder(
-                    builder: (_) {
-                      final bool hasEntered = _enteredTotal > 0;
-                      final Color barColor = hasEntered
-                          ? ez.accentGreen
-                          : ez.textSecondary;
-                      return Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          color: barColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'รวมที่จะตัดสต็อก',
-                              style: GoogleFonts.kanit(
-                                fontSize: 13,
-                                color: barColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              '${_enteredTotal.toStringAsFixed(1)} กก.',
-                              style: GoogleFonts.kanit(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: barColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                ],
-
                 Text(
                   'แยกตามคอก',
                   style: GoogleFonts.kanit(
@@ -682,40 +464,6 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
                   )
                 else
                   ...coops.map(_buildCoopRow),
-
-                if (_isEntryMode && coops.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: isSaving ? null : _saveDistribution,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: ez.accentGreen,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: isSaving
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              'ตัดสต็อก',
-                              style: GoogleFonts.kanit(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
               ],
               const SizedBox(height: 100),
             ],

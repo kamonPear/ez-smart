@@ -98,11 +98,19 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         Navigator.pop(context, true);
       } else {
-        showEzTopBanner(
-          context,
-          'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
-          type: EzBannerType.error,
-        );
+        // แสดงข้อความจริงจาก backend ถ้ามี (เช่น "มียา/วัคซีนชื่อนี้อยู่ในระบบแล้ว"
+        // ตอนชื่อซ้ำ - สถานะ 409) แทนข้อความกลางๆ เดิมที่ไม่บอกสาเหตุจริง ทำให้
+        // ดูเหมือนบันทึกไม่เข้าทั้งที่จริงๆ ระบบปฏิเสธด้วยเหตุผลที่ชัดเจนอยู่แล้ว
+        String message = 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
+        try {
+          final decoded = json.decode(response.body);
+          if (decoded is Map && decoded['message'] is String) {
+            message = decoded['message'] as String;
+          }
+        } catch (_) {
+          // response.body ไม่ใช่ JSON (เช่น plain text error) - ใช้ข้อความกลางๆ ต่อไป
+        }
+        showEzTopBanner(context, message, type: EzBannerType.error);
       }
     } catch (e) {
       if (!mounted) return;

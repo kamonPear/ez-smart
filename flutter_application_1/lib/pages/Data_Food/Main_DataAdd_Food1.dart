@@ -49,12 +49,49 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
   DateTime? _selectedExpiryDate;
   String? _selectedFoodType;
 
+  // อัตรากินจริงต่อวัน (กก.) ของแต่ละประเภทอาหาร รวมจากจำนวนไก่จริงในทุกคอกที่
+  // กำลังกินอาหารประเภทนั้นอยู่ (ไม่ใช่ค่าคงที่ตายตัวอีกต่อไป) ดึงจาก endpoint
+  // เดียวกับที่หน้าคลังอาหารใช้โชว์ตัวเลขต่อคอก ให้วันที่ใกล้หมดที่กะไว้ตรงกับยอด
+  // ที่จะถูกตัดจริงทุกคืน ถ้าคอกยังไม่มี/ยังไม่รู้อายุ จะได้ 0 แล้วใช้ค่าเผื่อไว้แทน
+  Map<String, double> _dailyConsumptionByType = {};
+  static const Map<String, double> _fallbackConsumePerDay = {
+    kFoodTypeSmallPellet: 20.0,
+    kFoodTypeLargePellet: 30.0,
+  };
+
   @override
   void initState() {
     super.initState();
     // 🌟 ดักจับเหตุการณ์เมื่อผู้ใช้พิมพ์ปริมาณอาหารหรือปริมาณใกล้หมด ให้คำนวณวันอัตโนมัติ
     _amountController.addListener(_calculateExpiryDate);
     _thresholdController.addListener(_calculateExpiryDate);
+    _fetchDailyConsumption();
+  }
+
+  Future<void> _fetchDailyConsumption() async {
+    try {
+      final url = Uri.parse('$backendBaseUrl/api/foods/coop-consumption');
+      final response = await ApiClient.get(url);
+
+      if (response.statusCode == 200) {
+        final decodedData = json.decode(response.body);
+        if (decodedData is List) {
+          final totals = <String, double>{};
+          for (final row in decodedData) {
+            final foodType = row['food_type'] as String?;
+            if (foodType == null || foodType.isEmpty) continue;
+            final perDay = (row['estimated_kg_per_day'] as num?)?.toDouble() ?? 0.0;
+            totals[foodType] = (totals[foodType] ?? 0.0) + perDay;
+          }
+          setState(() => _dailyConsumptionByType = totals);
+          _calculateExpiryDate();
+        }
+      } else {
+        debugPrint("Error fetching daily consumption: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Connection error (daily consumption): $e");
+    }
   }
 
   @override
@@ -93,8 +130,13 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     // ถ้ายังไม่ได้เลือกวันนำเข้า ให้ใช้วันนี้เป็นฐานคำนวณไปก่อน
     DateTime startDate = _selectedImportDate ?? DateTime.now();
 
-    // อัตราการกิน/ตัดสต็อก ต่อวัน (20 กิโลกรัม)
-    double consumePerDay = 20.0;
+    // อัตราการกิน/ตัดสต็อกต่อวันจริงของประเภทที่เลือกไว้ (รวมจากจำนวนไก่จริง) -
+    // ถ้ายังไม่ได้เลือกประเภท หรือยังไม่มีคอกกินอยู่เลย ใช้ค่าเผื่อไว้แทน
+    final consumePerDay = (_selectedFoodType != null
+            ? _dailyConsumptionByType[_selectedFoodType]
+            : null) ??
+        _fallbackConsumePerDay[_selectedFoodType] ??
+        20.0;
 
     int daysLeft = 0;
     // ถ้าปริมาณอาหาร มากกว่าปริมาณแจ้งเตือน ถึงจะคำนวณวันได้
@@ -281,7 +323,10 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
   }) {
     final bool selected = _selectedFoodType == value;
     return InkWell(
-      onTap: () => setState(() => _selectedFoodType = value),
+      onTap: () {
+        setState(() => _selectedFoodType = value);
+        _calculateExpiryDate();
+      },
       borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),

@@ -224,9 +224,12 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     }
   }
 
-  // 🌟 ตัดสต็อกแมนนวล — ต้องเลือกประเภทอาหารก่อนเสมอ
-  // ไม่มียอดตายตัวอีกแล้ว: กดปุ่มนี้แล้วไปกรอกจำนวนที่แจกแต่ละคอกก่อน
-  // แล้วค่อยตัดสต็อกจริงตามยอดรวมที่กรอก (ทำพร้อมกันในหน้ากรอก)
+  bool _isDeducting = false;
+
+  // 🌟 ตัดสต็อก — ต้องเลือกประเภทอาหารก่อนเสมอ ยอดที่ตัดคำนวณอัตโนมัติจากจำนวนไก่
+  // จริงในคอกที่กำลังกินอาหารประเภทนี้อยู่ (handlers.ComputeDailyFoodConsumption
+  // ฝั่ง backend ตัวเดียวกับที่ Cron ใช้ตัดให้ทุกเที่ยงคืน) ไม่ต้องกรอกจำนวนเองทีละ
+  // คอกอีกต่อไป - กดปุ่มเดียวจบ
   Future<void> _forceDeductStock() async {
     final String? foodType = _selectedDeductType;
     if (foodType == null) {
@@ -237,19 +240,51 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
       );
       return;
     }
+    if (_isSelectedDeductStockEmpty) {
+      showEzTopBanner(
+        context,
+        "สต็อกอาหาร$foodTypeหมดแล้ว ไม่มีอะไรให้ตัด",
+        type: EzBannerType.warning,
+      );
+      return;
+    }
 
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MainFoodTypeSummary(
-          initialFoodType: foodType,
-          startEntryMode: true,
-        ),
-      ),
-    );
-    // กลับมาจากหน้ากรอก (ไม่ว่าจะตัดสต็อกสำเร็จหรือกดย้อนกลับ) รีเฟรชข้อมูลให้ตรงล่าสุด
-    _fetchFoodData();
-    _fetchFoodHistory();
+    setState(() => _isDeducting = true);
+    try {
+      final response = await ApiClient.post(
+        Uri.parse('$backendBaseUrl/api/foodstocks/force-deduct'),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: json.encode({'food_type': foodType}),
+      );
+
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        showEzTopBanner(
+          context,
+          (decoded['message'] as String?) ?? 'ตัดสต็อกสำเร็จ',
+          type: EzBannerType.success,
+        );
+        setState(() => _selectedDeductType = null);
+        _fetchFoodData();
+        _fetchFoodHistory();
+      } else {
+        showEzTopBanner(
+          context,
+          'ตัดสต็อกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+          type: EzBannerType.error,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showEzTopBanner(
+        context,
+        'เชื่อมต่อ backend ไม่สำเร็จ',
+        type: EzBannerType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _isDeducting = false);
+    }
   }
 
   String _formatAmount(dynamic amount) {
@@ -480,10 +515,30 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     );
   }
 
+  bool _isStockEmpty(Map<String, dynamic>? stock) {
+    final quantity = (stock?['quantity_current'] as num?)?.toDouble() ?? 0.0;
+    return stock == null || quantity <= 0;
+  }
+
+  /// สต็อกของประเภทที่เลือกไว้ (ก่อนกดตัดสต็อก) ว่างเปล่าอยู่แล้วหรือไม่ - ใช้ปิด
+  /// ปุ่ม "ตัดสต็อก" กันกดตัดของที่ไม่มีอยู่แล้ว
+  bool get _isSelectedDeductStockEmpty {
+    if (_selectedDeductType == kFoodTypeSmallPellet) {
+      return _isStockEmpty(_smallStock);
+    }
+    if (_selectedDeductType == kFoodTypeLargePellet) {
+      return _isStockEmpty(_largeStock);
+    }
+    return false;
+  }
+
   /// ชิปเลือกประเภทอาหารก่อนตัดสต็อก — ต้องเลือกก่อนปุ่ม "ตัดสต็อก" จะรู้ว่าตัดยอดไหน
   Widget _buildTypeChoiceChip(String foodType) {
     final ez = ezColors(context);
     final bool selected = _selectedDeductType == foodType;
+    final bool empty = _isStockEmpty(
+      foodType == kFoodTypeSmallPellet ? _smallStock : _largeStock,
+    );
     return InkWell(
       onTap: () => setState(() => _selectedDeductType = foodType),
       borderRadius: BorderRadius.circular(10),
@@ -496,7 +551,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
           border: Border.all(color: selected ? ez.gold : ez.border, width: 1.3),
         ),
         child: Text(
-          foodType,
+          empty ? '$foodType (หมดแล้ว)' : foodType,
           style: GoogleFonts.kanit(
             fontSize: 13,
             fontWeight: FontWeight.w600,
@@ -544,7 +599,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     required IconData icon,
     required String text,
     required Color color,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     return Expanded(
       child: OutlinedButton.icon(
@@ -736,62 +791,23 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                       entries: _distributeHistory,
                     ),
 
-                    // การ์ดที่ 3: การจัดการสต็อก — ปุ่มหลักเดียวสำหรับ "เพิ่มสต็อก"
-                    // (เดิมมีฟอร์มกรอกปริมาณ+วันที่ซ้ำกับปุ่มนี้ ยิงไป API เดียวกัน
-                    // แต่ขาดช่อง "ปริมาณใกล้หมด" ทำให้ดูเหมือนมี 2 ทางที่ทำเรื่องเดียวกัน
-                    // จึงรวมเหลือทางเดียวที่ครบถ้วนกว่า)
+                    // การ์ดที่ 3: ตัดสต็อก — แยกกล่องออกจาก "เข้าสต็อกอาหาร" ด้านล่าง
+                    // ชัดเจน (เดิมอยู่การ์ดเดียวกัน คั่นด้วยเส้นแบ่ง "การจัดการขั้นสูง"
+                    // ดูเหมือนเป็นแค่ตัวเลือกย่อยของปุ่มเพิ่มสต็อก ทั้งที่เป็นคนละ
+                    // การกระทำกัน)
                     _buildDarkCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _sectionHeader(
-                            Icons.add_box_outlined,
-                            'จัดการสต็อกอาหาร',
-                          ),
-                          const SizedBox(height: 14),
-
-                          _buildPrimaryActionButton(
-                            icon: Icons.add_circle_outline,
-                            text: 'เข้าสต็อกอาหาร',
-                            onTap: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const MainaddDataFood(),
-                                ),
-                              );
-                              _fetchFoodData();
-                              _fetchFoodHistory();
-                            },
-                          ),
-
-                          const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Divider(color: ezColors(context).border),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                ),
-                                child: Text(
-                                  'การจัดการขั้นสูง',
-                                  style: GoogleFonts.kanit(
-                                    fontSize: 11,
-                                    color: ezColors(context).textSecondary,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Divider(color: ezColors(context).border),
-                              ),
-                            ],
+                            Icons.remove_circle_outline,
+                            'ตัดสต็อกอาหาร',
                           ),
                           const SizedBox(height: 10),
 
                           Text(
-                            'เลือกประเภทอาหารก่อนตัดสต็อก',
+                            'ระบบตัดสต็อกให้อัตโนมัติทุกเที่ยงคืนตามจำนวนไก่จริงอยู่แล้ว '
+                            'เลือกประเภทแล้วกดปุ่มนี้ถ้าต้องการตัดสต็อกวันนี้ก่อนเวลา',
                             style: GoogleFonts.kanit(
                               fontSize: 11,
                               color: ezColors(context).textSecondary,
@@ -813,19 +829,68 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                               ),
                             ],
                           ),
+                          if (_selectedDeductType != null &&
+                              _isSelectedDeductStockEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'สต็อกอาหาร$_selectedDeductTypeหมดแล้ว ไม่มีอะไรให้ตัด',
+                              style: GoogleFonts.kanit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFFE53935),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 12),
 
                           Row(
                             children: [
                               _buildSecondaryActionButton(
                                 icon: Icons.remove_circle_outline,
-                                text: _selectedDeductType == null
-                                    ? 'ตัดสต็อก'
-                                    : 'ตัดสต็อก${_selectedDeductType!}',
+                                text: _isDeducting
+                                    ? 'กำลังตัดสต็อก...'
+                                    : (_selectedDeductType == null
+                                          ? 'ตัดสต็อก'
+                                          : 'ตัดสต็อก${_selectedDeductType!}'),
                                 color: const Color(0xFFFFA726),
-                                onTap: _forceDeductStock,
+                                onTap:
+                                    (_isDeducting ||
+                                        _selectedDeductType == null ||
+                                        _isSelectedDeductStockEmpty)
+                                    ? null
+                                    : _forceDeductStock,
                               ),
                             ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // การ์ดที่ 4: เข้าสต็อกอาหาร — อยู่ใต้การ์ดตัดสต็อก กล่องแยกกัน
+                    _buildDarkCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _sectionHeader(
+                            Icons.add_box_outlined,
+                            'เข้าสต็อกอาหาร',
+                          ),
+                          const SizedBox(height: 14),
+
+                          _buildPrimaryActionButton(
+                            icon: Icons.add_circle_outline,
+                            text: 'เข้าสต็อกอาหาร',
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const MainaddDataFood(),
+                                ),
+                              );
+                              _fetchFoodData();
+                              _fetchFoodHistory();
+                            },
                           ),
                         ],
                       ),
@@ -846,8 +911,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     );
   }
 
-  /// การ์ดย่อยสรุปอาหารประเภทหนึ่ง — จำนวนคอกที่กินประเภทนี้ (ไม่โชว์ยอดกิโลรวม
-  /// อีกต่อไป เพราะการตัดสต็อกจริงตอนนี้เป็นยอดที่กรอกเองแต่ละครั้ง ไม่มียอดตายตัว)
+  /// การ์ดย่อยสรุปอาหารประเภทหนึ่ง — จำนวนคอกที่กินประเภทนี้
   /// แตะแล้วเปิดหน้ารายละเอียดแยกตามคอกของประเภทนั้น
   Widget _buildFoodTypeSummaryTile(String foodType) {
     final ez = ezColors(context);

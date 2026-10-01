@@ -25,6 +25,10 @@ class _MainchickenState extends State<Mainchicken> {
   int selectedIndex = 3;
 
   DateTime _selectedDay = DateTime.now();
+  // เดือนที่กำลังดูอยู่ในปฏิทิน (เลื่อนลูกศรเปลี่ยนได้) - ใช้กำหนดจุดเริ่มของรายการ
+  // สรุปด้านล่างแทนการยึดติดกับ "วันนี้" เสมอ เพื่อให้เลื่อนไปเดือนไหนก็เห็นรายการ
+  // ของเดือนนั้นจริงๆ
+  DateTime _viewedMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
   Map<DateTime, DayMarkerInfo> _dayMarkers = {};
   bool _isLoading = true;
 
@@ -177,8 +181,17 @@ class _MainchickenState extends State<Mainchicken> {
     }
   }
 
-  DateTime get _selectedDayOnly =>
-      DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
+  // รายการสรุป "ของเดือนที่กำลังดูอยู่เป็นต้นไป" - อิงตามเดือนที่เลื่อนปฏิทินไปดูจริงๆ
+  // (_viewedMonth) ไม่ใช่ "วันนี้" ตายตัว เพื่อให้เลื่อนไปเดือนไหนก็เห็นรายการของ
+  // เดือนนั้นด้วย ไม่ใช่โดนกรองทิ้งเพราะผ่านไปแล้วเทียบกับวันนี้
+  List<MapEntry<DateTime, DayMarkerInfo>> get _upcomingEntries {
+    final monthStart = DateTime(_viewedMonth.year, _viewedMonth.month, 1);
+    final entries = _dayMarkers.entries
+        .where((e) => !e.key.isBefore(monthStart) && e.value.details.isNotEmpty)
+        .toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    return entries;
+  }
 
   void _showDayPopup(DateTime day, DayMarkerInfo marker) {
     showDialog(
@@ -389,7 +402,6 @@ class _MainchickenState extends State<Mainchicken> {
   @override
   Widget build(BuildContext context) {
     final ez = ezColors(context);
-    final marker = _dayMarkers[_selectedDayOnly];
 
     return Scaffold(
       extendBody: true,
@@ -417,9 +429,17 @@ class _MainchickenState extends State<Mainchicken> {
                       ),
                       initialDate: _selectedDay,
                       dayMarkers: _dayMarkers,
-                      onDateSelected: (day) =>
-                          setState(() => _selectedDay = day),
+                      onDateSelected: (day) {
+                        setState(() => _selectedDay = day);
+                        final dayOnly = DateTime(day.year, day.month, day.day);
+                        final m = _dayMarkers[dayOnly];
+                        if (m != null && m.details.isNotEmpty) {
+                          _showDayPopup(day, m);
+                        }
+                      },
                       onDayLongPress: (day, m) => _showDayPopup(day, m),
+                      onMonthChanged: (month) =>
+                          setState(() => _viewedMonth = month),
                     ),
                     const SizedBox(height: 14),
                     Wrap(
@@ -437,73 +457,105 @@ class _MainchickenState extends State<Mainchicken> {
                     ),
                     const SizedBox(height: 18),
 
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'รายการวันที่ ${_selectedDay.day}/${_selectedDay.month}/${_selectedDay.year}',
-                        style: GoogleFonts.kanit(
-                          color: ez.textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    if (_isLoading)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: CircularProgressIndicator(color: ez.gold),
-                      )
-                    else if (marker == null || marker.details.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: Text(
-                          'ไม่มีรายการในวันนี้',
-                          style: GoogleFonts.kanit(
-                            color: ez.textSecondary,
-                            fontSize: 14,
-                          ),
-                        ),
-                      )
-                    else
-                      ...marker.details.map(
-                        (item) => Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => _openCoop(item.coopId),
-                            borderRadius: BorderRadius.circular(14),
-                            child: Container(
-                              width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: ez.card,
-                                borderRadius: BorderRadius.circular(14),
-                                border:
-                                    item.status == CalendarItemStatus.overdue
-                                    ? Border.all(
-                                        color: kCalendarRed.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                        width: 1.3,
-                                      )
-                                    : null,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(
-                                      alpha: 0.15,
-                                    ),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: _detailRow(item, rowContext: context),
+                    // กล่องรายการสรุป แยกออกจากกล่องปฏิทินด้านบนชัดเจน (เป็น
+                    // ezCardDecoration ของตัวเอง) - กดวันไหนในปฏิทินแล้วเป็นป๊อบอัพ
+                    // ของวันนั้นแทน (ดูด้านบน onDateSelected/onDayLongPress) ส่วน
+                    // กล่องนี้เป็นสรุปรวมของเดือนที่กำลังดูอยู่เป็นต้นไปตลอดเวลา
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: ezCardDecoration(context),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'รายการเดือน${thaiMonthYear(_viewedMonth)}เป็นต้นไป',
+                            style: GoogleFonts.kanit(
+                              color: ez.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 10),
+
+                          if (_isLoading)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: Center(
+                                child: CircularProgressIndicator(color: ez.gold),
+                              ),
+                            )
+                          else if (_upcomingEntries.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              child: Text(
+                                'ไม่มีรายการในเดือนนี้เป็นต้นไป',
+                                style: GoogleFonts.kanit(
+                                  color: ez.textSecondary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            )
+                          else
+                            ..._upcomingEntries.expand(
+                              (entry) => [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    bottom: 6,
+                                    top: 4,
+                                  ),
+                                  child: Text(
+                                    thaiDate(entry.key),
+                                    style: GoogleFonts.kanit(
+                                      color: ez.textSecondary,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                ...entry.value.details.map(
+                                  (item) => Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () => _openCoop(item.coopId),
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: Container(
+                                        width: double.infinity,
+                                        margin: const EdgeInsets.only(
+                                          bottom: 10,
+                                        ),
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+                                          color: ezBackgroundColor(context),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          border:
+                                              item.status ==
+                                                  CalendarItemStatus.overdue
+                                              ? Border.all(
+                                                  color: kCalendarRed
+                                                      .withValues(alpha: 0.5),
+                                                  width: 1.3,
+                                                )
+                                              : Border.all(
+                                                  color: ez.border,
+                                                  width: 1,
+                                                ),
+                                        ),
+                                        child: _detailRow(
+                                          item,
+                                          rowContext: context,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
                       ),
+                    ),
 
                     const SizedBox(height: 50),
                   ],
