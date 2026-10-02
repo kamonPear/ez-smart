@@ -282,6 +282,170 @@ class _MainVaccineState extends State<MainVaccine> {
     );
   }
 
+  /// ประวัติการให้วัคซีนจริงของคอกนี้ย้อนหลัง (ไม่ใช่แค่ที่ยังค้างอยู่/กำลังจะถึง
+  /// กำหนด) - ดึงจาก GET /api/vaccines?coop_id=X ซึ่งมีอยู่แล้วใน backend แต่ไม่เคย
+  /// ถูกเรียกใช้จากฝั่งแอปเลย
+  Future<void> _showVaccineHistoryDialog() async {
+    final coopId = widget.initialCoopId;
+    if (coopId == null) return;
+
+    bool isLoading = true;
+    List<dynamic> history = [];
+
+    Future<void> load(StateSetter setDialogState) async {
+      try {
+        final response = await ApiClient.get(
+          Uri.parse('$backendBaseUrl/api/vaccines?coop_id=$coopId'),
+        );
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          data.sort((a, b) {
+            final da = DateTime.tryParse(a['record_date']?.toString() ?? '');
+            final db = DateTime.tryParse(b['record_date']?.toString() ?? '');
+            if (da == null || db == null) return 0;
+            return db.compareTo(da);
+          });
+          history = data;
+        }
+      } catch (e) {
+        debugPrint('โหลดประวัติวัคซีนไม่สำเร็จ: $e');
+      }
+      setDialogState(() => isLoading = false);
+    }
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final ez = ezColors(dialogContext);
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            if (isLoading && history.isEmpty) {
+              load(setDialogState);
+            }
+            return Dialog(
+              backgroundColor: ezCardColor(dialogContext),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(22.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.history_rounded, color: ez.gold, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'ประวัติการให้วัคซีน – ${_coopNames[coopId] ?? 'คอก $coopId'}',
+                            style: GoogleFonts.kanit(
+                              color: ez.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Divider(color: ez.border, thickness: 1, height: 1),
+                    ),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 360),
+                      child: isLoading
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 30),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          : history.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              child: Text(
+                                'คอกนี้ยังไม่เคยได้รับวัคซีนเลย',
+                                style: GoogleFonts.kanit(
+                                  color: ez.textSecondary,
+                                  fontSize: 14,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: history.length,
+                              separatorBuilder: (_, __) =>
+                                  Divider(color: ez.border, height: 18),
+                              itemBuilder: (context, i) {
+                                final h = history[i];
+                                final rawDate = h['record_date']?.toString();
+                                String dateLabel = '-';
+                                if (rawDate != null) {
+                                  final d = DateTime.tryParse(rawDate);
+                                  if (d != null) {
+                                    dateLabel =
+                                        '${d.day}/${d.month}/${d.year}';
+                                  }
+                                }
+                                final age = h['recommended_age']?.toString();
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${h['name'] ?? 'วัคซีน'}${(h['method']?.toString().isNotEmpty ?? false) ? ' · ${h['method']}' : ''}',
+                                      style: GoogleFonts.kanit(
+                                        color: ez.textPrimary,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'ให้เมื่อ $dateLabel${(age != null && age.isNotEmpty) ? ' · อายุไก่ตอนให้ $age วัน' : ''}',
+                                      style: GoogleFonts.kanit(
+                                        color: ez.textSecondary,
+                                        fontSize: 12.5,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: ez.border),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: Text(
+                          'ปิด',
+                          style: GoogleFonts.kanit(
+                            color: ez.textSecondary,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> fetchVaccineAlerts() async {
     setState(() {
       _isLoading = true;
@@ -324,12 +488,14 @@ class _MainVaccineState extends State<MainVaccine> {
     }
   }
 
-  Future<void> updateCompletionStatus(
+  /// คืนค่า true ถ้าบันทึกสำเร็จจริง - เดิมแค่ print เฉยๆ ไม่ได้บอกผู้เรียกว่าสำเร็จ
+  /// ไหม ทำให้ UI โชว์สถานะ optimistic ไว้ค้างผิดได้เงียบๆ ถ้า backend ปฏิเสธ
+  Future<bool> updateCompletionStatus(
     Map<String, dynamic> alert,
     bool newValue,
   ) async {
     String id = alert['id']?.toString() ?? '';
-    if (id.isEmpty) return;
+    if (id.isEmpty) return false;
 
     try {
       final response = await ApiClient.put(
@@ -345,11 +511,14 @@ class _MainVaccineState extends State<MainVaccine> {
 
       if (response.statusCode == 200) {
         print('✅ อัปเดตฐานข้อมูลสำเร็จ');
+        return true;
       } else {
         print('❌ อัปเดตฐานข้อมูลไม่สำเร็จ: Status Code ${response.statusCode}');
+        return false;
       }
     } catch (e) {
       print('❌ Error Updating Status: $e');
+      return false;
     }
   }
 
@@ -774,17 +943,34 @@ class _MainVaccineState extends State<MainVaccine> {
                 pageTitle: widget.initialCoopId != null
                     ? 'วัคซีนคอก ${_coopNames[widget.initialCoopId] ?? widget.initialCoopId}'
                     : 'ตารางวัคซีน',
-                trailing: IconButton(
-                  icon: Icon(
-                    Icons.calendar_today_outlined,
-                    color: ezColors(context).textPrimary,
-                    size: 24,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _selectedDay = DateTime.now();
-                    });
-                  },
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ดูประวัติย้อนหลังได้เฉพาะตอนเปิดมาจากคอกใดคอกหนึ่งเท่านั้น
+                    // (ประวัติต้องผูกกับคอกเดียว ไม่ใช่ภาพรวมทุกคอก)
+                    if (widget.initialCoopId != null)
+                      IconButton(
+                        icon: Icon(
+                          Icons.history_rounded,
+                          color: ezColors(context).textPrimary,
+                          size: 24,
+                        ),
+                        tooltip: 'ดูประวัติการให้วัคซีน',
+                        onPressed: _showVaccineHistoryDialog,
+                      ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.calendar_today_outlined,
+                        color: ezColors(context).textPrimary,
+                        size: 24,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _selectedDay = DateTime.now();
+                        });
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1148,13 +1334,32 @@ class _MainVaccineState extends State<MainVaccine> {
           const SizedBox(height: 16),
 
           InkWell(
-            onTap: () {
+            onTap: () async {
               bool newValue = !isCompleted;
               setState(() {
                 alert['is_completed'] = newValue;
                 _updateDayMarkers();
               });
-              updateCompletionStatus(alert, newValue);
+              final success = await updateCompletionStatus(alert, newValue);
+              if (!mounted) return;
+              if (success) {
+                showEzTopBanner(
+                  context,
+                  newValue ? '$coopId ได้รับวัคซีน $vaccineName แล้ว' : 'ยกเลิกสถานะให้วัคซีนแล้ว',
+                  type: EzBannerType.success,
+                );
+              } else {
+                // บันทึกไม่สำเร็จ - ย้อนสถานะที่โชว์ไว้ก่อนกลับ ไม่ให้ UI ค้างผิดจาก backend
+                setState(() {
+                  alert['is_completed'] = !newValue;
+                  _updateDayMarkers();
+                });
+                showEzTopBanner(
+                  context,
+                  'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+                  type: EzBannerType.error,
+                );
+              }
             },
             borderRadius: BorderRadius.circular(10),
             child: Container(

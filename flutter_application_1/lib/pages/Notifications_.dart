@@ -84,6 +84,13 @@ class _NotificationsState extends State<Notifications> {
           }
           return; // ไม่ลบออกจากรายการ เพราะยังไม่สำเร็จจริง
         }
+        if (mounted) {
+          showEzTopBanner(
+            context,
+            'บันทึกแล้ว - คอกนี้ได้รับวัคซีนแล้ว',
+            type: EzBannerType.success,
+          );
+        }
       } catch (e) {
         debugPrint("Error updating vaccine status: $e");
         if (mounted) {
