@@ -33,10 +33,58 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
   bool isLoading = true;
   List<Map<String, dynamic>> coopActivity = [];
 
+  // ตรวจจับความเคลื่อนไหวที่วงกบประตู (เซนเซอร์ PIR) เฉพาะคอกนี้ - จำนวนครั้ง
+  // และเวลาที่ตรวจจับล่าสุดภายใน 24 ชม.ที่ผ่านมา (backend กรองช่วงเวลาให้แล้ว)
+  int motionCount = 0;
+  DateTime? motionLastAt;
+
   @override
   void initState() {
     super.initState();
     _fetchCoopActivity();
+    _fetchMotionAlerts();
+  }
+
+  Future<void> _fetchMotionAlerts() async {
+    try {
+      final coopId = widget.coop["id"].toString();
+      final response = await ApiClient.get(
+        Uri.parse('$backendBaseUrl/api/motion-alerts'),
+      );
+      if (response.statusCode != 200 ||
+          response.body.isEmpty ||
+          response.body == 'null') {
+        return;
+      }
+      final List<dynamic> rows = jsonDecode(response.body);
+      int count = 0;
+      DateTime? lastAt;
+      for (final row in rows) {
+        if (row is! Map<String, dynamic>) continue;
+        if (row['coop_id']?.toString() != coopId) continue;
+        final ts = DateTime.tryParse(row['timestamp']?.toString() ?? '')
+            ?.toLocal();
+        if (ts == null) continue;
+        count++;
+        if (lastAt == null || ts.isAfter(lastAt)) lastAt = ts;
+      }
+      if (!mounted) return;
+      setState(() {
+        motionCount = count;
+        motionLastAt = lastAt;
+      });
+    } catch (e) {
+      // ข้อมูลเสริม ดึงไม่ได้ก็ยังแสดงหน้าคอกส่วนอื่นได้ตามปกติ
+    }
+  }
+
+  String get _motionSummaryText {
+    if (motionCount == 0) return 'ยังไม่พบความเคลื่อนไหวใน 24 ชม.ที่ผ่านมา';
+    final t = motionLastAt;
+    final timeLabel = t == null
+        ? '-'
+        : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    return 'ตรวจพบความเคลื่อนไหว $motionCount ครั้ง · ล่าสุด $timeLabel';
   }
 
   // 🌟 รวมกิจกรรมของคอกนี้ทั้งหมดเป็นรายการเดียว (ประวัติทั้งหมด ไม่ใช่แค่วันนี้):
@@ -551,6 +599,9 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                       ],
                     ),
 
+                    const SizedBox(height: 16),
+                    _buildMotionAlertRow(),
+
                     const SizedBox(height: 25),
 
                     Align(
@@ -699,6 +750,37 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
   // 🌟 การ์ดกิจกรรมของคอกนี้ - รองรับทั้งไข่/ตรวจสุขภาพ/วัคซีน
   // รายการที่ pending=true (ยังไม่ทำ) จะมาร์คสีแดงไว้เตือน ส่วนที่ทำแล้ว/เป็นแค่บันทึกจะเป็นสีปกติ
   // เฉพาะรายการไข่เท่านั้นที่กดแก้ไขได้ (รายการอื่นเป็นข้อมูลสรุป/แจ้งเตือนเท่านั้น)
+  Widget _buildMotionAlertRow() {
+    final ez = ezColors(context);
+    final bool hasMotion = motionCount > 0;
+    const motionColor = Color(0xFFAB47BC);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: hasMotion
+            ? motionColor.withValues(alpha: 0.15)
+            : motionColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const Text('🚶', style: TextStyle(fontSize: 18)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _motionSummaryText,
+              style: GoogleFonts.kanit(
+                fontSize: 13,
+                fontWeight: hasMotion ? FontWeight.w600 : FontWeight.w400,
+                color: hasMotion ? motionColor : ez.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActivityItem(Map<String, dynamic> item) {
     final ez = ezColors(context);
     final DateTime date = item['date'] is DateTime
