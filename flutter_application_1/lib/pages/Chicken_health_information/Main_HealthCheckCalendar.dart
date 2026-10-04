@@ -18,6 +18,16 @@ import '../Show_chart.dart';
 /// - วันที่ยังไม่ถึง: กดไม่ได้ (แค่ดูว่ามีนัด)
 /// - วันนี้/เลยกำหนดแล้ว: กดเพื่อกรอกผลตรวจได้ (สุขภาพดี/ป่วยกี่ตัว)
 /// - วันที่ตรวจแล้ว: กดดูผลตรวจที่บันทึกไว้ (อ่านอย่างเดียว)
+///
+/// เปิดหน้านี้ได้จาก 3 ที่ (ทุกที่ต้องส่ง coopId/coopName ของคอกที่จะดูมาด้วย):
+/// - ปุ่ม "นัดตรวจสุขภาพ" ในหน้ารายละเอียดคอก (Main_CoopDetail.dart)
+/// - รายการนัดตรวจสุขภาพรวมทุกคอก (Main_HealthAppointments.dart)
+/// - แตะการแจ้งเตือนเรื่องนัดตรวจในหน้าแจ้งเตือน (Notifications_.dart)
+///
+/// ดึงข้อมูลจาก backend 3 endpoint พร้อมกันทุกครั้งที่เปิด/รีเฟรชหน้า (ดูรายละเอียด
+/// เต็ม ๆ ที่คอมเมนต์เหนือ _fetchData() ด้านล่าง): GET /api/vaccines/alerts (คำนวณ
+/// วันนัด), GET /api/healths (ผลตรวจที่เคยบันทึก), GET /api/coops (จำนวนไก่ทั้งหมด
+/// ของคอกนี้ เอาไว้เช็กยอดตอนกรอกฟอร์ม) และบันทึกผลตรวจใหม่ผ่าน POST /api/healths
 class MainHealthCheckCalendar extends StatefulWidget {
   final String coopId;
   final String coopName;
@@ -33,10 +43,13 @@ class MainHealthCheckCalendar extends StatefulWidget {
       _MainHealthCheckCalendarState();
 }
 
+/// โมเดลข้อมูล "นัดตรวจสุขภาพ" 1 วัน - ไม่ได้มาจาก API ตรงๆ แต่คำนวณเอาเองใน
+/// _fetchData() จากวันครบกำหนดวัคซีน (ลบ 1 วัน) ใช้แค่ในไฟล์นี้ไฟล์เดียว
+/// (ไม่ export) เพื่อเก็บพักข้อมูลไว้ก่อนจะเอาไปสร้าง marker บนปฏิทิน
 class _AppointmentInfo {
-  final DateTime date;
-  final String vaccineName;
-  final DateTime vaccineDate;
+  final DateTime date; // วันที่ต้องตรวจ (= vaccineDate - 1 วัน)
+  final String vaccineName; // ชื่อวัคซีนที่จะให้หลังตรวจผ่าน เอาไว้โชว์ในป็อบอัพ
+  final DateTime vaccineDate; // วันที่ครบกำหนดให้วัคซีนจริง (วันถัดจาก date)
 
   _AppointmentInfo({
     required this.date,
@@ -45,10 +58,12 @@ class _AppointmentInfo {
   });
 }
 
+/// โมเดลข้อมูล "ผลตรวจสุขภาพที่บันทึกไว้แล้ว" 1 วัน - แปลงมาจาก 1 แถวของ
+/// GET /api/healths ใช้โชว์ในป็อบอัพแบบอ่านอย่างเดียว (_showReadOnlyPopup)
 class _HealthRecordInfo {
-  final int healthy;
-  final int poor;
-  final String note;
+  final int healthy; // จำนวนไก่สุขภาพดีที่บันทึกไว้
+  final int poor; // จำนวนไก่ป่วยที่บันทึกไว้
+  final String note; // หมายเหตุที่กรอกตอนบันทึก (ถ้ามี)
 
   _HealthRecordInfo({
     required this.healthy,
@@ -75,6 +90,21 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     _fetchData();
   }
 
+  /// ฟังก์ชันหลักที่โหลดข้อมูลทั้งหมดของหน้านี้ ถูกเรียก 2 จุด:
+  /// 1) initState() ตอนเปิดหน้าครั้งแรก
+  /// 2) _submitHealthRecord() หลังบันทึกผลตรวจสำเร็จ (โหลดใหม่ให้ปฏิทินอัปเดต)
+  ///
+  /// ดึงข้อมูล 3 endpoint พร้อมกัน (Future.wait เพื่อความเร็ว ไม่ต้องรอทีละตัว):
+  /// - GET /api/vaccines/alerts  → ตารางแจ้งเตือนวัคซีนทั้งฟาร์ม (ทุกคอก) เอามากรอง
+  ///   เฉพาะ coop_id ตรงกับหน้านี้ แล้ว "คำนวณ" วันนัดตรวจ = วันครบกำหนดวัคซีน - 1 วัน
+  ///   (ไฟล์นี้ไม่มี endpoint "นัดตรวจ" ของตัวเอง เกาะไปกับกำหนดวัคซีนแทน)
+  /// - GET /api/healths          → ประวัติผลตรวจสุขภาพที่เคยบันทึกไว้จริงทุกคอก
+  ///   กรองเฉพาะ coop_id ตรงกับหน้านี้เหมือนกัน
+  /// - GET /api/coops            → ใช้แค่หาจำนวนไก่ทั้งหมด (amount) ของคอกนี้คอกเดียว
+  ///   เพื่อเอาไปเช็กตอนกรอกฟอร์ม (สุขภาพดี + ป่วย ต้องรวมได้เท่าจำนวนไก่จริง)
+  ///
+  /// จากนั้นรวมผลทั้งสามเป็น _dayMarkers (Map<วันที่, สีจุด+รายละเอียด>) ที่
+  /// CustomCalendar เอาไปวาดจุดสีบนปฏิทินโดยตรงในเมธอด build()
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
@@ -193,6 +223,12 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     }
   }
 
+  /// บันทึกผลตรวจสุขภาพ 1 วันลง backend - ถูกเรียกจากปุ่ม "บันทึกผล" ในป็อบอัพ
+  /// _showRecordFormPopup() เท่านั้น
+  ///
+  /// ยิง POST /api/healths ด้วย coop_id ของคอกนี้ + วันที่ + จำนวนไก่สุขภาพดี/ป่วย
+  /// + หมายเหตุ สำเร็จแล้วจะปิดป็อบอัพ โชว์แบนเนอร์เขียว แล้วเรียก _fetchData()
+  /// ซ้ำเพื่อให้ปฏิทินอัปเดตจุดสีทันที (จากสีส้ม/แดง "มีนัด" กลายเป็นสีเขียว "ตรวจแล้ว")
   Future<void> _submitHealthRecord(
     DateTime date,
     int healthy,
@@ -237,6 +273,12 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     }
   }
 
+  /// Callback ที่ CustomCalendar เรียกทุกครั้งที่แตะวันในปฏิทิน (ผูกไว้ที่
+  /// onDateSelected ในเมธอด build()) ตัดสินใจว่าจะเปิดป็อบอัพแบบไหนตามสถานะวันนั้น:
+  /// - ไม่มีนัด/ไม่มีบันทึกเลย (ไม่มีใน _dayMarkers) → ไม่ทำอะไร
+  /// - มีบันทึกผลตรวจแล้ว (อยู่ใน _records) → เปิดแบบอ่านอย่างเดียว
+  /// - มีนัดแต่ยังไม่ถึงวัน (อยู่ใน _appointments, อนาคต) → เปิดป็อบอัพแจ้งว่ายังตรวจไม่ได้
+  /// - มีนัดและถึง/เลยกำหนดแล้ว → เปิดฟอร์มให้กรอกผลตรวจ
   void _onDayTap(DateTime day) {
     if (!_dayMarkers.containsKey(day))
       return; // ไม่มีนัด/ไม่มีบันทึก ไม่ต้องเปิดป็อบอัพ
@@ -258,6 +300,9 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     }
   }
 
+  /// ป็อบอัพ "ดูผลตรวจที่บันทึกไว้แล้ว" (แค่แสดงผล กดอะไรแก้ไขไม่ได้) เปิดจาก
+  /// _onDayTap() เมื่อแตะวันที่มีข้อมูลใน _records อยู่แล้ว ข้อมูลที่โชว์มาจาก
+  /// _HealthRecordInfo ที่แปลงไว้แล้วตอน _fetchData() ไม่ได้ยิง API ซ้ำตรงนี้
   void _showReadOnlyPopup(DateTime day, _HealthRecordInfo record) {
     showDialog(
       context: context,
@@ -362,6 +407,8 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     );
   }
 
+  /// วิดเจ็ตช่วยย่อย ๆ - การ์ดตัวเลขสถิติ 1 กล่อง (ใช้ซ้ำ 2 ที่ใน _showReadOnlyPopup
+  /// คือกล่อง "สุขภาพดี" กับกล่อง "ป่วย") ไม่ได้ดึงข้อมูลเอง รับค่ามาแสดงอย่างเดียว
   Widget _statTile(dynamic ez, String label, String value, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -389,6 +436,9 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     );
   }
 
+  /// ป็อบอัพ "ยังไม่ถึงวันนัด" เปิดจาก _onDayTap() เมื่อแตะวันในอนาคตที่มีนัดรออยู่
+  /// (ยังตรวจไม่ได้) มีแค่ปุ่มปิด ไม่มีฟอร์มให้กรอก เอาไว้กันคนกดบันทึกผลตรวจ
+  /// ล่วงหน้าก่อนถึงวันจริง
   void _showNotYetDuePopup(DateTime day, _AppointmentInfo appt) {
     showDialog(
       context: context,
@@ -472,6 +522,12 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     );
   }
 
+  /// ป็อบอัพฟอร์มกรอกผลตรวจสุขภาพ เปิดจาก _onDayTap() เมื่อแตะวันที่ถึง/เลย
+  /// กำหนดนัดแล้ว ให้กรอกจำนวนไก่สุขภาพดี/ป่วย + หมายเหตุ มีเช็กก่อนบันทึก 2 ชั้น:
+  /// 1) ต้องกรอกทั้งสองช่องเป็นตัวเลข ไม่ติดลบ
+  /// 2) ถ้ารู้จำนวนไก่ทั้งหมดของคอกนี้ (_totalChickens จาก /api/coops) สุขภาพดี+ป่วย
+  ///    ต้องรวมได้พอดีเท่านั้น ไม่งั้น error กันกรอกเลขมั่ว
+  /// ผ่านแล้วค่อยเรียก _submitHealthRecord() เพื่อยิง API จริง
   void _showRecordFormPopup(DateTime day, _AppointmentInfo appt) {
     final healthyController = TextEditingController();
     final poorController = TextEditingController();
@@ -719,6 +775,8 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     );
   }
 
+  /// วิดเจ็ตช่วยย่อย ๆ - จุดสีกลม + ข้อความคำอธิบาย 1 อัน ใช้วาดแถบ "คำอธิบายสี"
+  /// ใต้ปฏิทินในเมธอด build() (เขียว/ส้ม/แดง) ไม่ได้ดึงข้อมูลอะไร แค่รับสี+ข้อความมาวาด
   Widget _legendDot(Color color, String label) {
     final ez = ezColors(context);
     return Row(
@@ -738,6 +796,11 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
     );
   }
 
+  /// Callback ของแถบเมนูล่าง (CustomBottomBar) ผูกไว้ใน build() - หน้านี้ไม่ได้อยู่
+  /// ในแถบเมนูหลัก (selectedIndex เริ่มเป็น null ไม่ไฮไลต์ปุ่มไหน) แต่ยังกดสลับไป
+  /// หน้าอื่นจากตรงนี้ได้ตามปกติ: 0=หน้าแรก(MainScreen), 1=อุปกรณ์เซนเซอร์
+  /// (MainDeviceSummary), 2=กราฟสถิติ(ShowChart), 3=ข้อมูลไก่(Mainchicken),
+  /// 4=คลังอาหาร(MainShowDataFood)
   void onTabSelected(int index) {
     if (index == 0) {
       Navigator.pushReplacement(

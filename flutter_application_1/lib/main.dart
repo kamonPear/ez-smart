@@ -11,9 +11,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await themeController.load();
   await farmThresholdController.load();
-  final bool isLoggedIn = await AuthService().isLoggedIn();
+  // ล้าง token เก่าทุกครั้งที่เปิดแอปใหม่ เพื่อบังคับให้ต้องเข้าสู่ระบบเสมอ
+  // (ไม่ auto-login จาก token ที่ค้างอยู่ใน SharedPreferences จากรอบก่อน)
+  await AuthService().logout();
 
-  runApp(MyApp(isLoggedIn: isLoggedIn));
+  runApp(const MyApp(isLoggedIn: false));
 }
 
 class MyApp extends StatelessWidget {
