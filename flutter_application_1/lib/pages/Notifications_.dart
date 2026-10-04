@@ -166,19 +166,25 @@ class _NotificationsState extends State<Notifications> {
         ? Icons.vaccines_rounded
         : (type == 'health'
               ? Icons.medical_information_outlined
-              : Icons.grass_rounded);
+              : (type == 'motion'
+                    ? Icons.directions_walk_rounded
+                    : Icons.grass_rounded));
     final Color statusColor = isUrgent
         ? ez.danger
         : (type == 'vaccine' || type == 'health'
               ? const Color(0xFFFFA726)
-              : ez.gold);
+              : (type == 'motion' ? const Color(0xFFAB47BC) : ez.gold));
 
-    String buttonText = type == "food"
+    String buttonText = type == "food" || type == "motion"
         ? "รับทราบ"
         : (type == "health" ? "ไปตรวจสุขภาพ" : "เสร็จสิ้น");
     Color buttonColor = type == "food"
         ? Colors.blueAccent
-        : (type == "health" ? const Color(0xFFFFA726) : ez.accentGreen);
+        : (type == "health"
+              ? const Color(0xFFFFA726)
+              : (type == "motion"
+                    ? const Color(0xFFAB47BC)
+                    : ez.accentGreen));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),

@@ -202,6 +202,62 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
     // ข้อมูลเสริม ดึงไม่ได้ก็ยังแสดงแจ้งเตือนอื่นได้ตามปกติ
   }
 
+  // ---------------------------------------------------------
+  // 4. แจ้งเตือนตรวจจับความเคลื่อนไหว (เซนเซอร์ PIR ที่วงกบประตู) - รวมเป็น
+  //    1 แจ้งเตือนต่อคอก (ไม่ใช่ 1 อันต่อครั้งตรวจจับ เพราะอาจมีหลายสิบครั้ง/วัน)
+  //    โชว์จำนวนครั้งรวมกับเวลาที่ตรวจจับล่าสุด ข้อมูลดิบมาจาก /api/motion-alerts
+  //    (backend เรียงล่าสุดมาก่อนให้แล้ว)
+  // ---------------------------------------------------------
+  try {
+    final response = await ApiClient.get(
+      Uri.parse('$backendBaseUrl/api/motion-alerts'),
+    );
+    if (response.statusCode == 200 &&
+        response.body.isNotEmpty &&
+        response.body != 'null') {
+      final List<dynamic> rows = jsonDecode(response.body);
+      final Map<String, Map<String, dynamic>> byCoop = {};
+      for (final row in rows) {
+        if (row is! Map<String, dynamic>) continue;
+        final coopId = row['coop_id']?.toString();
+        final ts = DateTime.tryParse(row['timestamp']?.toString() ?? '')
+            ?.toLocal();
+        if (coopId == null || ts == null) continue;
+        final coopName = row['coop_name']?.toString().trim().isNotEmpty == true
+            ? row['coop_name'].toString()
+            : 'คอก $coopId';
+        final existing = byCoop[coopId];
+        if (existing == null) {
+          byCoop[coopId] = {'coopName': coopName, 'count': 1, 'lastAt': ts};
+        } else {
+          existing['count'] = (existing['count'] as int) + 1;
+          if (ts.isAfter(existing['lastAt'] as DateTime)) {
+            existing['lastAt'] = ts;
+          }
+        }
+      }
+      byCoop.forEach((coopId, info) {
+        final lastAt = info['lastAt'] as DateTime;
+        final timeLabel =
+            '${lastAt.hour.toString().padLeft(2, '0')}:${lastAt.minute.toString().padLeft(2, '0')}';
+        newNotifications.add({
+          "id": "motion_$coopId",
+          "type": "motion",
+          "title":
+              "🚶 ตรวจพบความเคลื่อนไหวที่${info['coopName']} (${info['count']} ครั้ง ล่าสุด $timeLabel)",
+          "time": timeNow,
+          "date": dateNow,
+          "urgent": false,
+          "daysUntil": -1,
+          "coopId": coopId,
+          "coopName": info['coopName'],
+        });
+      });
+    }
+  } catch (e) {
+    // ข้อมูลเสริม ดึงไม่ได้ก็ยังแสดงแจ้งเตือนอื่นได้ตามปกติ
+  }
+
   // เรียงลำดับ: เลยกำหนด/วันนี้ก่อน แล้วไล่ตามความเร่งด่วน
   newNotifications.sort((x, y) {
     final dx = x['daysUntil'] as int? ?? 999;
