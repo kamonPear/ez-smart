@@ -228,7 +228,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
 
   // 🌟 ตัดสต็อก — ต้องเลือกประเภทอาหารก่อนเสมอ ยอดที่ตัดคำนวณอัตโนมัติจากจำนวนไก่
   // จริงในคอกที่กำลังกินอาหารประเภทนี้อยู่ (handlers.ComputeDailyFoodConsumption
-  // ฝั่ง backend ตัวเดียวกับที่ Cron ใช้ตัดให้ทุกเที่ยงคืน) ไม่ต้องกรอกจำนวนเองทีละ
+  // ฝั่ง backend ตัวเดียวกับที่ Cron ใช้ตัดให้ทุกวันตอน 6 โมงเช้า) ไม่ต้องกรอกจำนวนเองทีละ
   // คอกอีกต่อไป - กดปุ่มเดียวจบ
   Future<void> _forceDeductStock() async {
     final String? foodType = _selectedDeductType;
@@ -806,7 +806,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                           const SizedBox(height: 10),
 
                           Text(
-                            'ระบบตัดสต็อกให้อัตโนมัติทุกเที่ยงคืนตามจำนวนไก่จริงอยู่แล้ว '
+                            'ระบบตัดสต็อกให้อัตโนมัติทุกวันตอน 6 โมงเช้าตามจำนวนไก่จริงอยู่แล้ว '
                             'เลือกประเภทแล้วกดปุ่มนี้ถ้าต้องการตัดสต็อกวันนี้ก่อนเวลา',
                             style: GoogleFonts.kanit(
                               fontSize: 11,

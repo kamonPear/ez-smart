@@ -31,19 +31,20 @@ class CoopDetailPage extends StatefulWidget {
 class _CoopDetailPageState extends State<CoopDetailPage> {
   int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   bool isLoading = true;
-  List<Map<String, dynamic>> dailyActivity = [];
+  List<Map<String, dynamic>> coopActivity = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchDailyActivity();
+    _fetchCoopActivity();
   }
 
-  // 🌟 รวมกิจกรรมของคอกนี้ทั้งหมดเป็นรายการเดียว: ไข่ที่เก็บ, ตรวจสุขภาพที่บันทึกแล้ว,
-  //    วัคซีนที่ให้แล้ว/ใกล้ถึงกำหนด (ภายใน 3 วัน เหมือนหน้าแจ้งเตือน) และคำนวณเพิ่ม
-  //    "ควรตรวจสุขภาพ" ก่อนวันฉีดวัคซีน 1 วัน เพราะจะฉีดวัคซีนแค่ไก่ที่แข็งแรง
+  // 🌟 รวมกิจกรรมของคอกนี้ทั้งหมดเป็นรายการเดียว (ประวัติทั้งหมด ไม่ใช่แค่วันนี้):
+  //    ไข่ที่เก็บทุกวัน, ตรวจสุขภาพที่บันทึกแล้วทุกครั้ง, วัคซีนที่ให้แล้ว/ใกล้ถึง
+  //    กำหนด (ภายใน 3 วัน เหมือนหน้าแจ้งเตือน) และคำนวณเพิ่ม "ควรตรวจสุขภาพ" ก่อน
+  //    วันฉีดวัคซีน 1 วัน เพราะจะฉีดวัคซีนแค่ไก่ที่แข็งแรง
   //    รายการที่ "ยังไม่ทำ" (pending) จะมาร์คสีแดงไว้เตือน - ทำหน้าที่เป็นการแจ้งเตือนในตัว
-  Future<void> _fetchDailyActivity() async {
+  Future<void> _fetchCoopActivity() async {
     setState(() => isLoading = true);
 
     final coopId = widget.coop["id"].toString();
@@ -155,17 +156,14 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
       debugPrint("❌ Connection/Parsing error: $e");
     }
 
-    // แสดงเฉพาะ "วันนี้" เท่านั้น ไม่รวมหลายวันมาปนกัน (นัดตรวจ/นัดวัคซีนล่วงหน้า-ย้อนหลัง
-    // ไปดูที่หน้าปฏิทินของแต่ละกิจกรรมแทน ส่วนนี้เป็นแค่สรุปสั้นๆ ว่าวันนี้ทำอะไรไปบ้าง)
-    final todayItems = merged.where((item) {
-      final date = item['date'] as DateTime;
-      return date.year == todayOnly.year &&
-          date.month == todayOnly.month &&
-          date.day == todayOnly.day;
-    }).toList();
+    // โชว์ทั้งหมดของคอกนี้ ไม่กรองเฉพาะวันนี้แล้ว (เดิมกรองเหลือแค่วันนี้ ผู้ใช้ขอให้
+    // เอาข้อมูลทั้งหมดของคอกมาแสดง) เรียงใหม่สุดขึ้นก่อนให้อ่านง่าย
+    merged.sort(
+      (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime),
+    );
 
     setState(() {
-      dailyActivity = todayItems;
+      coopActivity = merged;
       isLoading = false;
     });
   }
@@ -488,7 +486,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                                   ),
                                 ),
                               );
-                              _fetchDailyActivity();
+                              _fetchCoopActivity();
                             },
                           ),
                         ),
@@ -506,7 +504,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                                   ),
                                 ),
                               );
-                              _fetchDailyActivity();
+                              _fetchCoopActivity();
                             },
                           ),
                         ),
@@ -528,7 +526,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                                   ),
                                 ),
                               );
-                              _fetchDailyActivity();
+                              _fetchCoopActivity();
                             },
                           ),
                         ),
@@ -546,7 +544,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                                   ),
                                 ),
                               );
-                              _fetchDailyActivity();
+                              _fetchCoopActivity();
                             },
                           ),
                         ),
@@ -558,7 +556,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'รายการวันนี้ - คอกไก่ ${data["name"]}',
+                        'รายการทั้งหมด - คอกไก่ ${data["name"]}',
                         style: GoogleFonts.kanit(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -583,11 +581,11 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                           ),
                         ),
                       )
-                    else if (dailyActivity.isEmpty)
+                    else if (coopActivity.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 30),
                         child: Text(
-                          "ไม่มีรายการวันนี้",
+                          "ยังไม่มีรายการของคอกนี้",
                           style: GoogleFonts.kanit(
                             fontSize: 15,
                             color: Colors.grey,
@@ -595,7 +593,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                         ),
                       )
                     else
-                      ...dailyActivity.map((item) => _buildActivityItem(item)),
+                      ...coopActivity.map((item) => _buildActivityItem(item)),
                     const SizedBox(height: 60),
                   ],
                 ),
@@ -649,24 +647,32 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
     required String label,
     required VoidCallback onTap,
   }) {
+    final ez = ezColors(context);
+    // ของเดิมใช้สีการ์ดทึบเต็มกล่อง (ezCardDecoration) ซึ่งใกล้เคียงสีพื้นหลังมาก
+    // ทำให้ปุ่มดูกลืนไปกับพื้น - เปลี่ยนเป็นพื้นสีเขียวอ่อนใสๆ (tint ของ accentGreen)
+    // แทน ให้ดูเบาลงแต่ยังแยกออกจากพื้นหลังชัดเจน พร้อมลดขนาดลงจากเดิม (100 -> 78)
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 100,
+        height: 78,
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: ezCardDecoration(context, radius: 18),
+        decoration: BoxDecoration(
+          color: ez.accentGreen.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: ez.accentGreen.withValues(alpha: 0.25)),
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: ezColors(context).textPrimary, size: 32),
-            const SizedBox(height: 8),
+            Icon(icon, color: ez.accentGreen, size: 24),
+            const SizedBox(height: 6),
             Text(
               label,
               textAlign: TextAlign.center,
               style: GoogleFonts.kanit(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w500,
-                color: ezColors(context).textPrimary,
+                color: ez.textPrimary,
               ),
             ),
           ],
@@ -775,7 +781,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
               },
             ),
           ),
-        ).then((_) => _fetchDailyActivity());
+        ).then((_) => _fetchCoopActivity());
       },
       child: card,
     );

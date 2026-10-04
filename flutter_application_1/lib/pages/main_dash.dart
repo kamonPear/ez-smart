@@ -789,10 +789,9 @@ class _MainScreenState extends State<MainScreen> {
               padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
               child: Column(
                 children: [
-                  Icon(
-                    Icons.egg_alt_rounded,
-                    color: ezGoldColor(context),
-                    size: 42,
+                  Image.asset(
+                    'assets/images/logo.png',
+                    height: 48,
                   ),
                   const SizedBox(height: 10),
                   Text(
