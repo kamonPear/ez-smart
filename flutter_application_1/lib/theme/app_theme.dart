@@ -158,16 +158,30 @@ class EzColors extends ThemeExtension<EzColors> {
 }
 
 /// จัดการสถานะโหมดสี (มืด/สว่าง) ของทั้งแอป และจำค่าไว้ในเครื่อง
+///
+/// จำแยกเป็นรายบัญชี (ใส่ username ต่อท้าย key ที่เก็บ) ไม่ใช่ตัวเดียวใช้ร่วมกัน
+/// ทุกบัญชีในเครื่องนี้ - เดิมใช้ key เดียว 'ez_theme_mode' ตายตัว ทำให้สลับ
+/// บัญชีไปมาบนเครื่องเดียวกัน (เช่นตอนทดสอบหลาย user) ธีมของอีกบัญชีติดตามมาด้วย
+/// ทั้งที่เป็นคนละบัญชีกัน
 class ThemeController extends ChangeNotifier {
-  static const _prefsKey = 'ez_theme_mode';
+  static const _prefsKeyPrefix = 'ez_theme_mode';
 
   ThemeMode _themeMode = ThemeMode.dark;
+  String? _username;
   ThemeMode get themeMode => _themeMode;
   bool get isDark => _themeMode == ThemeMode.dark;
 
-  Future<void> load() async {
+  String _keyFor(String? username) =>
+      username == null || username.isEmpty
+          ? _prefsKeyPrefix
+          : '${_prefsKeyPrefix}_$username';
+
+  /// เรียกตอนเปิดแอป (ยังไม่รู้ว่าใคร login อยู่ - ใช้ค่า default) และเรียกซ้ำ
+  /// อีกครั้งพร้อม username จริงทันทีหลัง login สำเร็จ (ดู login_page.dart)
+  Future<void> load({String? username}) async {
+    _username = username;
     final prefs = SharedPreferencesAsync();
-    final saved = await prefs.getString(_prefsKey);
+    final saved = await prefs.getString(_keyFor(username));
     if (saved == 'light') {
       _themeMode = ThemeMode.light;
       notifyListeners();
@@ -177,11 +191,12 @@ class ThemeController extends ChangeNotifier {
     }
   }
 
-  Future<void> toggle() async {
+  Future<void> toggle({String? username}) async {
+    _username = username ?? _username;
     _themeMode = isDark ? ThemeMode.light : ThemeMode.dark;
     notifyListeners();
     final prefs = SharedPreferencesAsync();
-    await prefs.setString(_prefsKey, isDark ? 'dark' : 'light');
+    await prefs.setString(_keyFor(_username), isDark ? 'dark' : 'light');
   }
 }
 

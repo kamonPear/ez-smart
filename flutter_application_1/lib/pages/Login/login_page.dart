@@ -57,6 +57,10 @@ class _LoginPageState extends State<LoginPage> {
       // อยู่ - พอล็อกอินสำเร็จแล้วมี token จริง ต้องโหลดค่าจาก backend ซ้ำอีกรอบ
       // ตรงนี้ ไม่ต้องรอ (fire-and-forget) กันหน่วงการนำทางเข้าแอป
       farmThresholdController.load();
+      // ✅ เช่นเดียวกัน โหลดธีมที่จำไว้ "ของ username นี้โดยเฉพาะ" ซ้ำอีกรอบ
+      // (ตอน main() เรียกไปตอนแรกยังไม่รู้ว่าใคร login เลยใช้ default ไปก่อน)
+      // กันธีมของบัญชีอื่นที่เคยล็อกอินบนเครื่องนี้ติดตามมาโชว์ผิดบัญชี
+      themeController.load(username: username);
       if (!mounted) return;
       // ล้าง stack ทั้งหมดตอนเข้าสู่ระบบสำเร็จ กันปุ่มย้อนกลับพากลับมาหน้า Login
       Navigator.of(
