@@ -62,6 +62,11 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
     return n.toStringAsFixed(1);
   }
 
+  // เดือนโชว์เป็นจำนวนเต็มเสมอ ไม่มีทศนิยม (เช่น 10 วัน = "0 เดือน" ไม่ใช่ "0.3
+  // เดือน") - นับเฉพาะเดือนที่ครบจริงๆ เหมือนวิธีนับอายุทั่วไป จึงปัดลง (floor)
+  // ไม่ใช่ปัดเข้าใกล้
+  int _monthsWhole(int days) => days ~/ 30;
+
   // กรอกช่อง "วัน" (ต่ำสุด) - วันเป็นค่าหลักอยู่แล้ว แค่คำนวณสัปดาห์/เดือนที่
   // เทียบเท่ากันมาโชว์คู่กัน ไม่แตะช่องวันเอง
   void _onMinDaysChanged() {
@@ -72,7 +77,7 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
       return;
     }
     _minAgeWeeksController.text = _formatNum(_round1(days / 7));
-    _minAgeMonthsController.text = _formatNum(_round1(days / 30));
+    _minAgeMonthsController.text = _monthsWhole(days).toString();
   }
 
   // กรอกช่อง "สัปดาห์" (ต่ำสุด) - แปลงเป็นวันก่อน (ปัดเศษ เพราะ backend รับแค่ int)
@@ -87,18 +92,18 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
     }
     final days = (weeks * 7).round();
     _minAgeController.text = days.toString();
-    _minAgeMonthsController.text = _formatNum(_round1(days / 30));
+    _minAgeMonthsController.text = _monthsWhole(days).toString();
   }
 
   // กรอกช่อง "เดือน" (ต่ำสุด) - หลักการเดียวกับ _onMinWeeksChanged
   void _onMinMonthsChanged() {
-    final months = double.tryParse(_minAgeMonthsController.text.trim());
+    final months = int.tryParse(_minAgeMonthsController.text.trim());
     if (months == null) {
       _minAgeController.text = '';
       _minAgeWeeksController.text = '';
       return;
     }
-    final days = (months * 30).round();
+    final days = months * 30;
     _minAgeController.text = days.toString();
     _minAgeWeeksController.text = _formatNum(_round1(days / 7));
   }
@@ -111,7 +116,7 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
       return;
     }
     _maxAgeWeeksController.text = _formatNum(_round1(days / 7));
-    _maxAgeMonthsController.text = _formatNum(_round1(days / 30));
+    _maxAgeMonthsController.text = _monthsWhole(days).toString();
   }
 
   void _onMaxWeeksChanged() {
@@ -123,17 +128,17 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
     }
     final days = (weeks * 7).round();
     _maxAgeController.text = days.toString();
-    _maxAgeMonthsController.text = _formatNum(_round1(days / 30));
+    _maxAgeMonthsController.text = _monthsWhole(days).toString();
   }
 
   void _onMaxMonthsChanged() {
-    final months = double.tryParse(_maxAgeMonthsController.text.trim());
+    final months = int.tryParse(_maxAgeMonthsController.text.trim());
     if (months == null) {
       _maxAgeController.text = '';
       _maxAgeWeeksController.text = '';
       return;
     }
-    final days = (months * 30).round();
+    final days = months * 30;
     _maxAgeController.text = days.toString();
     _maxAgeWeeksController.text = _formatNum(_round1(days / 7));
   }
@@ -155,8 +160,9 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
     Widget smallField(
       TextEditingController controller,
       String suffix,
-      VoidCallback onChanged,
-    ) {
+      VoidCallback onChanged, {
+      bool decimal = true,
+    }) {
       return Expanded(
         child: Container(
           height: 44,
@@ -172,8 +178,8 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
               Expanded(
                 child: TextField(
                   controller: controller,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                  keyboardType: TextInputType.numberWithOptions(
+                    decimal: decimal,
                   ),
                   onChanged: (_) => onChanged(),
                   style: GoogleFonts.kanit(
@@ -229,11 +235,16 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
         const SizedBox(height: 6),
         Row(
           children: [
-            smallField(daysController, 'วัน', onDaysChanged),
+            smallField(daysController, 'วัน', onDaysChanged, decimal: false),
             const SizedBox(width: 8),
             smallField(weeksController, 'สัปดาห์', onWeeksChanged),
             const SizedBox(width: 8),
-            smallField(monthsController, 'เดือน', onMonthsChanged),
+            smallField(
+              monthsController,
+              'เดือน',
+              onMonthsChanged,
+              decimal: false,
+            ),
           ],
         ),
       ],
