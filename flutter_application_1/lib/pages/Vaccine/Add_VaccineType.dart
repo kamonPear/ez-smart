@@ -27,8 +27,16 @@ class AddVaccineType extends StatefulWidget {
 class _AddVaccineTypeState extends State<AddVaccineType> {
   int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   final TextEditingController _nameController = TextEditingController();
+  // _minAgeController/_maxAgeController คือค่าจริงที่ส่งไป backend (int, หน่วยวัน)
+  // ส่วน _minAgeWeeksController/_minAgeMonthsController/... เป็นแค่ช่องกรอก/แสดง
+  // หน่วยอื่นควบคู่กันไปด้วย (ดู _onMinDaysChanged/_onMinWeeksChanged/... ด้านล่าง)
+  // เพื่อให้เจ้าของฟาร์มกรอกเป็นสัปดาห์หรือเดือนก็ได้โดยไม่ต้องแปลงเป็นวันเอง
   final TextEditingController _minAgeController = TextEditingController();
+  final TextEditingController _minAgeWeeksController = TextEditingController();
+  final TextEditingController _minAgeMonthsController = TextEditingController();
   final TextEditingController _maxAgeController = TextEditingController();
+  final TextEditingController _maxAgeWeeksController = TextEditingController();
+  final TextEditingController _maxAgeMonthsController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
   String? _selectedMethod;
@@ -38,9 +46,198 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
   void dispose() {
     _nameController.dispose();
     _minAgeController.dispose();
+    _minAgeWeeksController.dispose();
+    _minAgeMonthsController.dispose();
     _maxAgeController.dispose();
+    _maxAgeWeeksController.dispose();
+    _maxAgeMonthsController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  double _round1(double n) => (n * 10).round() / 10;
+
+  String _formatNum(double n) {
+    if (n == n.roundToDouble()) return n.toInt().toString();
+    return n.toStringAsFixed(1);
+  }
+
+  // กรอกช่อง "วัน" (ต่ำสุด) - วันเป็นค่าหลักอยู่แล้ว แค่คำนวณสัปดาห์/เดือนที่
+  // เทียบเท่ากันมาโชว์คู่กัน ไม่แตะช่องวันเอง
+  void _onMinDaysChanged() {
+    final days = int.tryParse(_minAgeController.text.trim());
+    if (days == null) {
+      _minAgeWeeksController.text = '';
+      _minAgeMonthsController.text = '';
+      return;
+    }
+    _minAgeWeeksController.text = _formatNum(_round1(days / 7));
+    _minAgeMonthsController.text = _formatNum(_round1(days / 30));
+  }
+
+  // กรอกช่อง "สัปดาห์" (ต่ำสุด) - แปลงเป็นวันก่อน (ปัดเศษ เพราะ backend รับแค่ int)
+  // แล้วคำนวณเดือนที่เทียบเท่าใหม่จากวันนั้น ไม่แตะช่องสัปดาห์เอง กันค่าที่เพิ่งพิมพ์
+  // โดนปัดเปลี่ยนขณะพิมพ์อยู่
+  void _onMinWeeksChanged() {
+    final weeks = double.tryParse(_minAgeWeeksController.text.trim());
+    if (weeks == null) {
+      _minAgeController.text = '';
+      _minAgeMonthsController.text = '';
+      return;
+    }
+    final days = (weeks * 7).round();
+    _minAgeController.text = days.toString();
+    _minAgeMonthsController.text = _formatNum(_round1(days / 30));
+  }
+
+  // กรอกช่อง "เดือน" (ต่ำสุด) - หลักการเดียวกับ _onMinWeeksChanged
+  void _onMinMonthsChanged() {
+    final months = double.tryParse(_minAgeMonthsController.text.trim());
+    if (months == null) {
+      _minAgeController.text = '';
+      _minAgeWeeksController.text = '';
+      return;
+    }
+    final days = (months * 30).round();
+    _minAgeController.text = days.toString();
+    _minAgeWeeksController.text = _formatNum(_round1(days / 7));
+  }
+
+  void _onMaxDaysChanged() {
+    final days = int.tryParse(_maxAgeController.text.trim());
+    if (days == null) {
+      _maxAgeWeeksController.text = '';
+      _maxAgeMonthsController.text = '';
+      return;
+    }
+    _maxAgeWeeksController.text = _formatNum(_round1(days / 7));
+    _maxAgeMonthsController.text = _formatNum(_round1(days / 30));
+  }
+
+  void _onMaxWeeksChanged() {
+    final weeks = double.tryParse(_maxAgeWeeksController.text.trim());
+    if (weeks == null) {
+      _maxAgeController.text = '';
+      _maxAgeMonthsController.text = '';
+      return;
+    }
+    final days = (weeks * 7).round();
+    _maxAgeController.text = days.toString();
+    _maxAgeMonthsController.text = _formatNum(_round1(days / 30));
+  }
+
+  void _onMaxMonthsChanged() {
+    final months = double.tryParse(_maxAgeMonthsController.text.trim());
+    if (months == null) {
+      _maxAgeController.text = '';
+      _maxAgeWeeksController.text = '';
+      return;
+    }
+    final days = (months * 30).round();
+    _maxAgeController.text = days.toString();
+    _maxAgeWeeksController.text = _formatNum(_round1(days / 7));
+  }
+
+  // แถวกรอกอายุ 3 ช่อง (วัน/สัปดาห์/เดือน) ที่ sync กันเอง - ไม่ใช้ EzFormTextField
+  // ตรงๆ เพราะตัวนั้นออกแบบมาเป็น 1 label + 1 ช่องเต็มแถว ใส่ 3 ช่องเรียงกันจะแคบ
+  // เกินไปบนจอมือถือ จึงทำแถวกะทัดรัดเองแต่ใช้โทนสี/กรอบเดียวกับฟอร์มอื่น (ez.inputFill/ez.border)
+  Widget _buildAgeInputGroup({
+    required String label,
+    required TextEditingController daysController,
+    required TextEditingController weeksController,
+    required TextEditingController monthsController,
+    required VoidCallback onDaysChanged,
+    required VoidCallback onWeeksChanged,
+    required VoidCallback onMonthsChanged,
+  }) {
+    final ez = ezColors(context);
+
+    Widget smallField(
+      TextEditingController controller,
+      String suffix,
+      VoidCallback onChanged,
+    ) {
+      return Expanded(
+        child: Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: ez.inputFill,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: ez.border, width: 1.2),
+          ),
+          alignment: Alignment.centerLeft,
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  onChanged: (_) => onChanged(),
+                  style: GoogleFonts.kanit(
+                    color: ez.textPrimary,
+                    fontSize: 13,
+                  ),
+                  decoration: InputDecoration(
+                    filled: false,
+                    isCollapsed: true,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                    hintText: '0',
+                    hintStyle: GoogleFonts.kanit(
+                      color: ez.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                suffix,
+                style: GoogleFonts.kanit(color: ez.textSecondary, fontSize: 11),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          TextSpan(
+            text: label,
+            children: [
+              TextSpan(
+                text: ' *',
+                style: GoogleFonts.kanit(
+                  color: ez.danger,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          style: GoogleFonts.kanit(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: ez.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            smallField(daysController, 'วัน', onDaysChanged),
+            const SizedBox(width: 8),
+            smallField(weeksController, 'สัปดาห์', onWeeksChanged),
+            const SizedBox(width: 8),
+            smallField(monthsController, 'เดือน', onMonthsChanged),
+          ],
+        ),
+      ],
+    );
   }
 
   Future<void> _save() async {
@@ -227,22 +424,24 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
                       onChanged: (val) => setState(() => _selectedMethod = val),
                     ),
                     const SizedBox(height: 12),
-                    EzFormTextField(
-                      label: 'อายุต่ำสุด',
-                      isRequired: true,
-                      controller: _minAgeController,
-                      keyboardType: TextInputType.number,
-                      hintText: 'เช่น 7',
-                      suffixText: 'วัน',
+                    _buildAgeInputGroup(
+                      label: 'อายุต่ำสุดที่ให้',
+                      daysController: _minAgeController,
+                      weeksController: _minAgeWeeksController,
+                      monthsController: _minAgeMonthsController,
+                      onDaysChanged: _onMinDaysChanged,
+                      onWeeksChanged: _onMinWeeksChanged,
+                      onMonthsChanged: _onMinMonthsChanged,
                     ),
                     const SizedBox(height: 12),
-                    EzFormTextField(
-                      label: 'อายุสูงสุด',
-                      isRequired: true,
-                      controller: _maxAgeController,
-                      keyboardType: TextInputType.number,
-                      hintText: 'เช่น 14',
-                      suffixText: 'วัน',
+                    _buildAgeInputGroup(
+                      label: 'อายุสูงสุดที่ให้',
+                      daysController: _maxAgeController,
+                      weeksController: _maxAgeWeeksController,
+                      monthsController: _maxAgeMonthsController,
+                      onDaysChanged: _onMaxDaysChanged,
+                      onWeeksChanged: _onMaxWeeksChanged,
+                      onMonthsChanged: _onMaxMonthsChanged,
                     ),
                     const SizedBox(height: 12),
                     EzFormTextField(
