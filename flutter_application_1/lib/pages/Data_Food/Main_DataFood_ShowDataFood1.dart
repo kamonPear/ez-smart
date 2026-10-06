@@ -551,7 +551,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
           border: Border.all(color: selected ? ez.gold : ez.border, width: 1.3),
         ),
         child: Text(
-          empty ? '$foodType (หมดแล้ว)' : foodType,
+          empty ? '$foodType (ยังไม่มีในสต็อก)' : foodType,
           style: GoogleFonts.kanit(
             fontSize: 13,
             fontWeight: FontWeight.w600,
