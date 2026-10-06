@@ -190,18 +190,13 @@ class _AdoptchickenState extends State<Adoptchicken> {
   }
 
   /// อายุไก่ (วัน) คำนวณจากวันเกิดจริงในฐานข้อมูล คืน null ถ้าไม่มีวันเกิดที่ใช้ได้
+  // ใช้ chickenAgeFromIso ส่วนกลาง (thai_date.dart) แทนของเดิมที่เขียนในไฟล์นี้
+  // เอง - อันเดิมพึ่ง DateTime.tryParse ตรงๆ ไม่ได้แปลงเป็นเวลาไทยก่อนเหมือน
+  // thaiDateFromIso ข้างบน ทำให้คำนวณอายุผิดไปได้ 1 วันกับแถวที่เก็บเวลาไม่ตรง
+  // เที่ยงคืน และรูปแบบข้อความก็ไม่ตรงกับเว็บ (ตอนนี้ใช้สูตรเดียวกันแล้ว)
   String? _chickenAgeText(String? isoBirthDate) {
-    if (isoBirthDate == null || isoBirthDate.isEmpty) return null;
-    final datePart = isoBirthDate.split('T').first;
-    if (datePart == '0001-01-01') return null; // ค่าว่างที่ backend (Go) ส่งมา
-    final birth = DateTime.tryParse(isoBirthDate);
-    if (birth == null) return null;
-    final days = DateTime.now().difference(birth).inDays;
-    if (days < 0) return null;
-    final months = days ~/ 30;
-    final remainderDays = days % 30;
-    if (months < 1) return '$days วัน';
-    return '$days วัน / $months เดือน $remainderDays วัน';
+    final text = chickenAgeFromIso(isoBirthDate);
+    return text.isEmpty ? null : text;
   }
 
   /// แถวข้อมูลในการ์ด: ไอคอน + ชื่อหัวข้อทางซ้าย, ค่าทางขวา
@@ -463,6 +458,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
             "amount": coop.count,
             "import_date": importDate,
             "birth_date": birthDate,
+            "age_text": ageText ?? '',
             "healthy": (_healthyByCoop[coop.id] ?? 0).toString(),
             "poor_health": (_poorByCoop[coop.id] ?? 0).toString(),
             "temp": _tempByCoop[coop.id] ?? "0",

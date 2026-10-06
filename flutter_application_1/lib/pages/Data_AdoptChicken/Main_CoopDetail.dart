@@ -502,6 +502,19 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                                         fontSize: 13,
                                       ),
                                     ),
+                                    if ((data["age_text"] as String?)
+                                            ?.isNotEmpty ==
+                                        true) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        "อายุ : ${data["age_text"]}",
+                                        style: GoogleFonts.kanit(
+                                          color: ezColors(context).gold,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

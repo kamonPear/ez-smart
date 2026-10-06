@@ -166,6 +166,7 @@ class _MainchickenState extends State<Mainchicken> {
                 coop['date_adopt_animals']?.toString(),
               ),
               'birth_date': thaiDateFromIso(coop['birthday']?.toString()),
+              'age_text': chickenAgeFromIso(coop['birthday']?.toString()),
               'healthy': healthy.toString(),
               'poor_health': poor.toString(),
               'temp': temp,

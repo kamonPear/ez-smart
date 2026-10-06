@@ -205,10 +205,15 @@ class _MainScreenState extends State<MainScreen> {
             );
 
             // 💡 2. จัดการวันเกิดไก่ (ใช้ 'Birthday' ตัว B พิมพ์ใหญ่ และ 'birthday')
+            final String? rawBirthday = (item['Birthday'] ?? item['birthday'])
+                ?.toString();
             String birthDate = thaiDateFromIso(
-              (item['Birthday'] ?? item['birthday'])?.toString(),
+              rawBirthday,
               fallback: "ไม่ระบุ",
             );
+            // อายุไก่ ณ ตอนนี้ (เดือน/สัปดาห์/วัน) เอาไว้มองปราดเดียวรู้เลยว่าคอกนี้
+            // อายุเท่าไหร่แล้ว เหมือนที่เว็บมี ไม่ต้องมานั่งนับเองจากวันเกิดไก่
+            final String ageText = chickenAgeFromIso(rawBirthday);
 
             return {
               "id": currentCoopId,
@@ -220,6 +225,7 @@ class _MainScreenState extends State<MainScreen> {
 
               "import_date": importDate,
               "birth_date": birthDate,
+              "age_text": ageText,
 
               "healthy": latestHealth != null
                   ? latestHealth['healthy']?.toString() ?? "0"
@@ -769,6 +775,17 @@ class _MainScreenState extends State<MainScreen> {
                       fontSize: 12,
                     ),
                   ),
+                  if ((data["age_text"] as String?)?.isNotEmpty == true) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      "อายุ : ${data["age_text"]}",
+                      style: GoogleFonts.kanit(
+                        color: ezColors(context).gold,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],
