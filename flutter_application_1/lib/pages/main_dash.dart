@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter_application_1/pages/Chicken_health_information/Main_HealthAppointments.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_Datadopt_chicken_2.dart';
 import 'package:flutter_application_1/pages/Vaccine/Add_VaccineType.dart';
@@ -22,6 +23,32 @@ import '../theme/app_theme.dart';
 import '../theme/farm_settings.dart';
 import '../utils/thai_date.dart';
 import 'Settings/Main_FarmThresholds.dart';
+
+const List<String> _kCompassDirectionLabels = [
+  'เหนือ',
+  'ตะวันออกเฉียงเหนือ',
+  'ตะวันออก',
+  'ตะวันออกเฉียงใต้',
+  'ใต้',
+  'ตะวันตกเฉียงใต้',
+  'ตะวันตก',
+  'ตะวันตกเฉียงเหนือ',
+];
+
+// ทิศของคอกในผังฟาร์ม (8 ทิศ) - เทียบตำแหน่ง pos_x/pos_y (0-100%) กับจุดกึ่งกลาง
+// ผัง (50,50) แบบเดียวกับเว็บ (ดู Home_pages1.ts coopDirection()) ไม่ได้อิงทิศจริง
+// ของฟาร์ม แค่บอกว่าคอกนี้อยู่ทางไหนของผังเทียบกับคอกอื่น คืน null ถ้ายังไม่ได้
+// จัดวางผังฟาร์มเลย (pos_x/pos_y เป็น null)
+String? _coopDirectionLabel(double? posX, double? posY) {
+  if (posX == null || posY == null) return null;
+  final dx = posX - 50;
+  final dy = posY - 50;
+  if (math.sqrt(dx * dx + dy * dy) < 4) return 'กึ่งกลางผัง';
+
+  final bearing = math.atan2(dx, -dy) * 180 / math.pi;
+  final index = (((bearing + 360) % 360) / 45).round() % 8;
+  return _kCompassDirectionLabels[index];
+}
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -247,6 +274,10 @@ class _MainScreenState extends State<MainScreen> {
               "temp": latestTemp,
               "ppm": latestPpm,
               "egg_data": eggStats,
+              "direction": _coopDirectionLabel(
+                (item['pos_x'] as num?)?.toDouble(),
+                (item['pos_y'] as num?)?.toDouble(),
+              ),
             };
           }).toList();
         });
@@ -827,6 +858,21 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                     ),
                   ],
+                  const SizedBox(height: 2),
+                  // ทิศของคอกในผังฟาร์ม (เทียบจุดกึ่งกลางผัง) - ถ้ายังไม่เคยจัดวาง
+                  // ผังฟาร์มเลย (pos_x/pos_y เป็น null) บอกตรงๆ แทนที่จะไม่ขึ้นอะไรเลย
+                  Text(
+                    data["direction"] != null
+                        ? "🧭 ทิศ${data["direction"]}"
+                        : "ยังไม่จัดรูปแบบผังฟาร์ม",
+                    style: GoogleFonts.kanit(
+                      color: data["direction"] != null
+                          ? ezColors(context).accentGreen
+                          : ezColors(context).textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ],
