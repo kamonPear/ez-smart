@@ -99,8 +99,18 @@ class _MainchickenState extends State<Mainchicken> {
       int poor = 0;
       if (results[1].statusCode == 200) {
         final List<dynamic> healths = jsonDecode(results[1].body);
+        // เทียบ record_date หาแถวที่ใหม่ที่สุดจริงๆ แทนการเชื่อว่าแถวหลังสุดใน
+        // response คือผลตรวจล่าสุด (backend ไม่ได้การันตีลำดับ) - ถ้าวันไหนยังไม่มี
+        // การตรวจใหม่ ค่าที่ตรวจล่าสุดเดิมจะยังค้างแสดงต่อไปเรื่อยๆ ไม่รีเซ็ตเป็น 0
+        DateTime? latestDate;
         for (final h in healths) {
           if (h['coop_id']?.toString() != coopId) continue;
+          final recordDate = DateTime.tryParse(
+            h['record_date']?.toString() ?? '',
+          );
+          if (recordDate == null) continue;
+          if (latestDate != null && !recordDate.isAfter(latestDate)) continue;
+          latestDate = recordDate;
           healthy = int.tryParse(h['healthy']?.toString() ?? '') ?? 0;
           poor = int.tryParse(h['poor_health']?.toString() ?? '') ?? 0;
         }

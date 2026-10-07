@@ -34,6 +34,11 @@ class _AdoptchickenState extends State<Adoptchicken> {
   // ข้อมูลสุขภาพ/เซนเซอร์ล่าสุดของแต่ละคอก (key = coop_id)
   final Map<String, int> _healthyByCoop = {};
   final Map<String, int> _poorByCoop = {};
+  // วันที่ของผลตรวจที่เก็บไว้ใน _healthyByCoop/_poorByCoop ข้างบน ใช้เทียบหา
+  // ผลตรวจที่ "ใหม่ล่าสุดจริงๆ" ของแต่ละคอก (ไม่ใช่แค่แถวหลังสุดใน response ซึ่ง
+  // backend ไม่ได้การันตีว่าเรียงตามวันที่) - ถ้าวันไหนยังไม่มีการตรวจใหม่ ค่าที่
+  // ตรวจล่าสุดเดิมจะยังค้างแสดงต่อไปเรื่อยๆ โดยอัตโนมัติ ไม่ต้องรีเซ็ตเป็น 0
+  final Map<String, DateTime> _latestHealthDateByCoop = {};
   final Map<String, String> _tempByCoop = {};
   final Map<String, String> _ppmByCoop = {};
   // สถิติไข่รายเดือนของแต่ละคอก (key = coop_id -> ปี -> 12 เดือน) ใช้ส่งต่อให้หน้ารายละเอียดคอก
@@ -120,6 +125,7 @@ class _AdoptchickenState extends State<Adoptchicken> {
 
       _healthyByCoop.clear();
       _poorByCoop.clear();
+      _latestHealthDateByCoop.clear();
       _tempByCoop.clear();
       _ppmByCoop.clear();
       _eggStatsByCoop.clear();
@@ -129,7 +135,17 @@ class _AdoptchickenState extends State<Adoptchicken> {
         for (final h in healthData) {
           final coopId = h['coop_id']?.toString();
           if (coopId == null) continue;
-          // รายการหลังสุดของแต่ละคอกคือผลตรวจล่าสุด
+          final recordDate = DateTime.tryParse(
+            h['record_date']?.toString() ?? '',
+          );
+          if (recordDate == null) continue;
+          // เทียบวันที่จริงแทนการเชื่อว่าแถวหลังสุดใน response คือผลตรวจล่าสุด
+          // (backend ไม่ได้การันตีลำดับ) - ข้ามแถวที่เก่ากว่าผลตรวจที่เจอไปแล้ว
+          final existingDate = _latestHealthDateByCoop[coopId];
+          if (existingDate != null && !recordDate.isAfter(existingDate)) {
+            continue;
+          }
+          _latestHealthDateByCoop[coopId] = recordDate;
           _healthyByCoop[coopId] =
               int.tryParse(h['healthy']?.toString() ?? '') ?? 0;
           _poorByCoop[coopId] =

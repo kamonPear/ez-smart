@@ -134,9 +134,19 @@ class _MainScreenState extends State<MainScreen> {
             String currentCoopId =
                 item['coop_id']?.toString() ?? item['id']?.toString() ?? "1";
 
+            // เรียงตาม record_date เอาแถวที่ใหม่ที่สุดจริงๆ แทนการเชื่อว่าแถว
+            // หลังสุดใน response คือผลตรวจล่าสุด (backend ไม่ได้การันตีลำดับ) -
+            // ถ้าวันไหนยังไม่มีการตรวจใหม่ ค่าที่ตรวจล่าสุดเดิมจะยังค้างแสดงต่อไป
+            // เรื่อยๆ ไม่รีเซ็ตเป็น 0
             var matchedHealths = healthData
                 .where((h) => h['coop_id']?.toString() == currentCoopId)
-                .toList();
+                .toList()
+              ..sort((a, b) {
+                final da = DateTime.tryParse(a['record_date']?.toString() ?? '');
+                final db = DateTime.tryParse(b['record_date']?.toString() ?? '');
+                if (da == null || db == null) return 0;
+                return da.compareTo(db);
+              });
             var latestHealth = matchedHealths.isNotEmpty
                 ? matchedHealths.last
                 : null;
