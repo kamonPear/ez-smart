@@ -475,6 +475,11 @@ class _MainScreenState extends State<MainScreen> {
                   builder: (context, _) {
                     final temp = farmThresholdController.temperature;
                     final ammonia = farmThresholdController.ammonia;
+                    // ยังไม่เคยตั้งค่ามาตรฐานของฟาร์มเลย - บอกตรงๆ แทนที่จะโชว์
+                    // เกจ 0/0 ซึ่งดูเหมือนมีคนตั้งค่าไว้แล้ว (ดู isConfigured)
+                    final notConfigured =
+                        farmThresholdController.isLoaded &&
+                        !farmThresholdController.isConfigured;
                     return InkWell(
                       borderRadius: BorderRadius.circular(20),
                       onTap: () {
@@ -495,27 +500,48 @@ class _MainScreenState extends State<MainScreen> {
                           color: ezCardColor(context),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            EzGaugeCard(
-                              icon: Icons.thermostat_outlined,
-                              value: temp.toStringAsFixed(0),
-                              unit: "°",
-                              subTitle: "อุณหภูมิที่ตั้งไว้คงที่",
-                              color: Colors.cyan,
-                              percent: (temp / 50).clamp(0, 1),
-                            ),
-                            EzGaugeCard(
-                              icon: Icons.air_outlined,
-                              value: ammonia.toStringAsFixed(0),
-                              unit: "PPM",
-                              subTitle: "ปริมาณแอมโมเนียที่ตั้งไว้คงที่",
-                              color: Colors.orange.shade800,
-                              percent: (ammonia / 100).clamp(0, 1),
-                            ),
-                          ],
-                        ),
+                        child: notConfigured
+                            ? Column(
+                                children: [
+                                  Text(
+                                    'ยังไม่ได้ตั้งค่ามาตรฐานของฟาร์ม',
+                                    style: GoogleFonts.kanit(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: ezColors(context).textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'แตะเพื่อตั้งค่า',
+                                    style: GoogleFonts.kanit(
+                                      fontSize: 11,
+                                      color: ezColors(context).accentGreen,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  EzGaugeCard(
+                                    icon: Icons.thermostat_outlined,
+                                    value: temp.toStringAsFixed(0),
+                                    unit: "°",
+                                    subTitle: "อุณหภูมิที่ตั้งไว้คงที่",
+                                    color: Colors.cyan,
+                                    percent: (temp / 50).clamp(0, 1),
+                                  ),
+                                  EzGaugeCard(
+                                    icon: Icons.air_outlined,
+                                    value: ammonia.toStringAsFixed(0),
+                                    unit: "PPM",
+                                    subTitle: "ปริมาณแอมโมเนียที่ตั้งไว้คงที่",
+                                    color: Colors.orange.shade800,
+                                    percent: (ammonia / 100).clamp(0, 1),
+                                  ),
+                                ],
+                              ),
                       ),
                     );
                   },

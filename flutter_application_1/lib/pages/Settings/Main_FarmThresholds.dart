@@ -31,8 +31,14 @@ class _MainFarmThresholdsState extends State<MainFarmThresholds> {
   @override
   void initState() {
     super.initState();
-    _temp = farmThresholdController.temperature;
-    _ammonia = farmThresholdController.ammonia;
+    // ยังไม่เคยตั้งค่าเลย - เริ่มฟอร์มที่ค่ากลางแนะนำแทน 0 ซึ่งอยู่นอกช่วงปกติ
+    if (farmThresholdController.isConfigured) {
+      _temp = farmThresholdController.temperature;
+      _ammonia = farmThresholdController.ammonia;
+    } else {
+      _temp = kDefaultDraftTemp;
+      _ammonia = kDefaultDraftAmmonia;
+    }
   }
 
   void _saveAndExit() {
