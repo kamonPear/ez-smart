@@ -152,6 +152,13 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
       }
 
       // วัคซีน (ให้แล้ว / ใกล้ถึงกำหนด) + ตรวจสุขภาพที่ "ควรทำ" ก่อนวันฉีด 1 วัน
+      // เก็บ "ควรตรวจสุขภาพ" แยกไว้ก่อน (key = วันที่ควรตรวจ) ยังไม่ merge เข้า
+      // list หลักทันที เผื่อมีวัคซีนหลายชนิดที่ครบกำหนดวันเดียวกันพอดี (เลยต้อง
+      // ตรวจสุขภาพวันเดียวกันด้วย) จะได้รวมเป็นรายการเดียว ไม่ใช่ขึ้นซ้ำทีละชนิด
+      // เพราะตรวจครั้งเดียวเอาผลไปใช้กับวัคซีนทุกชนิดที่ตรงวันนั้นได้เลย
+      final Map<DateTime, List<String>> healthDueNames = {};
+      final Map<DateTime, int> healthDueDaysUntil = {};
+
       if (results[2].statusCode == 200) {
         final List<dynamic> alerts = jsonDecode(results[2].body);
         for (final a in alerts) {
@@ -191,24 +198,34 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
 
           // ตรวจสุขภาพก่อนฉีดวัคซีน 1 วัน (คัดเอาแต่ไก่แข็งแรงไปฉีด) - ข้ามถ้ามีผล
           // ตรวจจริงของวันนั้นอยู่แล้ว (checkedHealthDates) กันขึ้นซ้ำกับรายการ
-          // "ตรวจสุขภาพ" จริงด้านบน
+          // "ตรวจสุขภาพ" จริงด้านบน - เก็บชื่อวัคซีนเข้ากลุ่มตามวันที่ก่อน ค่อยไป
+          // รวมเป็นรายการเดียวหลัง loop (ดูด้านล่าง)
           final healthDueOnly = dueOnly.subtract(const Duration(days: 1));
           final healthDaysUntil = healthDueOnly.difference(todayOnly).inDays;
           if (healthDaysUntil <= 3 &&
               !checkedHealthDates.contains(healthDueOnly)) {
-            merged.add({
-              'type': 'health_due',
-              'date': healthDueOnly,
-              'text': healthDaysUntil < 0
-                  ? '🩺 ควรตรวจสุขภาพก่อนให้$vaccineName (เลยกำหนดมา ${-healthDaysUntil} วัน)'
-                  : healthDaysUntil == 0
-                  ? '🩺 วันนี้ควรตรวจสุขภาพ เตรียมให้$vaccineNameวันพรุ่งนี้'
-                  : '🩺 อีก $healthDaysUntil วันควรตรวจสุขภาพ เตรียมให้$vaccineNameวันที่ ${dueOnly.day}/${dueOnly.month}',
-              'pending': true,
-            });
+            healthDueNames.putIfAbsent(healthDueOnly, () => []).add(vaccineName);
+            healthDueDaysUntil[healthDueOnly] = healthDaysUntil;
           }
         }
       }
+
+      // รวมรายการ "ควรตรวจสุขภาพ" ที่เก็บไว้ระหว่าง loop เป็นรายการเดียวต่อวันที่
+      // (ชื่อวัคซีนหลายชนิดต่อกันด้วย "และ" ถ้าตรงวันเดียวกัน)
+      healthDueNames.forEach((date, names) {
+        final daysUntil = healthDueDaysUntil[date]!;
+        final namesText = names.join('และ');
+        merged.add({
+          'type': 'health_due',
+          'date': date,
+          'text': daysUntil < 0
+              ? '🩺 ควรตรวจสุขภาพก่อนให้$namesText (เลยกำหนดมา ${-daysUntil} วัน)'
+              : daysUntil == 0
+              ? '🩺 วันนี้ควรตรวจสุขภาพ เตรียมให้$namesTextวันพรุ่งนี้'
+              : '🩺 อีก $daysUntil วันควรตรวจสุขภาพ เตรียมให้$namesText',
+          'pending': true,
+        });
+      });
     } catch (e) {
       debugPrint("❌ Connection/Parsing error: $e");
     }

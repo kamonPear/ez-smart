@@ -96,7 +96,13 @@ class _MainHealthAppointmentsState extends State<MainHealthAppointments> {
         }
       }
 
-      final List<_Appointment> appointments = [];
+      // กลุ่มตาม (coopId, วันนัดตรวจ) ก่อนสร้าง _Appointment - ถ้าวัคซีนหลายชนิด
+      // ของคอกเดียวกันครบกำหนดวันเดียวกันพอดี (เลยต้องตรวจสุขภาพวันเดียวกันด้วย)
+      // จะได้รวมเป็นนัดเดียว ไม่ใช่ขึ้นซ้ำทีละชนิด เพราะตรวจครั้งเดียวเอาผลไปใช้กับ
+      // วัคซีนทุกชนิดที่ตรงวันนั้นได้เลย ไม่ต้องตรวจแยกกัน
+      final Map<String, List<String>> groupedVaccineNames = {};
+      final Map<String, _Appointment> groupedMeta = {};
+
       if (results[1].statusCode == 200) {
         final List<dynamic> alerts = json.decode(results[1].body);
         for (final a in alerts) {
@@ -113,12 +119,18 @@ class _MainHealthAppointmentsState extends State<MainHealthAppointments> {
               const Duration(days: 1),
             );
             final coopId = a['coop_id']?.toString() ?? '-';
-            appointments.add(
-              _Appointment(
+            final groupKey =
+                '${coopId}_${appointmentDate.year}-${appointmentDate.month}-${appointmentDate.day}';
+            groupedVaccineNames
+                .putIfAbsent(groupKey, () => [])
+                .add(a['vaccine_name']?.toString() ?? 'วัคซีน');
+            groupedMeta.putIfAbsent(
+              groupKey,
+              () => _Appointment(
                 coopId: coopId,
                 coopName: coopNames[coopId] ?? 'คอก $coopId',
                 appointmentDate: appointmentDate,
-                vaccineName: a['vaccine_name']?.toString() ?? 'วัคซีน',
+                vaccineName: '',
                 vaccineDate: vaccineDateOnly,
               ),
             );
@@ -127,6 +139,18 @@ class _MainHealthAppointmentsState extends State<MainHealthAppointments> {
           }
         }
       }
+
+      final appointments = groupedMeta.entries.map((entry) {
+        final meta = entry.value;
+        final names = groupedVaccineNames[entry.key] ?? const <String>[];
+        return _Appointment(
+          coopId: meta.coopId,
+          coopName: meta.coopName,
+          appointmentDate: meta.appointmentDate,
+          vaccineName: names.join('และ'),
+          vaccineDate: meta.vaccineDate,
+        );
+      }).toList();
 
       appointments.sort(
         (x, y) => x.appointmentDate.compareTo(y.appointmentDate),

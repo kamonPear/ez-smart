@@ -115,6 +115,13 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
     if (alertResp.statusCode == 200) {
       final List<dynamic> alerts = jsonDecode(alertResp.body);
 
+      // กลุ่มตาม (coopId, วันควรตรวจ) ก่อน - ถ้าวัคซีนหลายชนิดของคอกเดียวกันครบ
+      // กำหนดวันเดียวกันพอดี (เลยต้องตรวจสุขภาพวันเดียวกันด้วย) จะได้แจ้งเตือนครั้ง
+      // เดียวรวมชื่อวัคซีนทุกชนิด ไม่ใช่ขึ้นซ้ำทีละชนิด เพราะตรวจครั้งเดียวเอาผลไป
+      // ใช้กับวัคซีนทุกชนิดที่ตรงวันนั้นได้เลย
+      final Map<String, List<String>> healthGroupNames = {};
+      final Map<String, Map<String, dynamic>> healthGroupMeta = {};
+
       for (final a in alerts) {
         if (a is! Map<String, dynamic>) continue;
         if (a['is_completed'] == true) continue; // ทำแล้ว ไม่ต้องเตือนอีก
@@ -129,7 +136,8 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
         final coopName = coopNames[coopId] ?? 'คอก $coopId';
         final vaccineName = a['vaccine_name']?.toString() ?? 'วัคซีน';
 
-        // --- แจ้งเตือนตรวจสุขภาพ (1 วันก่อนวันให้วัคซีนเสมอ) ---
+        // --- แจ้งเตือนตรวจสุขภาพ (1 วันก่อนวันให้วัคซีนเสมอ) - เก็บเข้ากลุ่มไว้
+        // ก่อน ยังไม่สร้างแจ้งเตือนตรงนี้ (ดูการสร้างแบบรวมหลัง loop) ---
         final healthCheckDate = dueOnly.subtract(const Duration(days: 1));
         final daysUntilHealthCheck = healthCheckDate
             .difference(todayOnly)
@@ -139,32 +147,14 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
         );
         if (!alreadyChecked &&
             daysUntilHealthCheck <= kNotificationAdvanceDays) {
-          String healthTitle;
-          if (daysUntilHealthCheck < 0) {
-            healthTitle =
-                "‼️ เลยกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $vaccineName มา ${-daysUntilHealthCheck} วันแล้ว";
-          } else if (daysUntilHealthCheck == 0) {
-            healthTitle =
-                "‼️ วันนี้ถึงกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $vaccineName";
-          } else if (daysUntilHealthCheck == 1) {
-            healthTitle =
-                "🩺 พรุ่งนี้ถึงกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $vaccineName";
-          } else {
-            healthTitle =
-                "🩺 อีก $daysUntilHealthCheck วันถึงกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $vaccineName";
-          }
-
-          newNotifications.add({
-            "id": "health_${coopId}_${dateKey(healthCheckDate)}",
-            "type": "health",
-            "title": healthTitle,
-            "time": timeNow,
-            "date": dateNow,
-            "urgent": daysUntilHealthCheck <= 0,
-            "daysUntil": daysUntilHealthCheck,
+          final groupKey = '${coopId}_${dateKey(healthCheckDate)}';
+          healthGroupNames.putIfAbsent(groupKey, () => []).add(vaccineName);
+          healthGroupMeta[groupKey] = {
+            "healthCheckDate": healthCheckDate,
+            "daysUntilHealthCheck": daysUntilHealthCheck,
             "coopId": coopId,
             "coopName": coopName,
-          });
+          };
         }
 
         // --- แจ้งเตือนให้วัคซีน ---
@@ -199,6 +189,43 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
           "coopName": coopName,
         });
       }
+
+      // สร้างแจ้งเตือนตรวจสุขภาพแบบรวม (1 รายการต่อกลุ่ม coop+วัน) จากที่เก็บไว้
+      healthGroupNames.forEach((groupKey, names) {
+        final meta = healthGroupMeta[groupKey]!;
+        final healthCheckDate = meta["healthCheckDate"] as DateTime;
+        final daysUntilHealthCheck = meta["daysUntilHealthCheck"] as int;
+        final coopId = meta["coopId"] as String;
+        final coopName = meta["coopName"] as String;
+        final namesText = names.join('และ');
+
+        String healthTitle;
+        if (daysUntilHealthCheck < 0) {
+          healthTitle =
+              "‼️ เลยกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $namesText มา ${-daysUntilHealthCheck} วันแล้ว";
+        } else if (daysUntilHealthCheck == 0) {
+          healthTitle =
+              "‼️ วันนี้ถึงกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $namesText";
+        } else if (daysUntilHealthCheck == 1) {
+          healthTitle =
+              "🩺 พรุ่งนี้ถึงกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $namesText";
+        } else {
+          healthTitle =
+              "🩺 อีก $daysUntilHealthCheck วันถึงกำหนดตรวจสุขภาพที่ $coopName ก่อนให้ $namesText";
+        }
+
+        newNotifications.add({
+          "id": "health_${coopId}_${dateKey(healthCheckDate)}",
+          "type": "health",
+          "title": healthTitle,
+          "time": timeNow,
+          "date": dateNow,
+          "urgent": daysUntilHealthCheck <= 0,
+          "daysUntil": daysUntilHealthCheck,
+          "coopId": coopId,
+          "coopName": coopName,
+        });
+      });
     }
   } catch (e) {
     // ข้อมูลเสริม ดึงไม่ได้ก็ยังแสดงแจ้งเตือนอื่นได้ตามปกติ
