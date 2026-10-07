@@ -126,7 +126,11 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
         }
       }
 
-      // ตรวจสุขภาพที่บันทึกแล้ว
+      // ตรวจสุขภาพที่บันทึกแล้ว - เก็บวันที่ไว้ใน checkedHealthDates ด้วย เพื่อ
+      // เอาไปเทียบตอนคำนวณ "ควรตรวจสุขภาพ" ด้านล่าง กันไม่ให้ขึ้นซ้ำกับวันที่มีผล
+      // ตรวจจริงอยู่แล้ว (ของเดิมคำนวณแค่จากวันครบกำหนดวัคซีนเฉยๆ ไม่เช็คว่ามีผล
+      // ตรวจจริงมาแล้วหรือยัง เลยขึ้นทั้ง "ตรวจแล้ว" และ "ควรตรวจ" พร้อมกันในวันเดียว)
+      final Set<DateTime> checkedHealthDates = {};
       if (results[1].statusCode == 200) {
         final List<dynamic> healths = jsonDecode(results[1].body);
         for (final h in healths) {
@@ -135,9 +139,11 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
             h['record_date']?.toString() ?? '',
           )?.toLocal();
           if (date == null) continue;
+          final dateOnly = DateTime(date.year, date.month, date.day);
+          checkedHealthDates.add(dateOnly);
           merged.add({
             'type': 'health',
-            'date': DateTime(date.year, date.month, date.day),
+            'date': dateOnly,
             'text':
                 '🩺 ตรวจสุขภาพ : สุขภาพดี ${h['healthy'] ?? 0} / ป่วย ${h['poor_health'] ?? 0} ตัว',
             'pending': false,
@@ -183,10 +189,13 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
             'pending': true,
           });
 
-          // ตรวจสุขภาพก่อนฉีดวัคซีน 1 วัน (คัดเอาแต่ไก่แข็งแรงไปฉีด)
+          // ตรวจสุขภาพก่อนฉีดวัคซีน 1 วัน (คัดเอาแต่ไก่แข็งแรงไปฉีด) - ข้ามถ้ามีผล
+          // ตรวจจริงของวันนั้นอยู่แล้ว (checkedHealthDates) กันขึ้นซ้ำกับรายการ
+          // "ตรวจสุขภาพ" จริงด้านบน
           final healthDueOnly = dueOnly.subtract(const Duration(days: 1));
           final healthDaysUntil = healthDueOnly.difference(todayOnly).inDays;
-          if (healthDaysUntil <= 3) {
+          if (healthDaysUntil <= 3 &&
+              !checkedHealthDates.contains(healthDueOnly)) {
             merged.add({
               'type': 'health_due',
               'date': healthDueOnly,
