@@ -1336,6 +1336,36 @@ class _MainVaccineState extends State<MainVaccine> {
           InkWell(
             onTap: () async {
               bool newValue = !isCompleted;
+
+              // ✅ กดสำเร็จก่อนถึงวันครบกำหนดจริงไม่ได้ (เดิมกดได้ตลอด) - เช็คก่อน
+              // อัปเดต UI แบบ optimistic เลย กันขึ้นเขียวแวบนึงแล้วต้องย้อนกลับ
+              if (newValue) {
+                final alertDate = DateTime.tryParse(
+                  alert['date']?.toString() ?? '',
+                )?.toLocal();
+                if (alertDate != null) {
+                  final today = DateTime.now();
+                  final todayOnly = DateTime(
+                    today.year,
+                    today.month,
+                    today.day,
+                  );
+                  final dateOnly = DateTime(
+                    alertDate.year,
+                    alertDate.month,
+                    alertDate.day,
+                  );
+                  if (dateOnly.isAfter(todayOnly)) {
+                    showEzTopBanner(
+                      context,
+                      'ยังไม่ถึงวันครบกำหนดให้วัคซีนนี้ กดสำเร็จก่อนไม่ได้',
+                      type: EzBannerType.error,
+                    );
+                    return;
+                  }
+                }
+              }
+
               setState(() {
                 alert['is_completed'] = newValue;
                 _updateDayMarkers();

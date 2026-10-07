@@ -56,6 +56,20 @@ class _NotificationsState extends State<Notifications> {
     String type = data['type'];
 
     if (type == 'vaccine') {
+      // ✅ กดสำเร็จก่อนถึงวันครบกำหนดจริงไม่ได้ (เดิมกดได้ตลอด แม้แจ้งเตือนจะบอก
+      // ว่า "อีก X วันถึงกำหนด" อยู่ก็ตาม)
+      final int daysUntil = (data['daysUntil'] as num?)?.toInt() ?? -1;
+      if (daysUntil > 0) {
+        if (mounted) {
+          showEzTopBanner(
+            context,
+            'ยังไม่ถึงวันครบกำหนดให้วัคซีนนี้ กดสำเร็จก่อนไม่ได้',
+            type: EzBannerType.error,
+          );
+        }
+        return;
+      }
+
       String id = data['id'].toString();
       try {
         final response = await ApiClient.put(
@@ -77,9 +91,12 @@ class _NotificationsState extends State<Notifications> {
             "Failed to update vaccine status: ${response.statusCode} ${response.body}",
           );
           if (mounted) {
+            // ข้อความจริงจาก backend (เช่น "ยังไม่ถึงวันครบกำหนด...") ถ้ามี แทน
+            // ข้อความกลางๆ ที่ทำให้เข้าใจผิดว่าแค่ลองใหม่แล้วจะผ่าน
+            final serverMsg = response.body.trim();
             showEzTopBanner(
               context,
-              'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+              serverMsg.isNotEmpty ? serverMsg : 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
               type: EzBannerType.error,
             );
           }
@@ -202,16 +219,26 @@ class _NotificationsState extends State<Notifications> {
               ? const Color(0xFFFFA726)
               : (type == 'motion' ? const Color(0xFFAB47BC) : ez.gold));
 
+    // ✅ กดสำเร็จก่อนถึงวันครบกำหนดจริงไม่ได้ (เดิมกดได้ตลอด แม้แจ้งเตือนจะบอกว่า
+    // "อีก X วันถึงกำหนด" อยู่ก็ตาม) - ด่านแรกชั้น UI เท่านั้น backend เช็คซ้ำอีก
+    // ชั้นเป็นด่านจริง
+    final int daysUntil = (data['daysUntil'] as num?)?.toInt() ?? -1;
+    final bool canCompleteVaccine = type != 'vaccine' || daysUntil <= 0;
+
     String buttonText = type == "food" || type == "motion"
         ? "รับทราบ"
-        : (type == "health" ? "ไปตรวจสุขภาพ" : "เสร็จสิ้น");
+        : (type == "health"
+              ? "ไปตรวจสุขภาพ"
+              : (!canCompleteVaccine ? "ยังไม่ถึงวันให้" : "เสร็จสิ้น"));
     Color buttonColor = type == "food"
         ? Colors.blueAccent
         : (type == "health"
               ? const Color(0xFFFFA726)
               : (type == "motion"
                     ? const Color(0xFFAB47BC)
-                    : ez.accentGreen));
+                    : (!canCompleteVaccine
+                          ? ez.textSecondary
+                          : ez.accentGreen)));
 
     final bool isCardTappable = type == 'health' || type == 'vaccine';
 
