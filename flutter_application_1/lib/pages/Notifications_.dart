@@ -5,6 +5,7 @@ import 'package:flutter_application_1/pages/Chicken_health_information/Main_Heal
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
+import 'package:flutter_application_1/pages/Vaccine/Main_Vaccine.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'bottombar.dart';
@@ -126,6 +127,32 @@ class _NotificationsState extends State<Notifications> {
     });
   }
 
+  // แตะที่ตัวการ์ด (ไม่ใช่ปุ่ม) ไปหน้าที่เกี่ยวข้องของคอกนั้นเลย - สุขภาพไปหน้า
+  // ปฏิทินตรวจสุขภาพ, วัคซีนไปหน้าให้วัคซีน (คนละหน้ากับปุ่ม "เสร็จสิ้น" ที่บันทึก
+  // สถานะตรงๆ โดยไม่เปลี่ยนหน้า) ส่วนอาหาร/ความเคลื่อนไหวไม่มีหน้าที่เกี่ยวข้องให้ไป
+  void _cardTap(Map<String, dynamic> data) {
+    final String type = data['type'];
+    if (type == 'health') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MainHealthCheckCalendar(
+            coopId: data['coopId']?.toString() ?? '',
+            coopName: data['coopName']?.toString() ?? '-',
+          ),
+        ),
+      );
+    } else if (type == 'vaccine') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              MainVaccine(initialCoopId: data['coopId']?.toString()),
+        ),
+      );
+    }
+  }
+
   void onTabSelected(int index) {
     if (index == 0) {
       Navigator.pushReplacement(
@@ -186,7 +213,11 @@ class _NotificationsState extends State<Notifications> {
                     ? const Color(0xFFAB47BC)
                     : ez.accentGreen));
 
-    return Container(
+    final bool isCardTappable = type == 'health' || type == 'vaccine';
+
+    return GestureDetector(
+      onTap: isCardTappable ? () => _cardTap(data) : null,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -265,6 +296,7 @@ class _NotificationsState extends State<Notifications> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

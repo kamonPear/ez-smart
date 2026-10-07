@@ -195,6 +195,8 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
           "method": a['injection_type'] ?? '-',
           "chickenAge": a['chicken_age'] ?? 0,
           "note": a['description'] ?? '',
+          "coopId": coopId,
+          "coopName": coopName,
         });
       }
     }
