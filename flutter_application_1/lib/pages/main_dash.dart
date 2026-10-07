@@ -386,7 +386,12 @@ class _MainScreenState extends State<MainScreen> {
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
+                              // ต้องปิดทุก state (enabled/focused) แยกกัน ไม่งั้น
+                              // ตอนแตะช่องค้นหา Flutter จะโชว์กรอบโฟกัสสีส้มวงรี
+                              // ทับของเดิมที่วาดเอง (ดู border.dart บน Container)
                               border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 20,
                               ),

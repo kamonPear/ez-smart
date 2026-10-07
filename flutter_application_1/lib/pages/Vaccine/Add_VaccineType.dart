@@ -190,7 +190,13 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
                     filled: false,
                     isCollapsed: true,
                     contentPadding: EdgeInsets.zero,
+                    // border เฉยๆ เป็นแค่ fallback - ต้องปิดทุก state (enabled/
+                    // focused) แยกกัน ไม่งั้นตอนแตะช่องนี้ Flutter จะโชว์กรอบ
+                    // โฟกัสสีส้มวงรีทับของเดิมที่เราวาดเอง (ของ Container ข้างนอก)
+                    // กลายเป็นช่องนี้หน้าตาแปลกกว่าช่องอื่นตอนโฟกัสอยู่
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
                     hintText: '0',
                     hintStyle: GoogleFonts.kanit(
                       color: ez.textSecondary,
