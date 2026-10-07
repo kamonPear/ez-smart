@@ -215,7 +215,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
         "date_adopt_animals": toISO8601(importDateRaw),
         "amount": amount,
         "birthday": toISO8601(birthDateRaw),
-        "note": noteRaw.isEmpty ? "-" : noteRaw,
+        "note": noteRaw,
       });
 
       final response = await ApiClient.put(
@@ -238,7 +238,7 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
           "importDate": toISO8601(importDateRaw),
           "count": "$amount ตัว",
           "birthDate": toISO8601(birthDateRaw),
-          "note": noteRaw.isEmpty ? "-" : noteRaw,
+          "note": noteRaw,
         };
 
         showEzTopBanner(

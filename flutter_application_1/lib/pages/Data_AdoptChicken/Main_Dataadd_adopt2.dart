@@ -157,9 +157,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
         "date_adopt_animals": _toISO8601(importDateController.text),
         "amount": count,
         "birthday": _toISO8601(birthDateController.text),
-        "note": noteController.text.trim().isEmpty
-            ? '-'
-            : noteController.text.trim(),
+        "note": noteController.text.trim(),
       });
 
       debugPrint('POST /api/coops body: $body');
@@ -187,7 +185,7 @@ class _AddDataadoptState extends State<AddDataadopt> {
           "importDate": _toISO8601(importDateController.text),
           "count": "$count ตัว",
           "birthDate": _toISO8601(birthDateController.text),
-          "note": noteController.text.isNotEmpty ? noteController.text : "-",
+          "note": noteController.text.trim(),
         };
 
         showEzTopBanner(
