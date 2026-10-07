@@ -42,10 +42,33 @@ class _Appointment {
       appointmentDate.difference(todayOnly).inDays;
 }
 
+/// วัคซีนที่ให้ไปแล้วแต่ไม่พบประวัติตรวจสุขภาพในวันที่ควรตรวจ (1 วันก่อนให้วัคซีน)
+/// หรือวันเดียวกับที่ให้วัคซีนเลยก็ได้ (ไม่เคร่งเกินไป เผื่อตรวจเช้าให้บ่ายวันเดียวกัน)
+class _MissedCheck {
+  final String coopId;
+  final String coopName;
+  final String vaccineName;
+  final DateTime expectedCheckDate;
+
+  _MissedCheck({
+    required this.coopId,
+    required this.coopName,
+    required this.vaccineName,
+    required this.expectedCheckDate,
+  });
+}
+
 class _MainHealthAppointmentsState extends State<MainHealthAppointments> {
   int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   bool _isLoading = true;
   List<_Appointment> _appointments = [];
+
+  // ประวัติที่ "ขาดการตรวจ" - กดปุ่มเปิดดูได้ (โหลดครั้งแรกตอนกดเปิดเท่านั้น ไม่ต้อง
+  // ยิง API เพิ่มถ้าไม่มีใครสนใจดู)
+  bool _showMissedChecks = false;
+  bool _isLoadingMissed = false;
+  bool _missedChecksLoaded = false;
+  List<_MissedCheck> _missedChecks = [];
 
   @override
   void initState() {
@@ -118,6 +141,148 @@ class _MainHealthAppointmentsState extends State<MainHealthAppointments> {
       debugPrint('❌ โหลดข้อมูลนัดตรวจไม่สำเร็จ: $e');
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // หาวัคซีนที่ให้ไปแล้ว (ประวัติจริง) แต่ไม่พบประวัติตรวจสุขภาพในวันที่ควรตรวจ
+  // (1 วันก่อนให้วัคซีน) หรือวันเดียวกับที่ให้วัคซีนเลยก็ได้ - ตอบคำถาม "คอกไหน
+  // ขาดการตรวจบ้าง" ย้อนหลัง เพราะพอให้วัคซีนไปแล้ว นัดตรวจของวัคซีนตัวนั้นจะหาย
+  // ไปจาก _fetchAppointments ทันที (กรอง is_completed ออก) โดยไม่บอกว่าจริงๆ
+  // แล้วมีการตรวจสุขภาพก่อนให้หรือเปล่า
+  Future<void> _fetchMissedChecks() async {
+    setState(() => _isLoadingMissed = true);
+    try {
+      final results = await Future.wait([
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/coops')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/vaccines')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/healths')),
+      ]);
+
+      final Map<String, String> coopNames = {};
+      if (results[0].statusCode == 200) {
+        final List<dynamic> coops = json.decode(results[0].body);
+        for (final c in coops) {
+          final id = (c['coop_id'] ?? c['id']).toString();
+          final name = (c['name_coop']?.toString().trim().isNotEmpty == true)
+              ? c['name_coop'].toString()
+              : id;
+          coopNames[id] = name;
+        }
+      }
+
+      String dayKey(String coopId, DateTime d) =>
+          '${coopId}_${d.year}-${d.month}-${d.day}';
+
+      final Set<String> checkedDays = {};
+      if (results[2].statusCode == 200) {
+        final List<dynamic> healths = json.decode(results[2].body);
+        for (final h in healths) {
+          final coopId = h['coop_id']?.toString();
+          final d = DateTime.tryParse(
+            h['record_date']?.toString() ?? '',
+          )?.toLocal();
+          if (coopId == null || d == null) continue;
+          checkedDays.add(dayKey(coopId, d));
+        }
+      }
+
+      final List<_MissedCheck> missed = [];
+      if (results[1].statusCode == 200) {
+        final List<dynamic> history = json.decode(results[1].body);
+        for (final v in history) {
+          final coopId = v['coop_id']?.toString();
+          final recordDate = DateTime.tryParse(
+            v['record_date']?.toString() ?? '',
+          )?.toLocal();
+          if (coopId == null || recordDate == null) continue;
+          final recordDay = DateTime(
+            recordDate.year,
+            recordDate.month,
+            recordDate.day,
+          );
+          final expected = recordDay.subtract(const Duration(days: 1));
+          if (checkedDays.contains(dayKey(coopId, expected)) ||
+              checkedDays.contains(dayKey(coopId, recordDay))) {
+            continue;
+          }
+          missed.add(
+            _MissedCheck(
+              coopId: coopId,
+              coopName: coopNames[coopId] ?? 'คอก $coopId',
+              vaccineName: v['name']?.toString() ?? 'วัคซีน',
+              expectedCheckDate: expected,
+            ),
+          );
+        }
+      }
+
+      missed.sort((a, b) => b.expectedCheckDate.compareTo(a.expectedCheckDate));
+
+      if (!mounted) return;
+      setState(() {
+        _missedChecks = missed;
+        _isLoadingMissed = false;
+        _missedChecksLoaded = true;
+      });
+    } catch (e) {
+      debugPrint('❌ โหลดประวัติที่ยังไม่ตรวจไม่สำเร็จ: $e');
+      if (mounted) setState(() => _isLoadingMissed = false);
+    }
+  }
+
+  void _toggleMissedChecks() {
+    setState(() => _showMissedChecks = !_showMissedChecks);
+    if (_showMissedChecks && !_missedChecksLoaded) {
+      _fetchMissedChecks();
+    }
+  }
+
+  Widget _buildMissedCheckRow(_MissedCheck m) {
+    final ez = ezColors(context);
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              MainHealthCheckCalendar(coopId: m.coopId, coopName: m.coopName),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: ezCardDecoration(context, radius: 14),
+        child: Row(
+          children: [
+            Icon(Icons.event_busy_rounded, color: ez.danger, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'คอก${m.coopName} – ขาดตรวจก่อนให้${m.vaccineName}',
+                    style: GoogleFonts.kanit(
+                      color: ez.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'ควรตรวจวันที่ ${m.expectedCheckDate.day}/${m.expectedCheckDate.month}/${m.expectedCheckDate.year}',
+                    style: GoogleFonts.kanit(
+                      color: ez.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: ez.textSecondary, size: 18),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildAppointmentCard(_Appointment a) {
@@ -296,6 +461,58 @@ class _MainHealthAppointmentsState extends State<MainHealthAppointments> {
                         height: 1.5,
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _toggleMissedChecks,
+                      icon: Icon(
+                        _showMissedChecks
+                            ? Icons.expand_less_rounded
+                            : Icons.history_toggle_off_rounded,
+                        size: 18,
+                        color: ez.danger,
+                      ),
+                      label: Text(
+                        _showMissedChecks
+                            ? 'ซ่อนประวัติที่ยังไม่ตรวจ'
+                            : 'ดูประวัติที่ยังไม่ตรวจ',
+                        style: GoogleFonts.kanit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: ez.danger,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: ez.danger.withValues(alpha: 0.5)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    if (_showMissedChecks) ...[
+                      const SizedBox(height: 12),
+                      if (_isLoadingMissed)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (_missedChecks.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            'ไม่พบคอกที่ขาดการตรวจสุขภาพ',
+                            style: GoogleFonts.kanit(
+                              color: ez.textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                        )
+                      else
+                        ..._missedChecks.map(_buildMissedCheckRow),
+                    ],
                     const SizedBox(height: 16),
                     if (_isLoading)
                       Skeletonizer(
