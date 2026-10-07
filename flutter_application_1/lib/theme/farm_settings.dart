@@ -7,11 +7,6 @@ import '../services/backend_config.dart';
 /// เก็บที่ backend แล้ว (ไม่ใช่ SharedPreferences ในเครื่องอีกต่อไป) เพื่อให้ค่า
 /// ตรงกันทั้งแอปมือถือและเว็บเสมอ ไม่ว่าจะปรับค่าจากฝั่งไหนก็ตาม - เว็บอ่าน/เขียน
 /// endpoint เดียวกันนี้ (GET/PUT /api/farm-threshold)
-// ค่าเริ่มต้นแนะนำ ใช้เป็นแค่ draft ตั้งต้นในหน้าตั้งค่าตอนยังไม่เคยตั้งค่าเลย
-// (ห้ามเอาไปโชว์เป็นค่าที่ "ตั้งไว้แล้ว" ที่หน้าแรก - ดู isConfigured)
-const double kDefaultDraftTemp = 25;
-const double kDefaultDraftAmmonia = 35;
-
 class FarmThresholdController extends ChangeNotifier {
   double _temperature = 0;
   double _ammonia = 0;
