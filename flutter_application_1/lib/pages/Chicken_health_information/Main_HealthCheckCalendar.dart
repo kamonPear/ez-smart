@@ -256,6 +256,16 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
           type: EzBannerType.success,
         );
         _fetchData();
+      } else if (response.statusCode == 409) {
+        // ปกติ UI หน้านี้กันไว้แล้วตั้งแต่ _onDayTap (วันที่มีผลตรวจแล้วจะเปิดแค่
+        // ป็อบอัพอ่านอย่างเดียว กดบันทึกซ้ำไม่ได้) แต่เผื่อกรณีชนกัน เช่น เปิดค้าง
+        // ไว้ 2 ที่พร้อมกันแล้วกดบันทึกพร้อมกัน - backend กันซ้ำด้วย unique
+        // constraint แล้วส่ง 409 กลับมา บอกตรงๆ แทนข้อความกลางๆ
+        showEzTopBanner(
+          context,
+          'มีผลตรวจของวันนี้อยู่แล้ว กรุณารีเฟรชหน้านี้แล้วลองใหม่',
+          type: EzBannerType.error,
+        );
       } else {
         showEzTopBanner(
           context,
