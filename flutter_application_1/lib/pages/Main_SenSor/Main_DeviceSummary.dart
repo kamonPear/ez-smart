@@ -11,6 +11,7 @@ import '../Data_AdoptChicken/Main_DataChicken_2.dart';
 import '../Show_chart.dart';
 import '../Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'Main_DeviceTypeDetail.dart';
+import '../../widgets/device_icon.dart';
 
 /// สรุปอุปกรณ์/เซนเซอร์รวมทั้งฟาร์ม - นับจำนวนอุปกรณ์แต่ละชนิดรวมทุกคอก
 /// ไม่แสดงซ้ำแยกทีละคอก เอาแค่ยอดรวมทั้งฟาร์มว่ามีกี่ตัว ออนไลน์กี่ตัว
@@ -71,30 +72,22 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
     _fetchDevices();
   }
 
-  ({IconData icon, Color color}) _iconFor(String name) {
+  // สีพื้นหลังวงกลมหลังไอคอน แยกตามชนิดอุปกรณ์เพื่อให้กวาดตาแยกชนิดง่าย - ไม่
+  // เกี่ยวกับตัวไอคอนเองอีกต่อไป (ไอคอนใช้ SVG จริงจาก backend ผ่าน DeviceIcon)
+  Color _colorFor(String name) {
     final lower = name.toLowerCase();
     if (lower.contains('mq') || name.contains('แอมโมเนีย')) {
-      return (icon: Icons.air, color: Colors.orange.shade700);
+      return Colors.orange.shade700;
     }
     if (lower.contains('dht') || name.contains('อุณหภูมิ')) {
-      return (icon: Icons.thermostat, color: Colors.cyan);
+      return Colors.cyan;
     }
-    if (name.contains('พัดลม')) {
-      return (icon: Icons.toys_outlined, color: Colors.blueAccent);
-    }
-    if (name.contains('หลอดไฟ') || name.contains('ไฟ')) {
-      return (icon: Icons.lightbulb_outline, color: Colors.amber);
-    }
-    if (lower.contains('pir')) {
-      return (icon: Icons.sensors, color: Colors.purpleAccent);
-    }
-    if (lower.contains('mc-38') || lower.contains('mc38')) {
-      return (icon: Icons.door_front_door_outlined, color: Colors.teal);
-    }
-    if (lower.contains('esp')) {
-      return (icon: Icons.developer_board_outlined, color: Colors.green);
-    }
-    return (icon: Icons.sensors, color: Colors.grey);
+    if (name.contains('พัดลม')) return Colors.blueAccent;
+    if (name.contains('หลอดไฟ') || name.contains('ไฟ')) return Colors.amber;
+    if (lower.contains('pir')) return Colors.purpleAccent;
+    if (lower.contains('mc-38') || lower.contains('mc38')) return Colors.teal;
+    if (lower.contains('esp')) return Colors.green;
+    return Colors.grey;
   }
 
   Future<void> _fetchDevices() async {
@@ -161,7 +154,10 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
 
   Widget _buildGroupCard(_DeviceGroup g) {
     final ez = ezColors(context);
-    final meta = _iconFor(g.name);
+    final color = _colorFor(g.name);
+    final iconDataUri = g.devices.isNotEmpty
+        ? g.devices.first['icon']?.toString()
+        : null;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () => Navigator.push(
@@ -169,8 +165,8 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
         MaterialPageRoute(
           builder: (_) => MainDeviceTypeDetail(
             deviceName: g.name,
-            icon: meta.icon,
-            color: meta.color,
+            iconDataUri: iconDataUri,
+            color: color,
             devices: g.devices,
           ),
         ),
@@ -183,10 +179,10 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: meta.color.withValues(alpha: 0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(meta.icon, color: meta.color, size: 22),
+              child: DeviceIcon(iconDataUri: iconDataUri, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(

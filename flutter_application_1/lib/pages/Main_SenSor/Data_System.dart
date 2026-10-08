@@ -13,6 +13,7 @@ import '../../widgets/ez_header.dart';
 import '../../services/backend_config.dart';
 import '../../utils/thai_date.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import '../../widgets/device_icon.dart';
 
 class DataSystem extends StatefulWidget {
   final String? initialCoopId;
@@ -578,44 +579,23 @@ class _DataSystemState extends State<DataSystem> {
   }
 
   /// แปลงชื่อรุ่นของอุปกรณ์ (เช่น MQ-135, DHT22) เป็นคำที่อ่านแล้วรู้เลยว่าวัดอะไร
-  /// พร้อมหน่วยและไอคอนประจำชนิดนั้น
-  ({String label, String unit, IconData icon, bool isSwitch}) _sensorMeta(
-    String name,
-  ) {
+  /// พร้อมหน่วย - ไอคอนไม่ได้เดาจากชื่อตรงนี้อีกต่อไป (ใช้ SVG จริงจาก backend
+  /// ผ่าน DeviceIcon แทน ดูตรงจุดที่เรียกใช้)
+  ({String label, String unit, bool isSwitch}) _sensorMeta(String name) {
     final lower = name.toLowerCase();
     if (lower.contains('mq') || name.contains('แอมโมเนีย')) {
-      return (
-        label: 'แอมโมเนีย',
-        unit: 'ppm',
-        icon: Icons.air,
-        isSwitch: false,
-      );
+      return (label: 'แอมโมเนีย', unit: 'ppm', isSwitch: false);
     }
     if (lower.contains('dht') || name.contains('อุณหภูมิ')) {
-      return (
-        label: 'อุณหภูมิ',
-        unit: '°C',
-        icon: Icons.thermostat,
-        isSwitch: false,
-      );
+      return (label: 'อุณหภูมิ', unit: '°C', isSwitch: false);
     }
     if (name.contains('พัดลม')) {
-      return (
-        label: 'พัดลม',
-        unit: '',
-        icon: Icons.toys_outlined,
-        isSwitch: true,
-      );
+      return (label: 'พัดลม', unit: '', isSwitch: true);
     }
     if (name.contains('หลอดไฟ') || name.contains('ไฟ')) {
-      return (
-        label: 'หลอดไฟ',
-        unit: '',
-        icon: Icons.lightbulb_outline,
-        isSwitch: true,
-      );
+      return (label: 'หลอดไฟ', unit: '', isSwitch: true);
     }
-    return (label: name, unit: '', icon: Icons.sensors, isSwitch: false);
+    return (label: name, unit: '', isSwitch: false);
   }
 
   // ฟังก์ชันวาดการ์ดเซนเซอร์แบบดึงข้อมูลจาก Map วัตถุจริง
@@ -675,7 +655,10 @@ class _DataSystemState extends State<DataSystem> {
                 color: accent.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: Icon(meta.icon, color: accent, size: 20),
+              child: DeviceIcon(
+                iconDataUri: device['icon']?.toString(),
+                size: 20,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(

@@ -7,19 +7,20 @@ import '../Data_AdoptChicken/Main_DataChicken_2.dart';
 import '../Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'Main_DeviceSummary.dart';
 import '../Show_chart.dart';
+import '../../widgets/device_icon.dart';
 
 /// รายละเอียดอุปกรณ์ชนิดเดียว (เช่น "DHT22") ทั้งฟาร์ม — แสดงทุกตัวที่มี ว่าอยู่
 /// คอกไหน ทำงานอยู่หรือไม่ เปิดจากการแตะการ์ดสรุปในหน้า "อุปกรณ์ทั้งฟาร์ม"
 class MainDeviceTypeDetail extends StatelessWidget {
   final String deviceName;
-  final IconData icon;
+  final String? iconDataUri;
   final Color color;
   final List<Map<String, dynamic>> devices;
 
   const MainDeviceTypeDetail({
     super.key,
     required this.deviceName,
-    required this.icon,
+    required this.iconDataUri,
     required this.color,
     required this.devices,
   });
@@ -79,7 +80,7 @@ class MainDeviceTypeDetail extends StatelessWidget {
                               color: color.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Icon(icon, color: color, size: 22),
+                            child: DeviceIcon(iconDataUri: iconDataUri, size: 22),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
