@@ -402,21 +402,27 @@ class _MainScreenState extends State<MainScreen> {
                       const SizedBox(width: 15),
                       Expanded(
                         child: Container(
-                          height: 42,
+                          height: 44,
+                          // ดีไซน์เดียวกับช่องกรอก username/password ในหน้า login
+                          // (ez.inputFill + ez.border + โค้งเต็มแคปซูล) ของเดิมใช้
+                          // Colors.white ล้วนๆ กับไอคอนสีดำทื่อๆ ไม่ตรงธีมสีครีม/
+                          // น้ำตาลของแอป เลยดูเป็นกล่องสี่เหลี่ยมแปลกแยกจากที่อื่น
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(25),
+                            color: ezColors(context).inputFill,
+                            borderRadius: BorderRadius.circular(22),
                             border: Border.all(color: ezColors(context).border),
                           ),
                           child: TextField(
                             textAlignVertical: TextAlignVertical.center,
-                            style: GoogleFonts.kanit(color: Colors.black87),
+                            style: GoogleFonts.kanit(
+                              color: ezColors(context).textPrimary,
+                            ),
                             onChanged: (value) =>
                                 setState(() => _searchQuery = value),
                             decoration: InputDecoration(
                               hintText: 'ค้นหาคอกไก่ (ชื่อ, เลขคอก, วันที่)',
                               hintStyle: GoogleFonts.kanit(
-                                color: Colors.grey.shade400,
+                                color: ezColors(context).textSecondary,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -427,11 +433,14 @@ class _MainScreenState extends State<MainScreen> {
                               enabledBorder: InputBorder.none,
                               focusedBorder: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
+                                horizontal: 18,
                               ),
-                              suffixIcon: const Icon(
+                              // ไอคอนค้นหาย้ายมาไว้ซ้ายสุด (แพตเทิร์นปกติของช่อง
+                              // ค้นหาทั่วไป) แทนที่จะอยู่ขวาสุดเหมือนปุ่มอื่น
+                              prefixIcon: Icon(
                                 Icons.search,
-                                color: Colors.black87,
+                                size: 20,
+                                color: ezColors(context).textSecondary,
                               ),
                             ),
                           ),
