@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
@@ -25,6 +26,7 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _obscurePassword = true;
   bool _isSubmitting = false;
+  bool _showContact = false;
   String? _errorMessage;
 
   @override
@@ -164,11 +166,172 @@ class _LoginPageState extends State<LoginPage> {
                     isSubmitting: _isSubmitting,
                     onPressed: _submit,
                   ),
+                  const SizedBox(height: 20),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () =>
+                        setState(() => _showContact = !_showContact),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              'ถ้าผู้ใช้ลืมรหัสผ่านติดต่อที่เรา',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.kanit(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: ez.accentGreen,
+                                decoration: TextDecoration.underline,
+                                decorationColor: ez.accentGreen,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          AnimatedRotation(
+                            turns: _showContact ? 0.5 : 0,
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 20,
+                              color: ez.accentGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOut,
+                    alignment: Alignment.topCenter,
+                    child: _showContact
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: _ContactCard(ez: ez),
+                          )
+                        : const SizedBox(width: double.infinity),
+                  ),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// การ์ดเบอร์ติดต่อสำหรับผู้ใช้ที่ลืมรหัสผ่าน — กดที่เบอร์เพื่อคัดลอก
+class _ContactCard extends StatelessWidget {
+  const _ContactCard({required this.ez});
+
+  final EzColors ez;
+
+  static const _contacts = [
+    ('คุณแพร', '062-457-3255'),
+    ('คุณออย', '082-661-8867'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            ez.accentGreen.withValues(alpha: 0.14),
+            ez.inputFill.withValues(alpha: 0.5),
+          ],
+        ),
+        border: Border.all(color: ez.accentGreen.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.support_agent_rounded,
+                  size: 18, color: ez.accentGreen),
+              const SizedBox(width: 6),
+              Text(
+                'โทรติดต่อเราได้ที่',
+                style: GoogleFonts.kanit(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: ez.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          for (final (name, phone) in _contacts) ...[
+            const SizedBox(height: 10),
+            Material(
+              color: ez.accentGreen.withValues(alpha: 0.18),
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: ez.accentGreen.withValues(alpha: 0.45),
+                ),
+              ),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: phone));
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'คัดลอกเบอร์ $phone แล้ว',
+                          style: GoogleFonts.kanit(),
+                        ),
+                      ),
+                    );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: ez.accentGreen,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.phone_rounded,
+                            size: 14, color: Colors.white),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        name,
+                        style: GoogleFonts.kanit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: ez.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        phone,
+                        style: GoogleFonts.kanit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: ez.accentGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
