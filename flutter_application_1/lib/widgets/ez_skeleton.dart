@@ -66,7 +66,10 @@ class EzSkeletonCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(width: 150, height: 16, color: Colors.grey),
-                const SizedBox(height: 8),
+                // 4px ไม่ใช่ 8px - ที่ Add_egg.dart เรียกใช้การ์ดนี้ด้วย itemHeight: 64
+                // (padding แนวตั้ง 14*2 เหลือพื้นที่แค่ 36px) ของเดิม 16+8+13=37px ล้น
+                // ไป 1px (RenderFlex overflow) พอดี ลดช่องว่างให้มีพื้นที่เหลือแทน
+                const SizedBox(height: 4),
                 Container(width: 100, height: 13, color: Colors.grey),
               ],
             ),
