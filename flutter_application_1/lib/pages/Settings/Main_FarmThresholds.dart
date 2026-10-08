@@ -35,16 +35,36 @@ class _MainFarmThresholdsState extends State<MainFarmThresholds> {
     // ปลอมๆ ให้ดูเหมือนตั้งไว้แล้ว ผู้ใช้ปรับเองจาก 0 ขึ้นไปตามต้องการ
     _temp = farmThresholdController.temperature;
     _ammonia = farmThresholdController.ammonia;
+    _refreshFromServer();
   }
 
-  void _saveAndExit() {
-    farmThresholdController.save(temperature: _temp, ammonia: _ammonia);
-    showEzTopBanner(
-      context,
-      'บันทึกค่ามาตรฐานสำเร็จ',
-      type: EzBannerType.success,
-    );
-    Navigator.pop(context);
+  Future<void> _refreshFromServer() async {
+    await farmThresholdController.load();
+    if (!mounted) return;
+    setState(() {
+      _temp = farmThresholdController.temperature;
+      _ammonia = farmThresholdController.ammonia;
+    });
+  }
+
+  Future<void> _saveAndExit() async {
+    try {
+      await farmThresholdController.save(temperature: _temp, ammonia: _ammonia);
+      if (!mounted) return;
+      showEzTopBanner(
+        context,
+        'บันทึกค่ามาตรฐานสำเร็จ',
+        type: EzBannerType.success,
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      showEzTopBanner(
+        context,
+        e.toString().replaceFirst('Exception: ', ''),
+        type: EzBannerType.error,
+      );
+    }
   }
 
   void onTabSelected(int index) {

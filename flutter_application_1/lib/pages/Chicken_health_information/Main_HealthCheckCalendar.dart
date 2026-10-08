@@ -862,7 +862,6 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                physics: const BouncingScrollPhysics(),
                 child: Column(
                   children: [
                     const SizedBox(height: 10),

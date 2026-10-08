@@ -126,7 +126,6 @@ class EzEggYearChart extends StatelessWidget {
           const SizedBox(height: 18),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
             child: SizedBox(
               width: 70.0 * 12,
               height: 170,
@@ -820,7 +819,6 @@ class _EzEggMultiChartState extends State<EzEggMultiChart> {
           const SizedBox(height: 6),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
             child: SizedBox(
               width: agg.pointWidth * agg.values.length,
               height: 170,

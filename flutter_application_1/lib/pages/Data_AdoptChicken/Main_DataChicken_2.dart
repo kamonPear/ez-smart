@@ -430,7 +430,6 @@ class _MainchickenState extends State<Mainchicken> {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 25),
-                physics: const BouncingScrollPhysics(),
                 child: Column(
                   children: [
                     // 1. ปฏิทินรวม (แทนตารางคอกรวมเดิม)

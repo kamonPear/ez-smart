@@ -1,8 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'ez_header.dart';
 
 const double kEzFormLabelWidth = 104;
+
+/// รับเฉพาะตัวเลขจำนวนเต็ม (0-9) - ตัวอักษร/สัญลักษณ์ที่พิมพ์หรือวางเข้ามาจะถูก
+/// ตัดทิ้ง และเรียก [onRejected] เพื่อให้หน้าที่ใช้แจ้งเตือนผู้ใช้
+class IntegerOnlyFormatter extends TextInputFormatter {
+  final VoidCallback onRejected;
+
+  const IntegerOnlyFormatter({required this.onRejected});
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final result = FilteringTextInputFormatter.digitsOnly.formatEditUpdate(
+      oldValue,
+      newValue,
+    );
+    if (result.text != newValue.text) onRejected();
+    return result;
+  }
+}
 
 /// แถวฟอร์มมาตรฐาน: label ทางซ้าย + กล่องกรอกข้อมูลทางขวาในกรอบธีมเดียวกัน
 /// ใช้เป็นฐานให้ [EzFormTextField] และ [EzFormDropdown] เพื่อให้ทุกช่องกรอก
@@ -82,6 +104,7 @@ class EzFormTextField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
   final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
   final String? hintText;
   final bool isRequired;
 
@@ -93,6 +116,7 @@ class EzFormTextField extends StatefulWidget {
     required this.label,
     required this.controller,
     this.keyboardType,
+    this.inputFormatters,
     this.hintText,
     this.isRequired = false,
     this.suffixText,
@@ -135,6 +159,7 @@ class _EzFormTextFieldState extends State<EzFormTextField> {
               controller: widget.controller,
               focusNode: _focusNode,
               keyboardType: widget.keyboardType,
+              inputFormatters: widget.inputFormatters,
               cursorColor: ez.gold,
               style: GoogleFonts.kanit(color: ez.textPrimary, fontSize: 14),
               decoration: InputDecoration(

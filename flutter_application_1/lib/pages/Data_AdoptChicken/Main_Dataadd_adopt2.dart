@@ -151,6 +151,15 @@ class _AddDataadoptState extends State<AddDataadopt> {
       ),
     );
 
+    // ปิดวงล้อโหลดได้ครั้งเดียวเท่านั้น - ถ้าปิดไปแล้วแต่โค้ดหลังจากนั้นพัง
+    // (เช่น jsonDecode) catch จะไม่ pop ซ้ำจนปิดหน้าฟอร์มทั้งหน้าไปด้วย
+    var dialogOpen = true;
+    void closeLoadingDialog() {
+      if (!dialogOpen) return;
+      dialogOpen = false;
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+
     try {
       final body = jsonEncode({
         "name_coop": nameController.text.trim(),
@@ -170,7 +179,8 @@ class _AddDataadoptState extends State<AddDataadopt> {
         body: body,
       );
 
-      Navigator.pop(context); // ปิด Dialog โหลด
+      closeLoadingDialog();
+      if (!mounted) return;
 
       if (response.statusCode == 201) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
@@ -203,7 +213,8 @@ class _AddDataadoptState extends State<AddDataadopt> {
         );
       }
     } catch (e) {
-      Navigator.pop(context); // ปิด Dialog โหลด
+      closeLoadingDialog();
+      if (!mounted) return;
       showEzTopBanner(
         context,
         'ไม่สามารถเชื่อมต่อ Server ได้: $e',

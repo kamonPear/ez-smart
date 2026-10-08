@@ -61,6 +61,12 @@ class AuthService {
       return body;
     }
 
+    // 401 = ชื่อผู้ใช้หรือรหัสผ่านผิด — backend ตอบเป็นภาษาอังกฤษข้อความเดียว
+    // (ตั้งใจไม่แยกว่าผิดช่องไหน) จึงแสดงเป็นภาษาไทยข้อความเดียวกันนี้
+    if (response.statusCode == 401) {
+      throw Exception('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+    }
+
     final errorMessage = body['error']?.toString();
     throw Exception(
       (errorMessage == null || errorMessage.isEmpty)

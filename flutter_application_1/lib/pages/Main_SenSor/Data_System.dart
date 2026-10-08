@@ -27,7 +27,7 @@ class DataSystem extends StatefulWidget {
 class _DataSystemState extends State<DataSystem> {
   int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   List<dynamic> devices = [];
-  List<dynamic> coops = [];
+  List<dynamic> coops = []; 
   bool isLoading = true;
 
   String? selectedCoopId;
@@ -46,8 +46,8 @@ class _DataSystemState extends State<DataSystem> {
       isLoading = true;
       fetchDevices();
       _startAutoRefresh();
-    }
-  }
+    }         
+  }            
 
   void _startAutoRefresh() {
     // 🔥 ตั้งเวลาให้แอบดึงข้อมูลใหม่มาอัปเดตหน้าจอทุกๆ 3 วินาทีแบบเนียนๆ
@@ -621,7 +621,8 @@ class _DataSystemState extends State<DataSystem> {
     if (!hasValue) {
       valueText = 'ไม่มีข้อมูล';
     } else if (meta.isSwitch) {
-      valueText = (value == '0' || value.toLowerCase() == 'off')
+      // ออฟไลน์ = ปิด แม้ค่าล่าสุดที่ค้างอยู่จะเป็น 1
+      valueText = (!isOnline || value == '0' || value.toLowerCase() == 'off')
           ? 'ปิด'
           : 'เปิด';
     } else {
@@ -733,11 +734,42 @@ class _DataSystemState extends State<DataSystem> {
     }
 
     String sensorName = selectedDeviceData?['name']?.toString() ?? "-";
-    String sensorValue = selectedDeviceData?['value']?.toString() ?? "-";
     String sensorStatus =
         selectedDeviceData?['current_status']?.toString() ??
         selectedDeviceData?['status']?.toString() ??
         "-";
+    String sensorValue = selectedDeviceData?['value']?.toString() ?? "-";
+    // อุปกรณ์ที่ส่งค่า 0/1 - แสดงเป็นข้อความที่อ่านเข้าใจได้
+    //  - PIR: ตรวจพบ / ไม่พบ
+    //  - พัดลม, หลอดไฟ: ทำงาน / ไม่ทำงาน
+    final lowerName = sensorName.toLowerCase();
+    final String? onText;
+    final String? offText;
+    if (lowerName.contains('pir')) {
+      onText = 'ตรวจพบ';
+      offText = 'ไม่พบ';
+    } else if (lowerName.contains('พัดลม') ||
+        lowerName.contains('หลอดไฟ') ||
+        lowerName.contains('fan') ||
+        lowerName.contains('light')) {
+      onText = 'ทำงาน';
+      offText = 'ไม่ทำงาน';
+    } else {
+      onText = null;
+      offText = null;
+    }
+    // พัดลม/หลอดไฟที่ออฟไลน์ ถือว่าไม่ทำงาน แม้ค่าล่าสุดที่ค้างอยู่จะเป็น 1
+    final bool isSwitchDevice = onText == 'ทำงาน';
+    if (isSwitchDevice && sensorStatus.toLowerCase() != 'online') {
+      sensorValue = offText!;
+    } else if (onText != null && offText != null) {
+      final v = sensorValue.trim().toLowerCase();
+      if (v == '1' || v == '1.0' || v == 'true') {
+        sensorValue = onText;
+      } else if (v == '0' || v == '0.0' || v == 'false') {
+        sensorValue = offText;
+      }
+    }
 
     // ดึงเวลาอัปเดตล่าสุดจาก API
     String rawDate =

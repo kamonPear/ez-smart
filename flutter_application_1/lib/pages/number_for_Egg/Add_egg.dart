@@ -264,6 +264,14 @@ class _AddEggState extends State<AddEgg> {
     }
   }
 
+  void _warnIntegerOnly() {
+    // formatter ถูกเรียกระหว่างจัดการ input - เลื่อนไปแสดง banner หลังเฟรมนี้
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showBanner('กรุณากรอกเป็นตัวเลขจำนวนเต็ม');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
@@ -518,6 +526,11 @@ class _AddEggState extends State<AddEgg> {
             isRequired: true,
             controller: _eggCountController,
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              IntegerOnlyFormatter(
+                onRejected: () => _warnIntegerOnly(),
+              ),
+            ],
             hintText: 'เช่น 100',
             suffixText: 'ฟอง',
           ),
@@ -696,7 +709,10 @@ class _AddEggState extends State<AddEgg> {
                             },
                           ),
                         ),
-                      );
+                      ).then((_) {
+                        // กลับจากหน้าแก้ไข - โหลดรายการใหม่ ไม่งั้นยังเห็นจำนวนเก่า
+                        if (mounted) _fetchEggData();
+                      });
                     },
                   ),
                 );

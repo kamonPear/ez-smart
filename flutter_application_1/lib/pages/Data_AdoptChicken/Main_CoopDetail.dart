@@ -62,8 +62,9 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
       for (final row in rows) {
         if (row is! Map<String, dynamic>) continue;
         if (row['coop_id']?.toString() != coopId) continue;
-        final ts = DateTime.tryParse(row['timestamp']?.toString() ?? '')
-            ?.toLocal();
+        final ts = DateTime.tryParse(
+          row['timestamp']?.toString() ?? '',
+        )?.toLocal();
         if (ts == null) continue;
         count++;
         if (lastAt == null || ts.isAfter(lastAt)) lastAt = ts;
@@ -204,7 +205,9 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
           final healthDaysUntil = healthDueOnly.difference(todayOnly).inDays;
           if (healthDaysUntil <= 3 &&
               !checkedHealthDates.contains(healthDueOnly)) {
-            healthDueNames.putIfAbsent(healthDueOnly, () => []).add(vaccineName);
+            healthDueNames
+                .putIfAbsent(healthDueOnly, () => [])
+                .add(vaccineName);
             healthDueDaysUntil[healthDueOnly] = healthDaysUntil;
           }
         }
@@ -288,7 +291,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                             icon: Icons.thermostat_outlined,
                             value: data["temp"].toString(),
                             unit: "°",
-                            subTitle: "อุณหภูมิที่ตั้งไว้คงที่",
+                            subTitle: "อุณหภูมิที่วัดได้ปัจจุบัน",
                             color: Colors.cyan,
                             percent: tempPercent,
                           ),
@@ -296,7 +299,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                             icon: Icons.air_outlined,
                             value: data["ppm"].toString(),
                             unit: "PPM",
-                            subTitle: "ปริมาณแอมโมเนียที่ตั้งไว้คงที่",
+                            subTitle: "ปริมาณแอมโมเนียที่วัดได้ปัจจุบัน",
                             color: Colors.orange.shade800,
                             percent: ppmPercent,
                           ),
@@ -347,30 +350,36 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                                       ),
                                     ),
                                     const SizedBox(height: 8),
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          cleanAmount,
-                                          style: GoogleFonts.kanit(
-                                            color: const Color(0xFFFCA5A5),
-                                            fontSize: 36,
-                                            fontWeight: FontWeight.bold,
-                                            height: 1,
+                                    // ย่อขนาดอัตโนมัติถ้าจำนวนไก่ยาวเกินพื้นที่ ไม่งั้นล้นไปทับข้อความฝั่งขวา
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            cleanAmount,
+                                            style: GoogleFonts.kanit(
+                                              color: const Color(0xFFFCA5A5),
+                                              fontSize: 36,
+                                              fontWeight: FontWeight.bold,
+                                              height: 1,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 5),
-                                        Text(
-                                          "ตัว",
-                                          style: GoogleFonts.kanit(
-                                            color: ezColors(
-                                              context,
-                                            ).textPrimary,
-                                            fontSize: 18,
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            "ตัว",
+                                            style: GoogleFonts.kanit(
+                                              color: ezColors(
+                                                context,
+                                              ).textPrimary,
+                                              fontSize: 18,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),

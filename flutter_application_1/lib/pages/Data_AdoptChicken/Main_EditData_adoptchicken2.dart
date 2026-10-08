@@ -209,6 +209,15 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
       ),
     );
 
+    // ปิดวงล้อโหลดได้ครั้งเดียวเท่านั้น - ถ้าปิดไปแล้วแต่โค้ดหลังจากนั้นพัง
+    // catch จะไม่ pop ซ้ำจนปิดหน้าฟอร์มทั้งหน้าไปด้วย
+    var dialogOpen = true;
+    void closeLoadingDialog() {
+      if (!dialogOpen) return;
+      dialogOpen = false;
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+
     try {
       final body = jsonEncode({
         "name_coop": nameRaw,
@@ -227,8 +236,8 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
         body: body,
       );
 
-      if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
+      closeLoadingDialog();
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         // ส่งกลับเป็น ISO เหมือนที่ backend ใช้ หน้ารายการจะได้ฟอร์แมตวันที่ต่อได้ถูก
@@ -256,8 +265,8 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
         );
       }
     } catch (e) {
-      if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
+      closeLoadingDialog();
+      if (!mounted) return;
       showEzTopBanner(
         context,
         'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: $e',

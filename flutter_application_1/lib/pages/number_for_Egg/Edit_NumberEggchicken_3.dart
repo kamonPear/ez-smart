@@ -310,6 +310,11 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
             isRequired: true,
             controller: _amountController,
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              IntegerOnlyFormatter(
+                onRejected: () => _warnIntegerOnly(),
+              ),
+            ],
             hintText: 'เช่น 100',
             suffixText: 'ฟอง',
           ),
@@ -366,6 +371,18 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
         ),
       ),
     );
+  }
+
+  void _warnIntegerOnly() {
+    // formatter ถูกเรียกระหว่างจัดการ input - เลื่อนไปแสดง banner หลังเฟรมนี้
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showEzTopBanner(
+        context,
+        'กรุณากรอกเป็นตัวเลขจำนวนเต็ม',
+        type: EzBannerType.warning,
+      );
+    });
   }
 
   @override
