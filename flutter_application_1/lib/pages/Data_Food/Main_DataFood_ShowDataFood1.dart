@@ -260,10 +260,14 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
       if (!mounted) return;
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body) as Map<String, dynamic>;
+        // backend ตอบ 200 เสมอแม้ตัดไม่สำเร็จเพราะสต็อกไม่พอ (shortfall > 0) -
+        // ต้องเช็คฟิลด์นี้เอง ไม่งั้นแบนเนอร์จะขึ้นเขียว/ติ๊กถูกทั้งที่จริงๆ ไม่ได้
+        // ตัดอะไรเลย ดูเหมือนสำเร็จทั้งที่ไม่ใช่
+        final shortfall = (decoded['shortfall'] as num?)?.toDouble() ?? 0;
         showEzTopBanner(
           context,
           (decoded['message'] as String?) ?? 'ตัดสต็อกสำเร็จ',
-          type: EzBannerType.success,
+          type: shortfall > 0 ? EzBannerType.error : EzBannerType.success,
         );
         setState(() => _selectedDeductType = null);
         _fetchFoodData();
