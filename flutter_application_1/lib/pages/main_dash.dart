@@ -129,16 +129,19 @@ class _MainScreenState extends State<MainScreen> {
     });
 
     try {
-      final coopResponse = await ApiClient.get(
-        Uri.parse('$backendBaseUrl/api/coops'),
-      );
-      final healthResponse = await ApiClient.get(
-        Uri.parse('$backendBaseUrl/api/healths'),
-      );
-      final eggResponse = await ApiClient.get(Uri.parse('$backendBaseUrl/api/eggs'));
-      final deviceResponse = await ApiClient.get(
-        Uri.parse('$backendBaseUrl/api/devices'),
-      );
+      // ยิง 4 คำขอพร้อมกันแทนการรอทีละตัว (ของเดิม await ต่อกันเป็นลำดับ รวมเวลา
+      // รอเท่ากับผลรวมของทั้ง 4 คำขอ) - โดยเฉพาะตอน backend เพิ่งตื่นจาก Render
+      // free tier ที่แต่ละคำขอช้าอยู่แล้ว การรอทีละตัวยิ่งทำให้หน้าแรกโหลดช้ามาก
+      final responses = await Future.wait([
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/coops')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/healths')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/eggs')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/devices')),
+      ]);
+      final coopResponse = responses[0];
+      final healthResponse = responses[1];
+      final eggResponse = responses[2];
+      final deviceResponse = responses[3];
 
       if (coopResponse.statusCode == 200) {
         final List<dynamic> coopData = jsonDecode(coopResponse.body);

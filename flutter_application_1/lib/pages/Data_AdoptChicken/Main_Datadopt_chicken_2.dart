@@ -115,13 +115,15 @@ class _AdoptchickenState extends State<Adoptchicken> {
   /// ถ้าดึงไม่ได้จะปล่อยว่างไว้ แล้วการ์ดจะแสดงว่ายังไม่มีข้อมูล
   Future<void> _fetchCoopMetrics() async {
     try {
-      final healthResponse = await ApiClient.get(
-        Uri.parse('$backendBaseUrl/api/healths'),
-      );
-      final deviceResponse = await ApiClient.get(
-        Uri.parse('$backendBaseUrl/api/devices'),
-      );
-      final eggResponse = await ApiClient.get(Uri.parse('$backendBaseUrl/api/eggs'));
+      // ยิงพร้อมกันแทนรอทีละตัว (ดู main_dash.dart._fetchCoops ที่แก้แบบเดียวกัน)
+      final responses = await Future.wait([
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/healths')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/devices')),
+        ApiClient.get(Uri.parse('$backendBaseUrl/api/eggs')),
+      ]);
+      final healthResponse = responses[0];
+      final deviceResponse = responses[1];
+      final eggResponse = responses[2];
 
       _healthyByCoop.clear();
       _poorByCoop.clear();

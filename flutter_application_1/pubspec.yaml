@@ -55,6 +55,15 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
+
+# ไอคอนแอปบนเครื่อง (ปุ่มที่กดเปิดแอป) - เดิมใช้โลโก้ Flutter ค่าเริ่มต้น เพราะไม่
+# เคยตั้งค่าส่วนนี้เลย รันคำสั่ง `dart run flutter_launcher_icons` เพื่อสร้างไอคอน
+# จริงจาก assets/images/logo.png (โลโก้เดียวกับที่ใช้ในหน้า login/เมนู)
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/logo.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
