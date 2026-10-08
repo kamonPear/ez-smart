@@ -135,6 +135,13 @@ class _NotificationsState extends State<Notifications> {
       _fetchAndCheckNotifications();
       return;
     }
+    if (type == 'motion') {
+      // จำว่ารับทราบแล้ว - ไม่งั้นโหลดหน้าใหม่ทีไรก็กลับมาเตือนซ้ำ
+      final lastAt = data['lastAt'];
+      if (lastAt is DateTime) {
+        await acknowledgeMotionAlert(data['coopId'].toString(), lastAt);
+      }
+    }
     // type == 'food': ไม่มี endpoint สำหรับ "รับทราบ" การแจ้งเตือนสต็อก
     // แค่ปิดออกจากหน้าจอตอนนี้เท่านั้น (จะกลับมาเตือนใหม่ถ้ายังใกล้หมดอยู่ตอนโหลดหน้าใหม่)
 

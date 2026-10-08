@@ -99,6 +99,49 @@ class EzFormRow extends StatelessWidget {
   }
 }
 
+/// ไม่รับอิโมจิ (พิมพ์ตัวอักษร/สัญลักษณ์อื่นได้ตามปกติ) - อิโมจิที่พิมพ์หรือวาง
+/// เข้ามาจะถูกตัดทิ้ง และเรียก [onRejected] เพื่อให้หน้าที่ใช้แจ้งเตือนผู้ใช้
+class NoEmojiFormatter extends TextInputFormatter {
+  final VoidCallback onRejected;
+
+  const NoEmojiFormatter({required this.onRejected});
+
+  // ช่วงรหัสของอิโมจิ/พิกโตกราฟ รวมธงชาติ, variation selector และตัวเชื่อม ZWJ
+  // (ที่ใช้ประกอบอิโมจิหลายตัวเป็นตัวเดียว)
+  static final _emoji = RegExp(
+    r'[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{2460}-\u{24FF}'
+    r'\u{25A0}-\u{27BF}\u{2900}-\u{297F}\u{2B00}-\u{2BFF}\u{3030}\u{303D}'
+    r'\u{3297}\u{3299}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]',
+    unicode: true,
+  );
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (!_emoji.hasMatch(newValue.text)) return newValue;
+    onRejected();
+    // กรองทีละส่วน (ก่อน/หลังเคอร์เซอร์) เพื่อให้ตำแหน่งเคอร์เซอร์ยังถูกต้อง
+    final sel = newValue.selection;
+    if (!sel.isValid) {
+      return TextEditingValue(text: newValue.text.replaceAll(_emoji, ''));
+    }
+    final before = newValue.text.substring(0, sel.start).replaceAll(_emoji, '');
+    final selected = newValue.text
+        .substring(sel.start, sel.end)
+        .replaceAll(_emoji, '');
+    final after = newValue.text.substring(sel.end).replaceAll(_emoji, '');
+    return TextEditingValue(
+      text: '$before$selected$after',
+      selection: TextSelection(
+        baseOffset: before.length,
+        extentOffset: before.length + selected.length,
+      ),
+    );
+  }
+}
+
 /// ช่องกรอกข้อความมาตรฐานพร้อม label ด้านซ้าย ดีไซน์เดียวกันทุกช่องในฟอร์ม
 class EzFormTextField extends StatefulWidget {
   final String label;

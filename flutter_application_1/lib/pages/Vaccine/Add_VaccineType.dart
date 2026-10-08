@@ -182,10 +182,7 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
                     decimal: decimal,
                   ),
                   onChanged: (_) => onChanged(),
-                  style: GoogleFonts.kanit(
-                    color: ez.textPrimary,
-                    fontSize: 13,
-                  ),
+                  style: GoogleFonts.kanit(color: ez.textPrimary, fontSize: 13),
                   decoration: InputDecoration(
                     filled: false,
                     isCollapsed: true,
@@ -371,6 +368,18 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
     }
   }
 
+  void _warnEmoji() {
+    // formatter ถูกเรียกระหว่างจัดการ input - เลื่อนไปแสดง banner หลังเฟรมนี้
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showEzTopBanner(
+        context,
+        'ไม่สามารถกรอกอิโมจิได้',
+        type: EzBannerType.warning,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final ez = ezColors(context);
@@ -424,6 +433,9 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
                       label: 'ชื่อยา',
                       isRequired: true,
                       controller: _nameController,
+                      inputFormatters: [
+                        NoEmojiFormatter(onRejected: _warnEmoji),
+                      ],
                       hintText: 'เช่น นิวคาสเซิล, หลอดลมอักเสบ',
                     ),
                     const SizedBox(height: 12),

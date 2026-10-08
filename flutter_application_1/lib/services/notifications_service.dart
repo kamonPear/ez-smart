@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/thai_date.dart';
 import 'api_client.dart';
 import 'backend_config.dart';
@@ -9,6 +10,15 @@ import 'backend_config.dart';
 ///
 /// เตือนล่วงหน้า 2 วันก่อนถึงกำหนด (ทั้งวัคซีนและตรวจสุขภาพ) ไปจนถึงเลยกำหนดแล้ว
 const int kNotificationAdvanceDays = 2;
+
+String _motionAckKey(String coopId) => 'motion_ack_$coopId';
+
+/// จำว่าผู้ใช้กด "รับทราบ" แจ้งเตือนความเคลื่อนไหวของคอกนี้แล้ว ถึงเวลา [upTo]
+/// - ครั้งถัดไปจะแจ้งเตือนอีกก็ต่อเมื่อมีการตรวจจับใหม่หลังเวลานี้เท่านั้น
+Future<void> acknowledgeMotionAlert(String coopId, DateTime upTo) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(_motionAckKey(coopId), upTo.toUtc().toIso8601String());
+}
 
 Future<List<Map<String, dynamic>>> loadNotifications() async {
   List<Map<String, dynamic>> newNotifications = [];
@@ -26,7 +36,9 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
   // 1. แจ้งเตือนปริมาณอาหาร (ใกล้หมด / หมดแล้ว) - เช็คทุกประเภทอาหาร
   // ---------------------------------------------------------
   try {
-    final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/foods'));
+    final response = await ApiClient.get(
+      Uri.parse('$backendBaseUrl/api/foods'),
+    );
 
     if (response.statusCode == 200 &&
         response.body.isNotEmpty &&
@@ -245,13 +257,20 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
         response.body.isNotEmpty &&
         response.body != 'null') {
       final List<dynamic> rows = jsonDecode(response.body);
+      final prefs = await SharedPreferences.getInstance();
       final Map<String, Map<String, dynamic>> byCoop = {};
       for (final row in rows) {
         if (row is! Map<String, dynamic>) continue;
         final coopId = row['coop_id']?.toString();
-        final ts = DateTime.tryParse(row['timestamp']?.toString() ?? '')
-            ?.toLocal();
+        final ts = DateTime.tryParse(
+          row['timestamp']?.toString() ?? '',
+        )?.toLocal();
         if (coopId == null || ts == null) continue;
+        // ข้ามการตรวจจับที่ผู้ใช้กดรับทราบไปแล้ว
+        final ack = DateTime.tryParse(
+          prefs.getString(_motionAckKey(coopId)) ?? '',
+        );
+        if (ack != null && !ts.isAfter(ack)) continue;
         final coopName = row['coop_name']?.toString().trim().isNotEmpty == true
             ? row['coop_name'].toString()
             : 'คอก $coopId';
@@ -274,8 +293,11 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
           "type": "motion",
           "title":
               "🚶 ตรวจพบความเคลื่อนไหวที่${info['coopName']} (${info['count']} ครั้ง ล่าสุด $timeLabel)",
-          "time": timeNow,
-          "date": dateNow,
+          // แสดงเวลาที่ตรวจจับจริง ไม่ใช่เวลาปัจจุบัน (ไม่งั้นเวลาจะขยับตามทุกครั้งที่
+          // โหลดหน้า ดูเหมือนแจ้งเตือนใหม่ตลอด)
+          "time": timeLabel,
+          "date": thaiDate(lastAt),
+          "lastAt": lastAt,
           "urgent": false,
           "daysUntil": -1,
           "coopId": coopId,
