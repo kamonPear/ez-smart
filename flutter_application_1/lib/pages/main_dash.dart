@@ -412,37 +412,54 @@ class _MainScreenState extends State<MainScreen> {
                             borderRadius: BorderRadius.circular(22),
                             border: Border.all(color: ezColors(context).border),
                           ),
-                          child: TextField(
-                            textAlignVertical: TextAlignVertical.center,
-                            style: GoogleFonts.kanit(
-                              color: ezColors(context).textPrimary,
-                            ),
-                            onChanged: (value) =>
-                                setState(() => _searchQuery = value),
-                            decoration: InputDecoration(
-                              hintText: 'ค้นหาคอกไก่ (ชื่อ, เลขคอก, วันที่)',
-                              hintStyle: GoogleFonts.kanit(
-                                color: ezColors(context).textSecondary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              // ต้องปิดทุก state (enabled/focused) แยกกัน ไม่งั้น
-                              // ตอนแตะช่องค้นหา Flutter จะโชว์กรอบโฟกัสสีส้มวงรี
-                              // ทับของเดิมที่วาดเอง (ดู border.dart บน Container)
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                              ),
-                              // ไอคอนค้นหาย้ายมาไว้ซ้ายสุด (แพตเทิร์นปกติของช่อง
-                              // ค้นหาทั่วไป) แทนที่จะอยู่ขวาสุดเหมือนปุ่มอื่น
-                              prefixIcon: Icon(
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 14),
+                              Icon(
                                 Icons.search,
                                 size: 20,
                                 color: ezColors(context).textSecondary,
                               ),
-                            ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  textAlignVertical: TextAlignVertical.center,
+                                  style: GoogleFonts.kanit(
+                                    color: ezColors(context).textPrimary,
+                                  ),
+                                  onChanged: (value) =>
+                                      setState(() => _searchQuery = value),
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        'ค้นหาคอกไก่ (ชื่อ, เลขคอก, วันที่)',
+                                    hintStyle: GoogleFonts.kanit(
+                                      color: ezColors(context).textSecondary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    // ต้องปิดทุก state (enabled/focused) แยกกัน
+                                    // ไม่งั้นตอนแตะช่องค้นหา Flutter จะโชว์กรอบ
+                                    // โฟกัสสีส้มวงรีทับของเดิมที่วาดเอง (ดู
+                                    // border.dart บน Container)
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    // isDense + ไม่ใช้ prefixIcon (ย้ายไอคอนออก
+                                    // มาเป็น Widget แยกข้างบนแทน) เพราะ
+                                    // InputDecoration.prefixIcon จะถูกบังคับ
+                                    // ขนาดขั้นต่ำ 48x48 เสมอ (Material tap
+                                    // target) ซึ่งสูงกว่ากรอบ Container 44px ที่
+                                    // ตั้งไว้ ทำให้พื้นที่ไอคอนทะลุกรอบมนออกมา
+                                    // เป็นมุมเหลี่ยมโผล่พ้นขอบโค้ง - หน้า Login
+                                    // เลี่ยงปัญหานี้แบบเดียวกันอยู่แล้ว (ดู
+                                    // _PillField ใน login_page.dart)
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                            ],
                           ),
                         ),
                       ),
@@ -510,6 +527,11 @@ class _MainScreenState extends State<MainScreen> {
                     ],
                   ),
                 ),
+
+                // รายการผลค้นหาแบบดรอปดาวน์ใต้ช่องค้นหาโดยตรง ให้กดเข้าคอกได้ทันที
+                // แทนที่จะให้ผู้ใช้ไถลงไปหาเองในลิสต์คอกไก่ด้านล่าง (ของเดิมกรองลิสต์
+                // ด้านล่างอย่างเดียว ไม่มีอะไรเด้งขึ้นมาให้กดใกล้ๆ ช่องค้นหาเลย)
+                if (_searchQuery.trim().isNotEmpty) _buildSearchSuggestions(),
 
                 const SizedBox(height: 25),
 
@@ -761,6 +783,83 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSearchSuggestions() {
+    final matches = _visibleCoopList;
+    final ez = ezColors(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 260),
+        decoration: BoxDecoration(
+          color: ez.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: ez.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: matches.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 18,
+                  horizontal: 16,
+                ),
+                child: Text(
+                  'ไม่พบคอกไก่ที่ตรงกับคำค้นหา',
+                  style: GoogleFonts.kanit(
+                    color: ez.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              )
+            : ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                itemCount: matches.length,
+                separatorBuilder: (_, __) =>
+                    Divider(height: 1, color: ez.border),
+                itemBuilder: (context, index) {
+                  final coop = matches[index];
+                  return ListTile(
+                    dense: true,
+                    leading: const Text('🐔', style: TextStyle(fontSize: 20)),
+                    title: Text(
+                      'คอกไก่ ${coop["name"]}',
+                      style: GoogleFonts.kanit(
+                        fontWeight: FontWeight.w600,
+                        color: ez.textPrimary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${coop["amount"]} ตัว • นำเข้า ${coop["import_date"] ?? "-"}',
+                      style: GoogleFonts.kanit(
+                        color: ez.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                    onTap: () {
+                      FocusScope.of(context).unfocus();
+                      setState(() => _searchQuery = '');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CoopDetailPage(coop: coop),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
       ),
     );
   }

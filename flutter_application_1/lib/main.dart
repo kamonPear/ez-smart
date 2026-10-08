@@ -11,11 +11,13 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await themeController.load();
   await farmThresholdController.load();
-  // ล้าง token เก่าทุกครั้งที่เปิดแอปใหม่ เพื่อบังคับให้ต้องเข้าสู่ระบบเสมอ
-  // (ไม่ auto-login จาก token ที่ค้างอยู่ใน SharedPreferences จากรอบก่อน)
-  await AuthService().logout();
+  // เช็ค token ที่ค้างอยู่ใน SharedPreferences จากการล็อกอินรอบก่อน - ถ้ายังมีอยู่
+  // (ยังไม่ logout และยังไม่หมดอายุ) ให้เข้าหน้าหลักได้เลยโดยไม่ต้องล็อกอินซ้ำ
+  // token จริงจะหมดอายุตาม auth.TokenTTL ของ backend (7 วัน) ถ้าหมดอายุแล้ว
+  // ApiClient จะเจอ 401 จากคำขอแรกแล้วเด้งกลับไปหน้า Login ให้เองอยู่ดี
+  final isLoggedIn = await AuthService().isLoggedIn();
 
-  runApp(const MyApp(isLoggedIn: false));
+  runApp(MyApp(isLoggedIn: isLoggedIn));
 }
 
 class MyApp extends StatelessWidget {
