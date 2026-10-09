@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:convert';
 import '../../services/api_client.dart';
 
@@ -33,6 +34,9 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
 
   // ประเภทที่เลือกไว้ก่อนกดตัดสต็อก (ต้องเลือกก่อนเสมอ)
   String? _selectedDeductType;
+
+  // ประเภทที่เลือกไว้ก่อนกดอัปเดตสต็อก
+  String? _selectedUpdateType;
 
   List<dynamic> foodHistory = [];
   // ประวัติ "นำเข้า" และ "นำออก/แจกจ่าย" แยกกล่องกันคนละกล่อง เรียงใหม่สุดก่อน
@@ -291,6 +295,59 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     }
   }
 
+  // 🌟 อัปเดตสต็อก — แก้ยอดคงเหลือของอาหารประเภทหนึ่งให้ตรงกับที่นับได้จริง
+  // (ต่างจาก "เข้าสต็อก" ที่บวกเพิ่ม และ "ตัดสต็อก" ที่ลดตามจำนวนไก่ อันนี้ตั้งค่าตรงๆ)
+  Future<void> _editStock(String foodType, Map<String, dynamic>? stock) async {
+    final foodId = stock?['food_id'];
+    if (foodId == null) {
+      showEzTopBanner(
+        context,
+        'ยังไม่มีสต็อกอาหาร$foodType ให้ใช้ "เข้าสต็อกอาหาร" ก่อน',
+        type: EzBannerType.warning,
+      );
+      return;
+    }
+
+    final double? newQuantity = await showDialog<double>(
+      context: context,
+      builder: (_) => _EditStockDialog(
+        foodType: foodType,
+        currentText: _formatAmount(stock?['quantity_current']),
+      ),
+    );
+    if (newQuantity == null || !mounted) return;
+
+    try {
+      final response = await ApiClient.put(
+        Uri.parse('$backendBaseUrl/api/foods?id=$foodId'),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: json.encode({'quantity_current': newQuantity}),
+      );
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        showEzTopBanner(
+          context,
+          'อัปเดตสต็อกอาหาร$foodTypeสำเร็จ',
+          type: EzBannerType.success,
+        );
+        _fetchFoodData();
+      } else {
+        showEzTopBanner(
+          context,
+          'อัปเดตสต็อกไม่สำเร็จ (${response.statusCode})',
+          type: EzBannerType.error,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showEzTopBanner(
+        context,
+        'เชื่อมต่อ backend ไม่สำเร็จ',
+        type: EzBannerType.error,
+      );
+    }
+  }
+
   String _formatAmount(dynamic amount) {
     if (amount == null) return "0";
     double val = (amount as num).toDouble();
@@ -537,14 +594,18 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
   }
 
   /// ชิปเลือกประเภทอาหารก่อนตัดสต็อก — ต้องเลือกก่อนปุ่ม "ตัดสต็อก" จะรู้ว่าตัดยอดไหน
-  Widget _buildTypeChoiceChip(String foodType) {
+  Widget _buildTypeChoiceChip(
+    String foodType, {
+    required String? selectedType,
+    required ValueChanged<String> onSelect,
+  }) {
     final ez = ezColors(context);
-    final bool selected = _selectedDeductType == foodType;
+    final bool selected = selectedType == foodType;
     final bool empty = _isStockEmpty(
       foodType == kFoodTypeSmallPellet ? _smallStock : _largeStock,
     );
     return InkWell(
-      onTap: () => setState(() => _selectedDeductType = foodType),
+      onTap: () => onSelect(foodType),
       borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -823,12 +884,18 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                               Expanded(
                                 child: _buildTypeChoiceChip(
                                   kFoodTypeSmallPellet,
+                                  selectedType: _selectedDeductType,
+                                  onSelect: (t) =>
+                                      setState(() => _selectedDeductType = t),
                                 ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: _buildTypeChoiceChip(
                                   kFoodTypeLargePellet,
+                                  selectedType: _selectedDeductType,
+                                  onSelect: (t) =>
+                                      setState(() => _selectedDeductType = t),
                                 ),
                               ),
                             ],
@@ -863,6 +930,79 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                                         _isSelectedDeductStockEmpty)
                                     ? null
                                     : _forceDeductStock,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // การ์ดอัปเดตสต็อก: แก้ยอดคงเหลือให้ตรงกับที่นับได้จริง
+                    _buildDarkCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _sectionHeader(
+                            Icons.edit_note_rounded,
+                            'อัปเดตสต็อกอาหาร',
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'ใช้แก้ยอดคงเหลือให้ตรงกับที่นับได้จริง '
+                            'เลือกประเภทแล้วกดปุ่มนี้เพื่อกรอกยอดใหม่ ระบบจะแทนที่ยอดเดิม',
+                            style: GoogleFonts.kanit(
+                              fontSize: 11,
+                              color: ezColors(context).textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTypeChoiceChip(
+                                  kFoodTypeSmallPellet,
+                                  selectedType: _selectedUpdateType,
+                                  onSelect: (t) =>
+                                      setState(() => _selectedUpdateType = t),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildTypeChoiceChip(
+                                  kFoodTypeLargePellet,
+                                  selectedType: _selectedUpdateType,
+                                  onSelect: (t) =>
+                                      setState(() => _selectedUpdateType = t),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              _buildSecondaryActionButton(
+                                icon: Icons.edit_note_rounded,
+                                text: _selectedUpdateType == null
+                                    ? 'อัปเดตสต็อก'
+                                    : 'อัปเดตสต็อก${_selectedUpdateType!}',
+                                color: const Color(0xFF42A5F5),
+                                onTap:
+                                    (_selectedUpdateType == null ||
+                                        _isStockEmpty(
+                                          _selectedUpdateType ==
+                                                  kFoodTypeSmallPellet
+                                              ? _smallStock
+                                              : _largeStock,
+                                        ))
+                                    ? null
+                                    : () => _editStock(
+                                        _selectedUpdateType!,
+                                        _selectedUpdateType ==
+                                                kFoodTypeSmallPellet
+                                            ? _smallStock
+                                            : _largeStock,
+                                      ),
                               ),
                             ],
                           ),
@@ -1133,6 +1273,110 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// ป็อบอัพกรอกยอดสต็อกใหม่ — คืนค่า (กก.) ผ่าน Navigator.pop หรือ null ถ้ายกเลิก
+class _EditStockDialog extends StatefulWidget {
+  final String foodType;
+  final String currentText;
+
+  const _EditStockDialog({required this.foodType, required this.currentText});
+
+  @override
+  State<_EditStockDialog> createState() => _EditStockDialogState();
+}
+
+class _EditStockDialogState extends State<_EditStockDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.currentText,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = double.tryParse(_controller.text.trim());
+    if (value == null) {
+      showEzTopBanner(
+        context,
+        'กรุณากรอกยอดสต็อกเป็นตัวเลข',
+        type: EzBannerType.warning,
+      );
+      return;
+    }
+    Navigator.pop(context, value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ez = ezColors(context);
+    return AlertDialog(
+      backgroundColor: ez.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: ez.border),
+      ),
+      title: Text(
+        'อัปเดตสต็อก${widget.foodType}',
+        style: GoogleFonts.kanit(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: ez.textPrimary,
+        ),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ยอดคงเหลือปัจจุบัน ${widget.currentText} กก. — กรอกยอดที่ถูกต้องแล้วระบบจะแทนที่ยอดเดิม',
+            style: GoogleFonts.kanit(fontSize: 11, color: ez.textSecondary),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+            ],
+            style: GoogleFonts.kanit(color: ez.textPrimary),
+            decoration: InputDecoration(
+              labelText: 'ยอดคงเหลือใหม่',
+              suffixText: 'กก.',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'ยกเลิก',
+            style: GoogleFonts.kanit(color: ez.textSecondary),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: _submit,
+          style: ElevatedButton.styleFrom(backgroundColor: ez.accentGreen),
+          child: Text(
+            'บันทึก',
+            style: GoogleFonts.kanit(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Main_SenSor/Main_DeviceSummary.dart';
+import 'package:flutter_application_1/pages/Show_chart.dart';
 import 'package:flutter_application_1/pages/main_dash.dart';
 import 'package:flutter_application_1/pages/number_for_Egg/Edit_NumberEggchicken_3.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -178,6 +179,11 @@ class _AddEggState extends State<AddEgg> {
       _showBanner('กรุณากรอกตัวเลขจำนวนไข่ที่ถูกต้อง');
       return;
     }
+    // backend ตอบ 400 เมื่อจำนวนไข่เป็น 0 จึงดักไว้ก่อนส่ง
+    if (eggCount == 0) {
+      _showBanner('จำนวนไข่ต้องมากกว่า 0');
+      return;
+    }
 
     setState(() {
       isSubmitting = true;
@@ -226,13 +232,16 @@ class _AddEggState extends State<AddEgg> {
     } catch (e) {
       _showBanner('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', type: EzBannerType.error);
     } finally {
-      setState(() {
-        isSubmitting = false;
-      });
+      if (mounted) {
+        setState(() {
+          isSubmitting = false;
+        });
+      }
     }
   }
 
   void _showBanner(String message, {EzBannerType type = EzBannerType.warning}) {
+    if (!mounted) return;
     showEzTopBanner(context, message, type: type);
   }
 
@@ -241,6 +250,11 @@ class _AddEggState extends State<AddEgg> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainScreen()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
       );
     } else if (index == 3) {
       Navigator.pushReplacement(
@@ -591,7 +605,6 @@ class _AddEggState extends State<AddEgg> {
       context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
     );
     if (picked != null) {
       setState(() {

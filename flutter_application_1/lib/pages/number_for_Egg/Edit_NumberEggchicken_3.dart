@@ -33,6 +33,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
   late TextEditingController _dateController;
 
   String? _selectedCoopId;
+  String _originalAmount = '';
   DateTime _selectedDate = DateTime.now();
 
   List<String> availableCoops = [];
@@ -55,6 +56,7 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
 
     String countText =
         widget.initialData['count']?.toString().replaceAll(' ฟอง', '') ?? '';
+    _originalAmount = countText.trim();
     _amountController = TextEditingController(text: countText);
 
     _noteController = TextEditingController(
@@ -94,7 +96,6 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
       context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
     );
     if (picked != null) {
       setState(() {
@@ -160,12 +161,22 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
       ),
     );
 
+    // ปิดวงล้อโหลดได้ครั้งเดียวเท่านั้น - ถ้าปิดไปแล้วแต่โค้ดหลังจากนั้นพัง
+    // catch จะไม่ pop ซ้ำจนปิดหน้าทั้งหน้าไปด้วย
+    var dialogOpen = true;
+    void closeLoadingDialog() {
+      if (!dialogOpen) return;
+      dialogOpen = false;
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+
     try {
       String id = _eggIdController.text;
 
       // 🌟 ดักจับ ID หายเพื่อความปลอดภัย
       if (id.isEmpty || id == "null") {
-        Navigator.of(context, rootNavigator: true).pop();
+        closeLoadingDialog();
+        if (!mounted) return;
         showEzTopBanner(
           context,
           'ข้อผิดพลาด: ไม่พบ ID ของข้อมูล',
@@ -193,8 +204,8 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
         body: jsonEncode(requestBody),
       );
 
+      closeLoadingDialog();
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         showEzTopBanner(
@@ -203,6 +214,15 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
           type: EzBannerType.success,
         );
         Navigator.pop(context, true);
+      } else if (response.statusCode == 409 ||
+          response.body.contains('1062') ||
+          response.body.contains('Duplicate entry')) {
+        // 1 คอก บันทึกได้วันละ 1 ยอด - แก้ไปชนกับรายการอื่นของคอก/วันเดียวกัน
+        showEzTopBanner(
+          context,
+          'คอกนี้มีข้อมูลเก็บไข่ในวันที่เลือกอยู่แล้ว กรุณาเลือกวันที่อื่น หรือแก้ไขรายการเดิมแทน',
+          type: EzBannerType.warning,
+        );
       } else {
         String errorMsg = 'เกิดข้อผิดพลาด (${response.statusCode})';
         try {
@@ -225,8 +245,8 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
         );
       }
     } catch (e) {
+      closeLoadingDialog();
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
       showEzTopBanner(
         context,
         'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว: $e',
@@ -343,7 +363,13 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
             ),
           ),
           onPressed: () {
-            if (_amountController.text.isEmpty) {
+            // ช่องว่าง (ไม่กรอก) → คงค่าเดิมไว้ (Test Case 2)
+            if (_amountController.text.trim().isEmpty) {
+              _amountController.text = _originalAmount;
+            }
+            // กรอก 0 → ถือว่ายังไม่ได้กรอกจำนวนไข่ (Test Case 3)
+            final amount = int.tryParse(_amountController.text.trim());
+            if (amount == null || amount <= 0) {
               showEzTopBanner(
                 context,
                 'กรุณากรอกจำนวนไข่',

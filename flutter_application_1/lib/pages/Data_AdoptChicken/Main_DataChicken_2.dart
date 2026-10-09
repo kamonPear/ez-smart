@@ -67,6 +67,15 @@ class _MainchickenState extends State<Mainchicken> {
       ),
     );
 
+    // ปิดวงล้อโหลดได้ครั้งเดียวเท่านั้น - ถ้าปิดไปแล้วแต่โค้ดหลังจากนั้นพัง
+    // catch จะไม่ pop ซ้ำจนปิดหน้าทั้งหน้าไปด้วย
+    var dialogOpen = true;
+    void closeLoadingDialog() {
+      if (!dialogOpen) return;
+      dialogOpen = false;
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+
     try {
       final results = await Future.wait([
         ApiClient.get(Uri.parse('$backendBaseUrl/api/coops')),
@@ -86,8 +95,8 @@ class _MainchickenState extends State<Mainchicken> {
         }
       }
 
+      closeLoadingDialog();
       if (!mounted) return;
-      Navigator.pop(context); // ปิด dialog โหลด
 
       if (coopRaw == null) {
         debugPrint('❌ ไม่พบข้อมูลคอก $coopId');
@@ -187,7 +196,7 @@ class _MainchickenState extends State<Mainchicken> {
         ),
       );
     } catch (e) {
-      if (mounted) Navigator.pop(context); // ปิด dialog โหลดถ้าพลาด
+      closeLoadingDialog();
       debugPrint('❌ โหลดข้อมูลคอกไม่สำเร็จ: $e');
     }
   }
