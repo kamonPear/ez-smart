@@ -65,6 +65,7 @@ class _MainScreenState extends State<MainScreen> {
   double _totalFoodKg = 0;
   String _searchQuery = '';
   int _notificationCount = 0;
+  String? _username;
 
   List<Map<String, dynamic>> get _visibleCoopList {
     if (_searchQuery.trim().isEmpty) return coopList;
@@ -91,6 +92,14 @@ class _MainScreenState extends State<MainScreen> {
     _fetchCoops();
     _fetchFoodStock();
     _fetchNotificationCount();
+    _loadUsername();
+  }
+
+  Future<void> _loadUsername() async {
+    final name = await AuthService().getUsername();
+    if (mounted && name != null && name.isNotEmpty) {
+      setState(() => _username = name);
+    }
   }
 
   Future<void> _fetchNotificationCount() async {
@@ -1017,6 +1026,30 @@ class _MainScreenState extends State<MainScreen> {
                       color: ezGoldColor(context),
                     ),
                   ),
+                  if (_username != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.account_circle_outlined,
+                          size: 18,
+                          color: ezColors(context).textSecondary,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            _username!,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.kanit(
+                              fontSize: 14,
+                              color: ezColors(context).textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
