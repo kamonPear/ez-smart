@@ -557,8 +557,15 @@ class _ShowChartState extends State<ShowChart> {
                   final isSelected = _selectedBarKey == bar.key;
                   return GestureDetector(
                     onTap: () => _selectFarmBar(bar),
+                    // ค่าเริ่มต้นของ GestureDetector (deferToChild) จะรับแตะเฉพาะ
+                    // จุดที่มีอะไรวาดจริงเท่านั้น - วันที่ไม่มีไข่เลย แท่งกราฟจะสูง 0
+                    // (ดู _farmBarHeightPercent) เหลือแค่ตัวเลขวันที่ตัวเล็ก 10px
+                    // ให้แตะโดนจริงๆ ทำให้แตะยากมากโดยเฉพาะวันที่ไม่มีข้อมูล (ส่วน
+                    // ใหญ่ของปฏิทิน) - เปลี่ยนเป็น opaque ให้พื้นที่ทั้งกล่อง (รวม
+                    // ช่องว่างเหนือ/ใต้) แตะติดเสมอ ไม่ต้องเล็งตัวเลขเป๊ะๆ
+                    behavior: HitTestBehavior.opaque,
                     child: Container(
-                      width: 34,
+                      width: 40,
                       margin: const EdgeInsets.symmetric(horizontal: 3),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,

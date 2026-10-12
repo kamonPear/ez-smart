@@ -695,30 +695,25 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     return Scaffold(
       extendBody: true,
       backgroundColor: ezBackgroundColor(context),
-      body: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: EzHeader(pageTitle: 'คลังอาหาร'),
-              ),
-            ),
-          ),
-
-          Positioned(
-            top: 110,
-            left: 0,
-            right: 0,
-            bottom: 80,
-            child: SingleChildScrollView(
+      // เดิมใช้ Stack + Positioned(top: 110) สมมติว่าความสูงหัวข้อ (EzHeader +
+      // SafeArea) จะเท่ากับ 110 เสมอ ทำให้บนมือถือจริงที่ status bar สูงกว่าปกติ
+      // (เช่นมีไอคอนความเร็วเน็ต/สัญญาณ 2 เครือข่าย/แบตเตอรี่เป็น % แสดงพร้อมกัน)
+      // เนื้อหาที่เลื่อนได้จะเริ่มสูงกว่าที่ควร ทับบรรทัดหัวข้อ "คลังอาหาร" บางส่วน
+      // พอดี - เปลี่ยนเป็น Column ปกติให้ความสูงหัวข้อคำนวณจากเนื้อหาจริงเสมอ
+      // ไม่ต้องเดาตัวเลขคงที่อีกต่อไป
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: [
+              child: EzHeader(pageTitle: 'คลังอาหาร'),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 80),
+                child: Column(
+                  children: [
                   if (isLoading)
                     Skeletonizer(
                       enabled: true,
@@ -1046,6 +1041,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
             ),
           ),
         ],
+      ),
       ),
 
       bottomNavigationBar: CustomBottomBar(
