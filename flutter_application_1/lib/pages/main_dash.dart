@@ -798,27 +798,33 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          cleanAmount,
-                          style: GoogleFonts.kanit(
-                            color: ezColors(context).danger,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            height: 1,
+                    // ย่อขนาดอัตโนมัติถ้าจำนวนไก่ยาวเกินพื้นที่ ไม่งั้นล้นออกนอกการ์ด
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            cleanAmount,
+                            style: GoogleFonts.kanit(
+                              color: ezColors(context).danger,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              height: 1,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          "ตัว",
-                          style: GoogleFonts.kanit(
-                            color: ezColors(context).textPrimary,
-                            fontSize: 13,
+                          const SizedBox(width: 5),
+                          Text(
+                            "ตัว",
+                            style: GoogleFonts.kanit(
+                              color: ezColors(context).textPrimary,
+                              fontSize: 13,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
