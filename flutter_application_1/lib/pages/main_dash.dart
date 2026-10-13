@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_application_1/pages/Chicken_health_information/Main_HealthAppointments.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_Datadopt_chicken_2.dart';
 import 'package:flutter_application_1/pages/Vaccine/Add_VaccineType.dart';
+import 'package:flutter_application_1/pages/Backup/Main_Backup.dart';
 import '../../services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
@@ -19,6 +20,7 @@ import '../../services/backend_config.dart';
 import '../../services/notifications_service.dart';
 import '../widgets/ez_header.dart';
 import '../widgets/ez_gauge.dart';
+import '../widgets/ez_search_bar.dart';
 import '../theme/app_theme.dart';
 import '../theme/farm_settings.dart';
 import '../utils/thai_date.dart';
@@ -410,66 +412,9 @@ class _MainScreenState extends State<MainScreen> {
                       ),
                       const SizedBox(width: 15),
                       Expanded(
-                        child: Container(
-                          height: 44,
-                          // ดีไซน์เดียวกับช่องกรอก username/password ในหน้า login
-                          // (ez.inputFill + ez.border + โค้งเต็มแคปซูล) ของเดิมใช้
-                          // Colors.white ล้วนๆ กับไอคอนสีดำทื่อๆ ไม่ตรงธีมสีครีม/
-                          // น้ำตาลของแอป เลยดูเป็นกล่องสี่เหลี่ยมแปลกแยกจากที่อื่น
-                          decoration: BoxDecoration(
-                            color: ezColors(context).inputFill,
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(color: ezColors(context).border),
-                          ),
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 14),
-                              Icon(
-                                Icons.search,
-                                size: 20,
-                                color: ezColors(context).textSecondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextField(
-                                  textAlignVertical: TextAlignVertical.center,
-                                  style: GoogleFonts.kanit(
-                                    color: ezColors(context).textPrimary,
-                                  ),
-                                  onChanged: (value) =>
-                                      setState(() => _searchQuery = value),
-                                  decoration: InputDecoration(
-                                    hintText:
-                                        'ค้นหาคอกไก่ (ชื่อ, เลขคอก, วันที่)',
-                                    hintStyle: GoogleFonts.kanit(
-                                      color: ezColors(context).textSecondary,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    // ต้องปิดทุก state (enabled/focused) แยกกัน
-                                    // ไม่งั้นตอนแตะช่องค้นหา Flutter จะโชว์กรอบ
-                                    // โฟกัสสีส้มวงรีทับของเดิมที่วาดเอง (ดู
-                                    // border.dart บน Container)
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    // isDense + ไม่ใช้ prefixIcon (ย้ายไอคอนออก
-                                    // มาเป็น Widget แยกข้างบนแทน) เพราะ
-                                    // InputDecoration.prefixIcon จะถูกบังคับ
-                                    // ขนาดขั้นต่ำ 48x48 เสมอ (Material tap
-                                    // target) ซึ่งสูงกว่ากรอบ Container 44px ที่
-                                    // ตั้งไว้ ทำให้พื้นที่ไอคอนทะลุกรอบมนออกมา
-                                    // เป็นมุมเหลี่ยมโผล่พ้นขอบโค้ง - หน้า Login
-                                    // เลี่ยงปัญหานี้แบบเดียวกันอยู่แล้ว (ดู
-                                    // _PillField ใน login_page.dart)
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                            ],
-                          ),
+                        child: EzSearchField(
+                          onChanged: (value) =>
+                              setState(() => _searchQuery = value),
                         ),
                       ),
                       const SizedBox(width: 15),
@@ -540,7 +485,14 @@ class _MainScreenState extends State<MainScreen> {
                 // รายการผลค้นหาแบบดรอปดาวน์ใต้ช่องค้นหาโดยตรง ให้กดเข้าคอกได้ทันที
                 // แทนที่จะให้ผู้ใช้ไถลงไปหาเองในลิสต์คอกไก่ด้านล่าง (ของเดิมกรองลิสต์
                 // ด้านล่างอย่างเดียว ไม่มีอะไรเด้งขึ้นมาให้กดใกล้ๆ ช่องค้นหาเลย)
-                if (_searchQuery.trim().isNotEmpty) _buildSearchSuggestions(),
+                if (_searchQuery.trim().isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: EzSearchResults(
+                      query: _searchQuery,
+                      onOpened: () => setState(() => _searchQuery = ""),
+                    ),
+                  ),
 
                 const SizedBox(height: 25),
 
@@ -796,83 +748,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildSearchSuggestions() {
-    final matches = _visibleCoopList;
-    final ez = ezColors(context);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-      child: Container(
-        constraints: const BoxConstraints(maxHeight: 260),
-        decoration: BoxDecoration(
-          color: ez.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: ez.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.15),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: matches.isEmpty
-            ? Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 18,
-                  horizontal: 16,
-                ),
-                child: Text(
-                  'ไม่พบคอกไก่ที่ตรงกับคำค้นหา',
-                  style: GoogleFonts.kanit(
-                    color: ez.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-              )
-            : ListView.separated(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                itemCount: matches.length,
-                separatorBuilder: (_, __) =>
-                    Divider(height: 1, color: ez.border),
-                itemBuilder: (context, index) {
-                  final coop = matches[index];
-                  return ListTile(
-                    dense: true,
-                    leading: const Text('🐔', style: TextStyle(fontSize: 20)),
-                    title: Text(
-                      'คอกไก่ ${coop["name"]}',
-                      style: GoogleFonts.kanit(
-                        fontWeight: FontWeight.w600,
-                        color: ez.textPrimary,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '${coop["amount"]} ตัว • นำเข้า ${coop["import_date"] ?? "-"}',
-                      style: GoogleFonts.kanit(
-                        color: ez.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                    onTap: () {
-                      FocusScope.of(context).unfocus();
-                      setState(() => _searchQuery = '');
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CoopDetailPage(coop: coop),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-      ),
-    );
-  }
-
   Widget _buildCoopCard(Map<String, dynamic> data) {
     // ✅ ลบคำว่า "ตัว" ออกจากค่า amount
     String cleanAmount = data["amount"].toString().replaceAll(
@@ -1114,6 +989,19 @@ class _MainScreenState extends State<MainScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const AddVaccineType(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDrawerItem(
+                    Icons.backup_outlined,
+                    'สำรองข้อมูล',
+                    () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MainBackup(),
                         ),
                       );
                     },

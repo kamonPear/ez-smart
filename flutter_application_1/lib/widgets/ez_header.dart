@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import 'ez_search_bar.dart';
 
 // Helper ที่คืนค่าสีตามโหมดปัจจุบัน (มืด/สว่าง) ของแอป
 // เดิมเป็นค่าคงที่ ตอนนี้อ่านจาก Theme เพื่อให้สลับสีได้ตามโทน
@@ -61,12 +62,16 @@ class EzHeader extends StatelessWidget {
   final VoidCallback? onBack;
   final Widget? trailing;
 
+  /// แสดงช่องค้นหากลาง (ค้นข้อมูลทั้งแอป) ใต้ชื่อหน้า - เปิดไว้ทุกหน้าโดยปริยาย
+  final bool showSearch;
+
   const EzHeader({
     super.key,
     required this.pageTitle,
     this.showBackButton = true,
     this.onBack,
     this.trailing,
+    this.showSearch = true,
   });
 
   @override
@@ -121,6 +126,7 @@ class EzHeader extends StatelessWidget {
             trailing ?? const SizedBox(width: 48),
           ],
         ),
+        if (showSearch) const EzSearchBar(),
       ],
     );
   }
