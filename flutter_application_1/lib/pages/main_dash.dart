@@ -1012,6 +1012,7 @@ class _MainScreenState extends State<MainScreen> {
                       );
                     },
                   ),
+                  _buildContactUsItem(context),
                   Divider(color: ezColors(context).border, height: 24),
                   _buildThemeToggleItem(context),
                   _buildDrawerItem(
@@ -1068,6 +1069,70 @@ class _MainScreenState extends State<MainScreen> {
     Navigator.of(
       context,
     ).pushNamedAndRemoveUntil('/login', (route) => false);
+  }
+
+  Widget _buildContactUsItem(BuildContext context) {
+    final colors = ezColors(context);
+    Widget row(String name, String phone) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Text(
+            name,
+            style: GoogleFonts.kanit(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          SelectableText(
+            phone,
+            style: GoogleFonts.kanit(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        leading: Icon(Icons.phone_outlined, color: ezGoldColor(context)),
+        title: Text(
+          'ติดต่อเรา',
+          style: GoogleFonts.kanit(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        iconColor: colors.textSecondary,
+        collapsedIconColor: colors.textSecondary,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'โทรติดต่อสอบถามการใช้งาน/ปัญหาระบบ',
+                style: GoogleFonts.kanit(
+                  color: colors.textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
+          Divider(color: colors.border, height: 1),
+          row('คุณแพร', '062-457-3255'),
+          Divider(color: colors.border, height: 1),
+          row('คุณออย', '082-661-8867'),
+        ],
+      ),
+    );
   }
 
   Widget _buildThemeToggleItem(BuildContext context) {

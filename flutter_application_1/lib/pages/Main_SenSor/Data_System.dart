@@ -705,7 +705,7 @@ class _DataSystemState extends State<DataSystem> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${device['slot_index'] != null ? 'ช่อง ${device['slot_index']} · ' : ''}'
+                    '${device['slot_index'] != null ? 'หมายเลข ${device['slot_index']} · ' : ''}'
                     '$name · ${isOnline ? 'ออนไลน์' : 'ออฟไลน์'}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
