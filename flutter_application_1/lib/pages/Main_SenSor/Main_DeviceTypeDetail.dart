@@ -133,7 +133,7 @@ class MainDeviceTypeDetail extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 40),
                         child: Center(
                           child: Text(
-                            'ไม่มีอุปกรณ์ชนิดนี้',
+                            'ไม่มีเซนเซอร์ชนิดนี้',
                             style: GoogleFonts.kanit(
                               color: ez.textSecondary,
                               fontSize: 15,

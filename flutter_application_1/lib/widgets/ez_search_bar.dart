@@ -14,7 +14,7 @@ class EzSearchField extends StatelessWidget {
     super.key,
     required this.onChanged,
     this.controller,
-    this.hintText = 'ค้นหาทุกอย่างในแอป (คอก, อุปกรณ์, วัคซีน, วันที่)',
+    this.hintText = 'ค้นหาทุกอย่างในแอป (คอก, เซนเซอร์, วัคซีน, วันที่)',
   });
 
   @override

@@ -590,7 +590,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                         Expanded(
                           child: _buildMenuButton(
                             icon: Icons.cell_tower,
-                            label: "อุปกรณ์,เซนเซอร์",
+                            label: "เซนเซอร์",
                             onTap: () async {
                               await Navigator.push(
                                 context,

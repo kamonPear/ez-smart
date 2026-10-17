@@ -192,9 +192,9 @@ class GlobalSearchService {
       final name = _s(d['name']);
       final status = _s(d['current_status']);
       entries.add(SearchEntry(
-        category: 'อุปกรณ์',
+        category: 'เซนเซอร์',
         emoji: '📟',
-        title: name.isEmpty ? 'อุปกรณ์' : name,
+        title: name.isEmpty ? 'เซนเซอร์' : name,
         subtitle: 'คอก $coop${status.isEmpty ? '' : ' • สถานะ $status'}'
             '${_s(d['value']).isEmpty ? '' : ' • ค่า ${_s(d['value'])}'}',
         haystack: 'อุปกรณ์ เซนเซอร์ $name $status $coop ${_s(d['value'])}'.toLowerCase(),
@@ -318,7 +318,7 @@ class GlobalSearchService {
     _page('🎚️', 'ค่ามาตรฐานทุกคอก', 'ตั้งค่า อุณหภูมิ แอมโมเนีย threshold', (_) => const MainFarmThresholds()),
     _page('📅', 'นัดตรวจสุขภาพ', 'นัด ตรวจ สุขภาพ', (_) => const MainHealthAppointments()),
     _page('💉', 'เพิ่มยาวัคซีน', 'วัคซีน ยา', (_) => const AddVaccineType()),
-    _page('📟', 'อุปกรณ์รวม', 'เซนเซอร์ อุปกรณ์', (_) => const MainDeviceSummary()),
+    _page('📟', 'เซนเซอร์รวม', 'เซนเซอร์ อุปกรณ์', (_) => const MainDeviceSummary()),
     _page('📊', 'สถิติไข่รวม', 'กราฟ สถิติ ไข่', (_) => const ShowChart()),
     _page('🗓️', 'ปฏิทินรวม', 'ปฏิทิน วัน นัด', (_) => const Mainchicken()),
     _page('🌾', 'สต็อกอาหาร', 'อาหาร สต็อก', (_) => const MainShowDataFood()),

@@ -112,6 +112,78 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
       .where((c) => c['food_type'] == _selectedFoodType)
       .toList();
 
+  /// ประมาณการเป็น กก. แสดงสูงสุด 3 ตำแหน่ง (ไม่ปัดเหลือ 0.0) ตัดศูนย์ท้ายทิ้ง
+  String _formatKg(num kg) {
+    final s = kg.toStringAsFixed(3);
+    return s.contains('.')
+        ? s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')
+        : s;
+  }
+
+  /// ช่วงอายุที่เจ้าของตั้งไว้ของคอกนี้ (max 0 = ไม่จำกัด)
+  String _ageRangeText(dynamic data) {
+    final min = (data['age_min_weeks'] as num?)?.toInt() ?? 0;
+    final max = (data['age_max_weeks'] as num?)?.toInt() ?? 0;
+    return max == 0 ? 'ตั้งแต่ $min สัปดาห์ขึ้นไป' : '$min-$max สัปดาห์';
+  }
+
+  /// แถว "รวมทุกคอก" ของประเภทที่เลือก - จำนวนคอก/ตัว และผลรวมยอดล่าสุดที่ตัดจริง
+  /// (คอกที่ยังไม่มีประวัตินับเป็น 0)
+  Widget _buildTotalRow(List<dynamic> coops) {
+    final ez = ezColors(context);
+    int chickens = 0;
+    double totalKg = 0;
+    for (final c in coops) {
+      chickens += (c['amount'] as num?)?.toInt() ?? 0;
+      totalKg +=
+          _actualKgByCoopType['${c['coop_id'] ?? ''}_$_selectedFoodType'] ?? 0;
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: ez.background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ez.gold),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'รวมทุกคอก',
+                  style: GoogleFonts.kanit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: ez.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${coops.length} คอก • $chickens ตัว',
+                  style: GoogleFonts.kanit(
+                    fontSize: 11,
+                    color: ez.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${_formatKg(totalKg)} กก.',
+            style: GoogleFonts.kanit(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: ez.gold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTypeTab(String foodType) {
     final ez = ezColors(context);
     final bool selected = _selectedFoodType == foodType;
@@ -199,11 +271,20 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
                     color: ez.textSecondary,
                   ),
                 ),
+                Text(
+                  'อยู่ในช่วงอายุ ${_ageRangeText(data)} จึงกิน$foodType '
+                  '• ตัวละ ${_formatKg((data['grams_per_bird'] as num?) ?? 0)} กรัม/วัน '
+                  '= ${_formatKg((data['estimated_kg_per_day'] as num?) ?? 0)} กก./วัน',
+                  style: GoogleFonts.kanit(
+                    fontSize: 11,
+                    color: ez.textSecondary,
+                  ),
+                ),
               ],
             ),
           ),
           Text(
-            actualKg != null ? '${actualKg.toStringAsFixed(1)} กก.' : '-',
+            actualKg != null ? '${_formatKg(actualKg)} กก.' : '-',
             style: GoogleFonts.kanit(
               fontSize: 15,
               fontWeight: FontWeight.bold,
@@ -311,7 +392,7 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
                                   ),
                                 ),
                                 Text(
-                                  '${kg.toStringAsFixed(1)} กก.',
+                                  '${_formatKg(kg)} กก.',
                                   style: GoogleFonts.kanit(
                                     color: ez.textPrimary,
                                     fontSize: 14,
@@ -444,6 +525,7 @@ class _MainFoodTypeSummaryState extends State<MainFoodTypeSummary> {
                   ),
                 )
               else ...[
+                if (coops.isNotEmpty) _buildTotalRow(coops),
                 Text(
                   'แยกตามคอก',
                   style: GoogleFonts.kanit(
