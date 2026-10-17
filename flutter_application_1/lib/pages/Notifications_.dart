@@ -135,6 +135,10 @@ class _NotificationsState extends State<Notifications> {
       _fetchAndCheckNotifications();
       return;
     }
+    if (type == 'offline') {
+      // จำว่ารับทราบแล้ว ไม่ขึ้นซ้ำจนกว่าอุปกรณ์จะกลับมาปกติแล้วเสียรอบใหม่
+      await acknowledgeOfflineAlert(data['id'].toString());
+    }
     if (type == 'motion') {
       // จำว่ารับทราบแล้ว - ไม่งั้นโหลดหน้าใหม่ทีไรก็กลับมาเตือนซ้ำ
       final lastAt = data['lastAt'];
@@ -142,7 +146,11 @@ class _NotificationsState extends State<Notifications> {
         await acknowledgeMotionAlert(data['coopId'].toString(), lastAt);
       }
     }
-    // type == 'food': ไม่มี endpoint สำหรับ "รับทราบ" การแจ้งเตือนสต็อก
+    if (type == 'food' && data['id'].toString().startsWith('foodswitch_')) {
+      // แจ้งเตือนเปลี่ยนประเภทอาหารตามอายุ - จำว่ารับทราบแล้ว ไม่ขึ้นซ้ำ
+      await acknowledgeFoodSwitchAlert(data['id'].toString());
+    }
+    // type == 'food' (สต็อก): ไม่มี endpoint สำหรับ "รับทราบ" การแจ้งเตือนสต็อก
     // แค่ปิดออกจากหน้าจอตอนนี้เท่านั้น (จะกลับมาเตือนใหม่ถ้ายังใกล้หมดอยู่ตอนโหลดหน้าใหม่)
 
     // ลบออกจากหน้าจอ
@@ -219,7 +227,9 @@ class _NotificationsState extends State<Notifications> {
               ? Icons.medical_information_outlined
               : (type == 'motion'
                     ? Icons.directions_walk_rounded
-                    : Icons.grass_rounded));
+                    : (type == 'offline'
+                          ? Icons.sensors_off_rounded
+                          : Icons.grass_rounded)));
     final Color statusColor = isUrgent
         ? ez.danger
         : (type == 'vaccine' || type == 'health'
@@ -232,12 +242,14 @@ class _NotificationsState extends State<Notifications> {
     final int daysUntil = (data['daysUntil'] as num?)?.toInt() ?? -1;
     final bool canCompleteVaccine = type != 'vaccine' || daysUntil <= 0;
 
-    String buttonText = type == "food" || type == "motion"
+    String buttonText = type == "food" || type == "motion" || type == "offline"
         ? "รับทราบ"
         : (type == "health"
               ? "ไปตรวจสุขภาพ"
               : (!canCompleteVaccine ? "ยังไม่ถึงวันให้" : "เสร็จสิ้น"));
-    Color buttonColor = type == "food"
+    Color buttonColor = type == "offline"
+        ? ez.danger
+        : type == "food"
         ? Colors.blueAccent
         : (type == "health"
               ? const Color(0xFFFFA726)
