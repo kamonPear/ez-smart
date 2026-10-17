@@ -239,7 +239,7 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: EzHeader(pageTitle: 'อุปกรณ์ทั้งฟาร์ม'),
+              child: EzHeader(pageTitle: 'เซนเซอร์ทั้งฟาร์ม'),
             ),
             const SizedBox(height: 10),
             Expanded(
@@ -277,7 +277,7 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'อุปกรณ์ทั้งหมดในฟาร์ม',
+                              'เซนเซอร์ทั้งหมดในฟาร์ม',
                               style: GoogleFonts.kanit(
                                 color: ez.textSecondary,
                                 fontSize: 13,
@@ -300,7 +300,7 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
                           padding: const EdgeInsets.symmetric(vertical: 40),
                           child: Center(
                             child: Text(
-                              'ยังไม่มีอุปกรณ์ในระบบ',
+                              'ยังไม่มีเซนเซอร์ในระบบ',
                               style: GoogleFonts.kanit(
                                 color: ez.textSecondary,
                                 fontSize: 15,

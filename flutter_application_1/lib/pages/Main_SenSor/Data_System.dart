@@ -191,7 +191,7 @@ class _DataSystemState extends State<DataSystem> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     children: [
-                      const EzHeader(pageTitle: 'อุปกรณ์เซนเซอร์'),
+                      const EzHeader(pageTitle: 'เซนเซอร์'),
                       const SizedBox(height: 20),
 
                       // 1. ตัวเลือกคอก — ถ้าเปิดมาจากคอกใดคอกหนึ่งโดยเฉพาะ (initialCoopId)
@@ -255,7 +255,7 @@ class _DataSystemState extends State<DataSystem> {
                                       ),
                                       const SizedBox(height: 10),
                                       Text(
-                                        "ไม่พบอุปกรณ์ในคอกนี้",
+                                        "ไม่พบเซนเซอร์ในคอกนี้",
                                         style: GoogleFonts.kanit(
                                           color: ezColors(context).textPrimary,
                                           fontSize: 15,
@@ -388,7 +388,7 @@ class _DataSystemState extends State<DataSystem> {
           ),
           const SizedBox(height: 6),
           Text(
-            "เพื่อดูสถานะอุปกรณ์และเซนเซอร์ของคอกนั้น",
+            "เพื่อดูสถานะเซนเซอร์ของคอกนั้น",
             textAlign: TextAlign.center,
             style: GoogleFonts.kanit(fontSize: 13, color: ez.textSecondary),
           ),
@@ -499,7 +499,7 @@ class _DataSystemState extends State<DataSystem> {
         ),
         const SizedBox(height: 14),
         Text(
-          "สถานะอุปกรณ์",
+          "สถานะเซนเซอร์",
           style: GoogleFonts.kanit(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -508,7 +508,7 @@ class _DataSystemState extends State<DataSystem> {
         ),
         const SizedBox(height: 2),
         Text(
-          "แตะที่การ์ดด้านล่างเพื่อดูรายละเอียดอุปกรณ์นั้น",
+          "แตะที่การ์ดด้านล่างเพื่อดูรายละเอียดเซนเซอร์นั้น",
           style: GoogleFonts.kanit(fontSize: 11, color: ez.textSecondary),
         ),
       ],
@@ -562,7 +562,7 @@ class _DataSystemState extends State<DataSystem> {
         ),
         const SizedBox(height: 14),
         Text(
-          "สถานะอุปกรณ์",
+          "สถานะเซนเซอร์",
           style: GoogleFonts.kanit(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -571,7 +571,7 @@ class _DataSystemState extends State<DataSystem> {
         ),
         const SizedBox(height: 2),
         Text(
-          "แตะที่การ์ดด้านล่างเพื่อดูรายละเอียดอุปกรณ์นั้น",
+          "แตะที่การ์ดด้านล่างเพื่อดูรายละเอียดเซนเซอร์นั้น",
           style: GoogleFonts.kanit(fontSize: 11, color: ez.textSecondary),
         ),
       ],
@@ -814,7 +814,7 @@ class _DataSystemState extends State<DataSystem> {
                         ? selectedDeviceId
                         : null,
                     hint: Text(
-                      "เลือกอุปกรณ์",
+                      "เลือกเซนเซอร์",
                       style: GoogleFonts.kanit(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -841,7 +841,7 @@ class _DataSystemState extends State<DataSystem> {
                       return DropdownMenuItem<String>(
                         value: id,
                         child: Text(
-                          device['name']?.toString() ?? "อุปกรณ์ $id",
+                          device['name']?.toString() ?? "เซนเซอร์ $id",
                           style: GoogleFonts.kanit(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,

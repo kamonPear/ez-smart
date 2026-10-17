@@ -34,7 +34,7 @@ class CustomBottomBar extends StatelessWidget {
       _destination(
         icon: Icons.sensors_outlined,
         selectedIcon: Icons.sensors,
-        label: 'อุปกรณ์รวม',
+        label: 'เซนเซอร์รวม',
         hasSelection: hasSelection,
       ),
       _destination(

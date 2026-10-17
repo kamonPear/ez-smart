@@ -20,6 +20,40 @@ Future<void> acknowledgeMotionAlert(String coopId, DateTime upTo) async {
   await prefs.setString(_motionAckKey(coopId), upTo.toUtc().toIso8601String());
 }
 
+/// สต็อกอาหารเหลือต่ำกว่านี้ (กก.) แจ้งเตือน "ใกล้หมดแล้ว" เสมอ ไม่ว่าจะตั้งขั้นต่ำไว้เท่าไร
+const double kFoodLowKg = 20;
+
+/// เตือนล่วงหน้า/ค้างหลังไก่ถึงช่วงอายุที่ต้องเปลี่ยนประเภทอาหารกี่วัน
+const int kFoodSwitchWindowDays = 3;
+
+const String _foodSwitchAckKey = 'food_switch_ack';
+
+/// จำว่าผู้ใช้กด "รับทราบ" แจ้งเตือนเปลี่ยนประเภทอาหารตามอายุ [id] แล้ว
+/// (id ผูกกับคอก+ประเภทอาหารใหม่ ไม่ขึ้นซ้ำ แต่ช่วงอายุถัดไปจะขึ้นเป็นแจ้งเตือนใหม่)
+Future<void> acknowledgeFoodSwitchAlert(String id) async {
+  final prefs = await SharedPreferences.getInstance();
+  final acks = prefs.getStringList(_foodSwitchAckKey) ?? <String>[];
+  if (!acks.contains(id)) {
+    acks.add(id);
+    await prefs.setStringList(_foodSwitchAckKey, acks);
+  }
+}
+
+const String _offlineAckKey = 'offline_ack';
+
+/// จำว่าผู้ใช้กด "รับทราบ" แจ้งเตือนเซนเซอร์/พัดลมไม่ทำงานของอุปกรณ์ [id] แล้ว
+/// - id ผูกกับอุปกรณ์อย่างเดียว (ห้ามใส่ last_update: พัดลมส่งสถานะทุก 2 วินาที ค่านี้
+///   เปลี่ยนตลอด ทำให้กดรับทราบแล้วแจ้งเตือนกลับมาเอง) การรับทราบจะถูกล้างเองเมื่อ
+///   อุปกรณ์กลับมาปกติ ถ้าเสียรอบใหม่จึงแจ้งเตือนใหม่
+Future<void> acknowledgeOfflineAlert(String id) async {
+  final prefs = await SharedPreferences.getInstance();
+  final acks = prefs.getStringList(_offlineAckKey) ?? <String>[];
+  if (!acks.contains(id)) {
+    acks.add(id);
+    await prefs.setStringList(_offlineAckKey, acks);
+  }
+}
+
 Future<List<Map<String, dynamic>>> loadNotifications() async {
   List<Map<String, dynamic>> newNotifications = [];
   DateTime today = DateTime.now();
@@ -64,18 +98,123 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
             "urgent": true,
             "daysUntil": -999,
           });
-        } else if (currentQuantity <= minQuantity) {
+        } else if (currentQuantity < kFoodLowKg ||
+            currentQuantity <= minQuantity) {
           newNotifications.add({
             "id": foodId,
             "type": "food",
             "title":
-                "⚠️ อาหาร$foodTypeใกล้หมด (เหลือ ${currentQuantity.toStringAsFixed(1)} กก.)",
+                "⚠️ อาหาร$foodTypeใกล้หมดแล้ว (เหลือ ${currentQuantity.toStringAsFixed(1)} กก.)",
             "time": timeNow,
             "date": dateNow,
             "urgent": false,
             "daysUntil": -999,
           });
         }
+      }
+    }
+  } catch (e) {
+    // ข้อมูลเสริม ดึงไม่ได้ก็ยังแสดงแจ้งเตือนอื่นได้ตามปกติ
+  }
+
+  // ---------------------------------------------------------
+  // 1b. แจ้งเตือนไก่เปลี่ยนช่วงอายุ -> ต้องเปลี่ยนประเภทอาหาร (ตามตารางอาหารตามอายุที่
+  //     เจ้าของตั้งไว้) หาขอบช่วงที่ประเภทอาหารต่างจากช่วงก่อนหน้า แล้วเตือนล่วงหน้า/ค้าง
+  //     หลังถึงวันนั้น kFoodSwitchWindowDays วัน (วันถึงขอบช่วง = วันเกิด + min_weeks x 7)
+  // ---------------------------------------------------------
+  try {
+    final results = await Future.wait([
+      ApiClient.get(Uri.parse('$backendBaseUrl/api/coops')),
+      ApiClient.get(Uri.parse('$backendBaseUrl/api/food-age-rules')),
+    ]);
+    if (results[0].statusCode == 200 && results[1].statusCode == 200) {
+      final coops = jsonDecode(results[0].body);
+      final rawRules = results[1].body.isNotEmpty && results[1].body != 'null'
+          ? jsonDecode(results[1].body)
+          : [];
+      final rules = <Map<String, dynamic>>[
+        if (rawRules is List)
+          for (final r in rawRules)
+            if (r is Map<String, dynamic> &&
+                (r['food_type']?.toString() ?? '').isNotEmpty)
+              {
+                'type': r['food_type'].toString(),
+                'min': (r['min_weeks'] as num?)?.toInt() ?? 0,
+                'max': (r['max_weeks'] as num?)?.toInt() ?? 0,
+              },
+      ];
+      Map<String, dynamic>? ruleAt(int ageWeeks) {
+        for (final r in rules) {
+          if (ageWeeks >= (r['min'] as int) &&
+              ((r['max'] as int) == 0 || ageWeeks < (r['max'] as int))) {
+            return r;
+          }
+        }
+        return null;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final acks = (prefs.getStringList(_foodSwitchAckKey) ?? <String>[]).toSet();
+
+      for (final c in (coops is List ? coops : const [])) {
+        if (c is! Map<String, dynamic>) continue;
+        final birthday = DateTime.tryParse(c['birthday']?.toString() ?? '')?.toLocal();
+        if (birthday == null) continue;
+        final coopId = (c['coop_id'] ?? c['id']).toString();
+        final coopName = c['name_coop']?.toString().trim().isNotEmpty == true
+            ? c['name_coop'].toString()
+            : 'คอก $coopId';
+        final birthOnly = DateTime(birthday.year, birthday.month, birthday.day);
+
+        Map<String, dynamic>? best;
+        for (final r in rules) {
+          final min = r['min'] as int;
+          if (min <= 0) continue;
+          final prev = ruleAt(min - 1);
+          if (prev == null || prev['type'] == r['type']) continue;
+          final boundary = DateTime(
+            birthOnly.year,
+            birthOnly.month,
+            birthOnly.day + min * 7,
+          );
+          final days = boundary.difference(todayOnly).inDays;
+          if (days > kFoodSwitchWindowDays || days < -kFoodSwitchWindowDays) {
+            continue;
+          }
+          if (best == null || days.abs() < (best['days'] as int).abs()) {
+            best = {'days': days, 'from': prev['type'], 'to': r['type']};
+          }
+        }
+        if (best == null) continue;
+
+        final id = 'foodswitch_${coopId}_${best['to']}';
+        if (acks.contains(id)) continue;
+
+        final days = best['days'] as int;
+        final from = best['from'];
+        final to = best['to'];
+        String title;
+        if (days < 0) {
+          title =
+              "🌾 $coopNameถึงช่วงเปลี่ยนเป็นอาหาร$toมา ${-days} วันแล้ว (จากเดิมอาหาร$from) กรุณาเปลี่ยนอาหาร";
+        } else if (days == 0) {
+          title = "🌾 วันนี้$coopNameต้องเปลี่ยนจากอาหาร$fromเป็นอาหาร$to";
+        } else if (days == 1) {
+          title = "🌾 พรุ่งนี้$coopNameต้องเปลี่ยนจากอาหาร$fromเป็นอาหาร$to";
+        } else {
+          title = "🌾 อีก $days วัน$coopNameต้องเปลี่ยนจากอาหาร$fromเป็นอาหาร$to";
+        }
+        newNotifications.add({
+          "id": id,
+          "type": "food",
+          "title": title,
+          "time": timeNow,
+          "date": dateNow,
+          "urgent": days <= 0,
+          "daysUntil": days,
+          "coopId": coopId,
+          "coopName": coopName,
+        });
       }
     }
   } catch (e) {
@@ -304,6 +443,73 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
           "coopName": info['coopName'],
         });
       });
+    }
+  } catch (e) {
+    // ข้อมูลเสริม ดึงไม่ได้ก็ยังแสดงแจ้งเตือนอื่นได้ตามปกติ
+  }
+
+  // ---------------------------------------------------------
+  // 5. แจ้งเตือนเซนเซอร์ไม่ทำงาน (Offline) และพัดลมที่ควรทำงานแต่ไม่ทำงาน (อุณหภูมิ/
+  //    แอมโมเนียถึงเกณฑ์ฟาร์มแล้ว) - ข้อมูลมาจาก /api/offline-alerts ซึ่ง backend คัดมาให้
+  //    แล้ว (เฉพาะคอกที่กำลังส่งข้อมูลจากบอร์ดอยู่) 1 แจ้งเตือนต่ออุปกรณ์
+  // ---------------------------------------------------------
+  try {
+    final response = await ApiClient.get(
+      Uri.parse('$backendBaseUrl/api/offline-alerts'),
+    );
+    if (response.statusCode == 200) {
+      final decoded = response.body.isNotEmpty && response.body != 'null'
+          ? jsonDecode(response.body)
+          : [];
+      final List<dynamic> rows = decoded is List ? decoded : [];
+      final prefs = await SharedPreferences.getInstance();
+      final acks = prefs.getStringList(_offlineAckKey) ?? <String>[];
+      final currentIds = <String>{};
+      for (final row in rows) {
+        if (row is! Map<String, dynamic>) continue;
+        final id = 'offline_${row['device_id']}';
+        currentIds.add(id);
+        if (acks.contains(id)) continue;
+
+        final coopId = row['coop_id']?.toString() ?? '';
+        var coopName = row['coop_name']?.toString().trim().isNotEmpty == true
+            ? row['coop_name'].toString().trim()
+            : 'คอก $coopId';
+        final isFan = row['kind'] == 'fan';
+        String title;
+        if (isFan) {
+          if (!coopName.startsWith('คอก')) coopName = 'คอก $coopName';
+          title = '‼️ $coopName พัดลมไม่ทำงาน กรุณาตรวจสอบ';
+        } else {
+          final sensorName = row['device_name']?.toString().trim().isNotEmpty == true
+              ? row['device_name'].toString().trim()
+              : 'ช่อง ${row['slot_index'] ?? '-'}';
+          final last = DateTime.tryParse(
+            row['last_update']?.toString() ?? '',
+          )?.toLocal();
+          final since = last == null
+              ? ''
+              : ' (ข้อมูลล่าสุด ${last.day}/${last.month} ${last.hour.toString().padLeft(2, '0')}:${last.minute.toString().padLeft(2, '0')})';
+          title = '📡 เซนเซอร์ $sensorName ที่$coopName ไม่ทำงาน$since กรุณาตรวจสอบ';
+        }
+        newNotifications.add({
+          "id": id,
+          "type": "offline",
+          "title": title,
+          "time": timeNow,
+          "date": dateNow,
+          "urgent": true,
+          "daysUntil": -500,
+          "coopId": coopId,
+          "coopName": coopName,
+        });
+      }
+      // ล้างการรับทราบของอุปกรณ์ที่กลับมาปกติแล้ว (ทำเฉพาะเมื่อโหลดสำเร็จ ไม่งั้น
+      // "โหลดไม่ได้" จะถูกมองเป็น "ปกติทุกตัว" แล้วล้างทิ้งหมด)
+      final kept = acks.where(currentIds.contains).toList();
+      if (kept.length != acks.length) {
+        await prefs.setStringList(_offlineAckKey, kept);
+      }
     }
   } catch (e) {
     // ข้อมูลเสริม ดึงไม่ได้ก็ยังแสดงแจ้งเตือนอื่นได้ตามปกติ

@@ -17,7 +17,7 @@ import '../../widgets/ez_header.dart';
 /// ตารางข้อมูลที่สำรองได้: (ชื่อไทย, key/ชื่อตาราง, path ของ API)
 const List<(String, String, String)> _kBackupSources = [
   ('คอกไก่', 'coops', '/api/coops'),
-  ('อุปกรณ์/เซนเซอร์', 'devices', '/api/devices'),
+  ('เซนเซอร์', 'devices', '/api/devices'),
   ('สุขภาพไก่', 'healths', '/api/healths'),
   ('ข้อมูลไข่', 'eggs', '/api/eggs'),
   ('สต็อกอาหาร', 'foods', '/api/foods'),
@@ -57,8 +57,8 @@ const List<_BackupGroup> _kGroups = [
   _BackupGroup(
     'devices',
     '📡',
-    'อุปกรณ์ / เซนเซอร์',
-    'อุปกรณ์ที่วางไว้ในแต่ละคอก ชนิด หมายเลข ตำแหน่งบนผัง',
+    'เซนเซอร์',
+    'เซนเซอร์ที่วางไว้ในแต่ละคอก ชนิด หมายเลข ตำแหน่งบนผัง',
     ['devices'],
   ),
   _BackupGroup(
