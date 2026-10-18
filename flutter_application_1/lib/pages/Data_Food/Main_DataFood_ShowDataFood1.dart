@@ -348,6 +348,81 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     }
   }
 
+  /// ให้เจ้าของฟาร์มกำหนดปริมาณ (กก.) ที่ต้องการให้แจ้งเตือน "ใกล้หมด" ของอาหารประเภทนี้
+  /// ใส่ 0 = ไม่แจ้งเตือนใกล้หมด (ยังแจ้งตอนหมดแล้วตามปกติ)
+  Future<void> _editMinQuantity(
+    String foodType,
+    Map<String, dynamic> data,
+  ) async {
+    final current = (data['min_quantity'] as num?)?.toDouble() ?? 0.0;
+    final controller = TextEditingController(
+      text: current > 0 ? _formatKg(current) : '',
+    );
+    final value = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('แจ้งเตือนอาหาร$foodTypeใกล้หมด'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'แจ้งเตือนเมื่อเหลือไม่เกิน (กก.)',
+            helperText: 'ใส่ 0 หรือเว้นว่างเพื่อปิดแจ้งเตือนใกล้หมด',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () {
+              final text = controller.text.trim().replaceAll(',', '');
+              final parsed = text.isEmpty ? 0.0 : double.tryParse(text);
+              if (parsed == null || parsed < 0) return;
+              Navigator.pop(ctx, parsed);
+            },
+            child: const Text('บันทึก'),
+          ),
+        ],
+      ),
+    );
+    if (value == null || !mounted) return;
+
+    try {
+      final response = await ApiClient.put(
+        Uri.parse('$backendBaseUrl/api/foods/min-quantity'),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: json.encode({'food_type': foodType, 'min_quantity': value}),
+      );
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        showEzTopBanner(
+          context,
+          value > 0
+              ? 'ตั้งแจ้งเตือน$foodTypeใกล้หมดที่ ${_formatKg(value)} กก. แล้ว'
+              : 'ปิดแจ้งเตือน$foodTypeใกล้หมดแล้ว',
+          type: EzBannerType.success,
+        );
+        _fetchFoodData();
+      } else {
+        showEzTopBanner(
+          context,
+          'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+          type: EzBannerType.error,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showEzTopBanner(
+        context,
+        'เชื่อมต่อ backend ไม่สำเร็จ',
+        type: EzBannerType.error,
+      );
+    }
+  }
+
   /// กก. แสดงสูงสุด 3 ตำแหน่ง ตัดศูนย์ท้ายทิ้ง (ไม่ปัดเหลือ 0 เวลาไก่กินน้อย)
   String _formatKg(num kg) {
     final s = kg.toStringAsFixed(3);
@@ -479,6 +554,8 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     final double quantity =
         (data?['quantity_current'] as num?)?.toDouble() ?? 0.0;
     final String amount = _formatAmount(data?['quantity_current']);
+    final double minQuantity =
+        (data?['min_quantity'] as num?)?.toDouble() ?? 0.0;
     final String lastUpdate = _formatDateTime(data?['date_up']);
     final bool isEmpty = data == null || quantity <= 0;
     final Color statusColor = isEmpty ? ez.danger : ez.accentGreen;
@@ -549,6 +626,40 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: data == null ? null : () => _editMinQuantity(foodType, data),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.notifications_active_outlined,
+                    size: 12,
+                    color: ez.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      data == null
+                          ? 'นำเข้าสต็อกก่อนจึงตั้งแจ้งเตือนได้'
+                          : minQuantity > 0
+                          ? 'เตือนเมื่อเหลือ ≤ ${_formatKg(minQuantity)} กก.'
+                          : 'ยังไม่ตั้งแจ้งเตือนใกล้หมด',
+                      maxLines: 2,
+                      style: GoogleFonts.kanit(
+                        fontSize: 10,
+                        color: ez.textSecondary,
+                      ),
+                    ),
+                  ),
+                  if (data != null)
+                    Icon(Icons.edit_outlined, size: 12, color: ez.gold),
+                ],
+              ),
             ),
           ),
           const Spacer(),
