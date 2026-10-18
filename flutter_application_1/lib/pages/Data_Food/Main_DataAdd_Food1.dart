@@ -66,6 +66,38 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     _amountController.addListener(_calculateExpiryDate);
     _thresholdController.addListener(_calculateExpiryDate);
     _fetchDailyConsumption();
+    _fetchSavedThresholds();
+  }
+
+  // ปริมาณใกล้หมดที่เจ้าของเคยตั้งไว้ของแต่ละประเภท (จาก /api/foods) ไว้เติมในช่องให้
+  // อัตโนมัติเวลานำเข้าอาหารรอบถัดไป จะได้ไม่ต้องกรอกซ้ำ (แก้ทับได้)
+  Map<String, double> _savedMinByType = {};
+
+  Future<void> _fetchSavedThresholds() async {
+    try {
+      final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/foods'));
+      if (response.statusCode != 200) return;
+      final decoded = json.decode(response.body);
+      if (decoded is! List) return;
+      final saved = <String, double>{};
+      for (final row in decoded) {
+        final type = row['food_type'] as String?;
+        final min = (row['min_quantity'] as num?)?.toDouble() ?? 0.0;
+        if (type != null && min > 0) saved[type] = min;
+      }
+      if (!mounted) return;
+      _savedMinByType = saved;
+      if (_selectedFoodType != null) _prefillThreshold(_selectedFoodType!);
+    } catch (e) {
+      debugPrint("Connection error (saved thresholds): $e");
+    }
+  }
+
+  void _prefillThreshold(String foodType) {
+    final min = _savedMinByType[foodType];
+    _thresholdController.text = min == null
+        ? ''
+        : (min == min.roundToDouble() ? min.toInt().toString() : min.toString());
   }
 
   Future<void> _fetchDailyConsumption() async {
@@ -108,9 +140,9 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
   // ซึ่งกลายเป็นคำนวณวันที่ (ผิดๆ) ขึ้นมาทั้งที่ผู้ใช้ยังไม่ได้กรอกอะไรเลย
   void _calculateExpiryDate() {
     double amount = double.tryParse(_amountController.text) ?? 0.0;
-    final thresholdText = _thresholdController.text.trim();
-
-    if (amount <= 0 || thresholdText.isEmpty) {
+    // ไม่ได้กรอกปริมาณใกล้หมด = คำนวณวันจากยอดทั้งหมด (ไม่ต้องรอช่องนี้แล้ว เพราะ
+    // ไม่มีช่องวันที่ให้ผู้ใช้กรอกเองอีก และ backend ต้องการวันที่เสมอ)
+    if (amount <= 0) {
       setState(() {
         _selectedExpiryDate = null;
         _expireDateController.text = '';
@@ -118,14 +150,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
       return;
     }
 
-    final threshold = double.tryParse(thresholdText);
-    if (threshold == null) {
-      setState(() {
-        _selectedExpiryDate = null;
-        _expireDateController.text = '';
-      });
-      return;
-    }
+    final threshold = double.tryParse(_thresholdController.text.trim()) ?? 0.0;
 
     // ถ้ายังไม่ได้เลือกวันนำเข้า ให้ใช้วันนี้เป็นฐานคำนวณไปก่อน
     DateTime startDate = _selectedImportDate ?? DateTime.now();
@@ -198,14 +223,14 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
       );
       return;
     }
-    if (_selectedExpiryDate == null) {
-      showEzTopBanner(
-        context,
-        'กรุณาเลือกวันที่อาหารใกล้หมด',
-        type: EzBannerType.warning,
-      );
-      return;
-    }
+    // คำนวณวันที่ใกล้หมดอัตโนมัติจากปริมาณ (ผู้ใช้ไม่ต้องกรอกเอง) - ปริมาณ > 0
+    // ผ่านการตรวจข้างบนแล้วจึงมีค่าเสมอ แต่กันไว้ก่อนส่งกรณีคำนวณยังไม่ทัน
+    if (_selectedExpiryDate == null) _calculateExpiryDate();
+    final expiryDate = _selectedExpiryDate ?? _selectedImportDate!;
+
+    final double? enteredThreshold = double.tryParse(
+      _thresholdController.text.trim(),
+    );
 
     try {
       final response = await ApiClient.post(
@@ -215,7 +240,10 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
           "food_type": _selectedFoodType,
           // 🌟 import_volume เป็น int ฝั่ง backend (models.CreateImportFoodRequest)
           "import_volume": enteredAmount.round(),
-          "expiry_date": _selectedExpiryDate!.toUtc().toIso8601String(),
+          "expiry_date": expiryDate.toUtc().toIso8601String(),
+          // ปริมาณที่เจ้าของฟาร์มกำหนดให้แจ้งเตือน "ใกล้หมด" ของประเภทนี้
+          if (enteredThreshold != null && enteredThreshold >= 0)
+            "min_quantity": enteredThreshold,
         }),
       );
 
@@ -325,6 +353,10 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     return InkWell(
       onTap: () {
         setState(() => _selectedFoodType = value);
+        _prefillThreshold(value);
+        // โหลดซ้ำทุกครั้งที่เลือกประเภท (ถ้าโหลดตอนเปิดหน้าไม่สำเร็จ/ยังไม่เสร็จ
+        // ก็ยังได้ค่าล่าสุดจากเซิร์ฟเวอร์) - ตัวนี้เติมช่องให้เองเมื่อโหลดเสร็จ
+        _fetchSavedThresholds();
         _calculateExpiryDate();
       },
       borderRadius: BorderRadius.circular(14),
@@ -513,23 +545,13 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
                     ),
                     const SizedBox(height: 12),
                     EzFormTextField(
-                      label: 'กำหนดปริมาณใกล้หมด',
+                      label: 'กำหนดปริมาณอาหารใกล้หมด',
                       controller: _thresholdController,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      hintText: 'เช่น 20',
+                      hintText: 'เช่น 20 (เว้นว่าง = ใช้ค่าเดิม)',
                       suffixText: 'กก.',
-                    ),
-                    const SizedBox(height: 12),
-                    EzFormDateField(
-                      label: 'วันที่อาหารใกล้หมด',
-                      isRequired: true,
-                      controller: _expireDateController,
-                      hintText: 'คำนวณอัตโนมัติจากปริมาณ',
-                      // ยังคงปุ่มเปิดปฏิทินไว้ เผื่อแอดมินต้องการแก้ไขวันที่คำนวณอัตโนมัติ
-                      onTap: () =>
-                          _selectDate(context, _expireDateController, false),
                     ),
                   ],
                 ),

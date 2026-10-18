@@ -20,9 +20,6 @@ Future<void> acknowledgeMotionAlert(String coopId, DateTime upTo) async {
   await prefs.setString(_motionAckKey(coopId), upTo.toUtc().toIso8601String());
 }
 
-/// สต็อกอาหารเหลือต่ำกว่านี้ (กก.) แจ้งเตือน "ใกล้หมดแล้ว" เสมอ ไม่ว่าจะตั้งขั้นต่ำไว้เท่าไร
-const double kFoodLowKg = 20;
-
 /// เตือนล่วงหน้า/ค้างหลังไก่ถึงช่วงอายุที่ต้องเปลี่ยนประเภทอาหารกี่วัน
 const int kFoodSwitchWindowDays = 3;
 
@@ -98,8 +95,7 @@ Future<List<Map<String, dynamic>>> loadNotifications() async {
             "urgent": true,
             "daysUntil": -999,
           });
-        } else if (currentQuantity < kFoodLowKg ||
-            currentQuantity <= minQuantity) {
+        } else if (minQuantity > 0 && currentQuantity <= minQuantity) {
           newNotifications.add({
             "id": foodId,
             "type": "food",
