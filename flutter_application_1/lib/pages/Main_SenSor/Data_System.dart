@@ -140,7 +140,9 @@ class _DataSystemState extends State<DataSystem> {
   }
 
   void onTabSelected(int index) {
-    if (selectedIndex == index) {
+    // หน้านี้ไม่ใช่เมนูในแถบล่าง (selectedIndex = null) - เดิมเช็ก selectedIndex == index ซึ่งไม่จริง
+    // ตอนกด "หน้าแรก" ครั้งแรก เลยตกไป setState ไฮไลต์หน้าแรกค้างไว้แทนการเปิดหน้าแรก แล้วกดซ้ำก็ไม่ไป
+    if (index == 0) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const MainScreen()),
