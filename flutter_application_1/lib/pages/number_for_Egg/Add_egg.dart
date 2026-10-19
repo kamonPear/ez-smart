@@ -18,6 +18,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 import '../../services/backend_config.dart';
 import '../../widgets/ez_top_banner.dart';
 import '../../widgets/ez_date_picker.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 class AddEgg extends StatefulWidget {
   final String? initialCoopId;
@@ -185,6 +186,13 @@ class _AddEggState extends State<AddEgg> {
       return;
     }
 
+    // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+    if (!await showEzConfirm(context, message: 'ตรวจสอบข้อมูลการเก็บไข่ก่อนบันทึก', details: [
+      'คอก: ${_coopNames[_selectedCoop] ?? _selectedCoop ?? '-'}',
+      'วันที่เก็บไข่: ${ezConfirmDate(_selectedDate)}',
+      'จำนวนไข่: $eggCount ฟอง',
+    ])) return;
+    if (!mounted) return;
     setState(() {
       isSubmitting = true;
     });

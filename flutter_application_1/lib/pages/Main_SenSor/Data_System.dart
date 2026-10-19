@@ -27,7 +27,7 @@ class DataSystem extends StatefulWidget {
 class _DataSystemState extends State<DataSystem> {
   int? selectedIndex; // ไม่ใช่หน้าในแถบเมนูล่าง จึงไม่ไฮไลต์เมนูไหน
   List<dynamic> devices = [];
-  List<dynamic> coops = []; 
+  List<dynamic> coops = [];
   bool isLoading = true;
 
   String? selectedCoopId;
@@ -46,8 +46,8 @@ class _DataSystemState extends State<DataSystem> {
       isLoading = true;
       fetchDevices();
       _startAutoRefresh();
-    }         
-  }            
+    }
+  }
 
   void _startAutoRefresh() {
     // 🔥 ตั้งเวลาให้แอบดึงข้อมูลใหม่มาอัปเดตหน้าจอทุกๆ 3 วินาทีแบบเนียนๆ
@@ -66,7 +66,9 @@ class _DataSystemState extends State<DataSystem> {
 
   Future<void> fetchCoops() async {
     try {
-      final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/coops'));
+      final response = await ApiClient.get(
+        Uri.parse('$backendBaseUrl/api/coops'),
+      );
       if (response.statusCode == 200) {
         setState(() {
           coops = json.decode(response.body);
@@ -794,86 +796,103 @@ class _DataSystemState extends State<DataSystem> {
       ),
       child: Column(
         children: [
+          // จอแคบ: ชื่อเซนเซอร์ใน dropdown กับวันที่ยาว ๆ เคยล้นขอบขวา (overflow) - ให้ dropdown
+          // ใช้พื้นที่ที่เหลือและตัดชื่อด้วย ... ส่วนวันที่ขึ้นบรรทัดใหม่ได้
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value:
-                        devices.any(
-                          (d) =>
-                              (d['device_id'] ?? d['id'])?.toString() ==
-                              selectedDeviceId,
-                        )
-                        ? selectedDeviceId
-                        : null,
-                    hint: Text(
-                      "เลือกเซนเซอร์",
+              Expanded(
+                flex: 5,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value:
+                          devices.any(
+                            (d) =>
+                                (d['device_id'] ?? d['id'])?.toString() ==
+                                selectedDeviceId,
+                          )
+                          ? selectedDeviceId
+                          : null,
+                      hint: Text(
+                        "เลือกเซนเซอร์",
+                        style: GoogleFonts.kanit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      icon: const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: Colors.black,
+                        size: 16,
+                      ),
+                      dropdownColor: Colors.white,
                       style: GoogleFonts.kanit(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
-                    ),
-                    icon: const Icon(
-                      Icons.keyboard_arrow_down,
-                      color: Colors.black,
-                      size: 16,
-                    ),
-                    dropdownColor: Colors.white,
-                    style: GoogleFonts.kanit(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                    items: devices.map<DropdownMenuItem<String>>((
-                      dynamic device,
-                    ) {
-                      String id =
-                          (device['device_id'] ?? device['id'])?.toString() ??
-                          '';
-                      return DropdownMenuItem<String>(
-                        value: id,
-                        child: Text(
-                          device['name']?.toString() ?? "เซนเซอร์ $id",
-                          style: GoogleFonts.kanit(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                      items: devices.map<DropdownMenuItem<String>>((
+                        dynamic device,
+                      ) {
+                        String id =
+                            (device['device_id'] ?? device['id'])?.toString() ??
+                            '';
+                        return DropdownMenuItem<String>(
+                          value: id,
+                          child: Text(
+                            device['name']?.toString() ?? "เซนเซอร์ $id",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.kanit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
                           ),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        selectedDeviceId = newValue;
-                      });
-                    },
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          selectedDeviceId = newValue;
+                        });
+                      },
+                    ),
                   ),
                 ),
               ),
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_today_outlined,
-                    color: ezColors(context).textPrimary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    sensorTime,
-                    style: GoogleFonts.kanit(
-                      fontSize: 12,
-                      color: ezColors(context).textSecondary,
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 6,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      color: ezColors(context).textPrimary,
+                      size: 18,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        sensorTime,
+                        textAlign: TextAlign.right,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.kanit(
+                          fontSize: 12,
+                          color: ezColors(context).textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

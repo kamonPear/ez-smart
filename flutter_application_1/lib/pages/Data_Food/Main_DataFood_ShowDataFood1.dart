@@ -254,7 +254,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
           content: Text(
             'ต้องการตัดสต็อกอาหาร$foodTypeของวันนี้ตอนนี้เลยใช่ไหม '
             'ระบบจะหักตามจำนวนไก่จริงในคอกที่กินอาหารประเภทนี้ '
-            'และจะตัดอัตโนมัติอีกครั้งตอน 6 โมงเช้าตามปกติ',
+            'และวันนี้จะไม่ตัดอัตโนมัติซ้ำตอน 18:00 น.',
             style: GoogleFonts.kanit(fontSize: 13, color: ez.textSecondary),
           ),
           actions: [
@@ -285,7 +285,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
 
   // 🌟 ตัดสต็อก — ต้องเลือกประเภทอาหารก่อนเสมอ ยอดที่ตัดคำนวณอัตโนมัติจากจำนวนไก่
   // จริงในคอกที่กำลังกินอาหารประเภทนี้อยู่ (handlers.ComputeDailyFoodConsumption
-  // ฝั่ง backend ตัวเดียวกับที่ Cron ใช้ตัดให้ทุกวันตอน 6 โมงเช้า) ไม่ต้องกรอกจำนวนเองทีละ
+  // ฝั่ง backend ตัวเดียวกับที่ Cron ใช้ตัดให้ทุกวันตอน 18:00 น.) ไม่ต้องกรอกจำนวนเองทีละ
   // คอกอีกต่อไป - กดปุ่มเดียวจบ
   Future<void> _forceDeductStock() async {
     final String? foodType = _selectedDeductType;
@@ -467,16 +467,6 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     return thaiDateFromIso(isoString);
   }
 
-  String _formatDateTime(String? isoString) {
-    if (isoString == null || isoString.isEmpty) return "-";
-    try {
-      DateTime dt = DateTime.parse(isoString).toLocal();
-      return "${thaiDate(dt)} เวลา ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} น.";
-    } catch (e) {
-      return "-";
-    }
-  }
-
   void onTabSelected(int index) {
     if (index == 0) {
       Navigator.pushReplacement(
@@ -587,7 +577,9 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     // ค่าเดียวใช้ร่วมกันทุกประเภท: ถ้าตั้งแล้ว (> 0) ถือว่าล็อก
     final double minQuantity = _sharedMinQuantity;
     final bool minLocked = minQuantity > 0;
-    final String lastUpdate = _formatDateTime(data?['date_up']);
+    // date_up ใน DB เป็นชนิด DATE (เก็บแค่วันที่ ไม่มีเวลา) ถ้าแสดงเวลาจะขึ้น 00:00 ทุกครั้ง
+    // จึงแสดงเฉพาะวันที่ที่ยอดสต็อกเปลี่ยนล่าสุด
+    final String lastUpdate = 'อัปเดตล่าสุด ${thaiDateFromIso(data?['date_up'])}';
     final bool isEmpty = data == null || quantity <= 0;
     final Color statusColor = isEmpty ? ez.danger : ez.accentGreen;
 
@@ -1012,7 +1004,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                           const SizedBox(height: 10),
 
                           Text(
-                            'ระบบตัดสต็อกให้อัตโนมัติทุกวันตอน 6 โมงเช้าตามจำนวนไก่จริงอยู่แล้ว '
+                            'ระบบตัดสต็อกให้อัตโนมัติทุกวันตอน 18:00 น. ตามจำนวนไก่จริงอยู่แล้ว (ก่อน 18:00 น. จะไม่ตัดเอง) '
                             'เลือกประเภทแล้วกดปุ่มนี้ถ้าต้องการตัดสต็อกวันนี้ก่อนเวลา',
                             style: GoogleFonts.kanit(
                               fontSize: 11,
@@ -1079,7 +1071,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                     ),
                     const SizedBox(height: 14),
 
-                    // การ์ดที่ 4: เข้าสต็อกอาหาร — อยู่ใต้การ์ดตัดสต็อก กล่องแยกกัน
+                    // การ์ดที่ 4: เพิ่มสต็อกอาหาร — อยู่ใต้การ์ดตัดสต็อก กล่องแยกกัน
                     _buildDarkCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1089,7 +1081,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                               Expanded(
                                 child: _sectionHeader(
                                   Icons.add_box_outlined,
-                                  'เข้าสต็อกอาหาร',
+                                  'เพิ่มสต็อกอาหาร',
                                 ),
                               ),
                               // ตั้งเงื่อนไขอายุไก่กับประเภทอาหาร (เหมือนปุ่มเฟืองในเว็บ)
@@ -1119,7 +1111,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
 
                           _buildPrimaryActionButton(
                             icon: Icons.add_circle_outline,
-                            text: 'เข้าสต็อกอาหาร',
+                            text: 'เพิ่มสต็อกอาหาร',
                             onTap: () async {
                               await Navigator.push(
                                 context,

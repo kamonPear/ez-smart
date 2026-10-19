@@ -14,6 +14,7 @@ import '../../widgets/ez_form_field.dart';
 import '../../utils/thai_date.dart';
 import '../../widgets/ez_top_banner.dart';
 import '../../widgets/ez_date_picker.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 class EditNumbereggchicken extends StatefulWidget {
   final Map<String, dynamic> initialData;
@@ -38,6 +39,9 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
 
   List<String> availableCoops = [];
   Map<String, String> _coopNames = {};
+  String? _originalCoopId;
+  DateTime? _originalDate;
+  String _originalNote = '';
 
   @override
   void initState() {
@@ -62,6 +66,10 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
     _noteController = TextEditingController(
       text: widget.initialData['note']?.toString(),
     );
+    // ค่าเดิมตอนเปิดหน้า - ใช้เทียบว่าแก้ช่องไหนไป เพื่อโชว์ในป็อบอัพยืนยันก่อนบันทึก
+    _originalCoopId = _selectedCoopId;
+    _originalDate = _selectedDate;
+    _originalNote = _noteController.text.trim();
 
     _fetchCoops();
   }
@@ -153,6 +161,20 @@ class _EditNumbereggchickenState extends State<EditNumbereggchicken> {
       return;
     }
 
+    // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+    // โชว์เฉพาะช่องที่แก้ไขจริง (ค่าเดิม → ค่าใหม่) ให้เจ้าของฟาร์มเช็กอีกรอบ
+    final changes = ezChangedLines([
+      ['คอก', _coopNames[_originalCoopId] ?? _originalCoopId, _coopNames[_selectedCoopId] ?? _selectedCoopId],
+      ['วันที่เก็บไข่', ezConfirmDate(_originalDate), ezConfirmDate(_selectedDate)],
+      ['จำนวนไข่', '$_originalAmount ฟอง', '${_amountController.text.trim()} ฟอง'],
+      ['หมายเหตุ', _originalNote, _noteController.text.trim()],
+    ]);
+    if (changes.isEmpty) {
+      showEzTopBanner(context, 'ยังไม่ได้แก้ไขข้อมูลใด ๆ', type: EzBannerType.warning);
+      return;
+    }
+    if (!await showEzConfirm(context, message: 'ตรวจสอบรายการที่แก้ไข (${changes.length} รายการ) ก่อนบันทึก', details: changes)) return;
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,

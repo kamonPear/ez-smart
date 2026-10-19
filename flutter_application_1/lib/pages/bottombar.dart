@@ -59,7 +59,11 @@ class CustomBottomBar extends StatelessWidget {
 
     Widget bar = NavigationBar(
       selectedIndex: selectedIndex ?? 0,
-      onDestinationSelected: onTabSelected,
+      // กดเมนูของหน้าที่เปิดอยู่แล้ว ไม่ต้องทำอะไร (เดิมบางหน้าเปิดหน้าตัวเองซ้ำ โหลดใหม่ทั้งหน้า)
+      onDestinationSelected: (index) {
+        if (index == selectedIndex) return;
+        onTabSelected(index);
+      },
       destinations: destinations,
     );
 
@@ -101,6 +105,8 @@ class CustomBottomBar extends StatelessWidget {
       // ไม่มีเมนูไหนถูกเลือก จึงใช้ไอคอนแบบเส้นทั้งหมด ไม่ให้เมนูแรกดูเหมือนถูกเลือก
       selectedIcon: Icon(hasSelection ? selectedIcon : icon),
       label: label,
+      // ชื่อเมนูโชว์ใต้ไอคอนอยู่แล้ว ไม่ต้องมีป้ายลอยตอนกดค้าง (เดิมขึ้นป้ายเทาทับเมนูข้าง ๆ)
+      tooltip: '',
     );
   }
 }

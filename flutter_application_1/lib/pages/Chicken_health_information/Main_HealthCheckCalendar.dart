@@ -12,6 +12,7 @@ import '../Data_AdoptChicken/Main_DataChicken_2.dart';
 import '../Data_Food/Main_DataFood_ShowDataFood1.dart';
 import '../Main_SenSor/Main_DeviceSummary.dart';
 import '../Show_chart.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 /// ปฏิทินนัดตรวจสุขภาพของคอกนี้โดยเฉพาะ - นัดคำนวณอัตโนมัติจากวันครบกำหนดวัคซีน
 /// (ตรวจก่อนให้วัคซีน 1 วันเสมอ) แตะวันที่มีนัดเพื่อบันทึกผลตรวจ:
@@ -724,7 +725,7 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
                               ),
                               onPressed: isSaving
                                   ? null
-                                  : () {
+                                  : () async {
                                       final healthy = int.tryParse(
                                         healthyController.text.trim(),
                                       );
@@ -754,6 +755,12 @@ class _MainHealthCheckCalendarState extends State<MainHealthCheckCalendar> {
                                         );
                                         return;
                                       }
+                                      // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+                                      if (!await showEzConfirm(context, message: 'ตรวจสอบผลตรวจสุขภาพก่อนบันทึก', details: [
+                                        'วันที่ตรวจ: ${ezConfirmDate(day)}',
+                                        'ไก่สุขภาพดี: $healthy ตัว',
+                                        'ไก่ป่วย: $poor ตัว',
+                                      ])) return;
                                       setDialogState(() => isSaving = true);
                                       _submitHealthRecord(
                                         day,

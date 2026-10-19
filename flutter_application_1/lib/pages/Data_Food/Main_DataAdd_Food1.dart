@@ -15,6 +15,7 @@ import '../../services/backend_config.dart';
 import '../../widgets/ez_top_banner.dart';
 import '../../widgets/ez_date_picker.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 /// ประเภทอาหารที่รองรับ - ผูกกับช่วงอายุไก่ที่กินอาหารประเภทนั้น
 const String kFoodTypeSmallPellet = 'เม็ดเล็ก';
@@ -72,7 +73,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
   // อัตรากินจริงต่อวัน (กก.) ของแต่ละประเภทอาหาร รวมจากจำนวนไก่จริงในทุกคอกที่
   // กำลังกินอาหารประเภทนั้นอยู่ (ไม่ใช่ค่าคงที่ตายตัวอีกต่อไป) ดึงจาก endpoint
   // เดียวกับที่หน้าคลังอาหารใช้โชว์ตัวเลขต่อคอก ให้วันที่ใกล้หมดที่กะไว้ตรงกับยอด
-  // ที่จะถูกตัดจริงทุกวันตอน 6 โมงเช้า ถ้าคอกยังไม่มี/ยังไม่รู้อายุ จะได้ 0 แล้วใช้ค่าเผื่อไว้แทน
+  // ที่จะถูกตัดจริงทุกวันตอน 18:00 น. ถ้าคอกยังไม่มี/ยังไม่รู้อายุ จะได้ 0 แล้วใช้ค่าเผื่อไว้แทน
   Map<String, double> _dailyConsumptionByType = {};
 
   // เงื่อนไขอายุไก่กับประเภทอาหารที่เจ้าของฟาร์มตั้งไว้ ใช้โชว์ช่วงอายุใต้การ์ดเลือกประเภท
@@ -263,7 +264,8 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
         : double.tryParse(_thresholdController.text.trim());
 
     // กรอกปริมาณใกล้หมดเป็นครั้งแรก -> ถามยืนยันก่อน เพราะบันทึกแล้วแก้ไขไม่ได้
-    if (enteredThreshold != null && enteredThreshold > 0) {
+    final bool askThreshold = enteredThreshold != null && enteredThreshold > 0;
+    if (askThreshold) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -316,6 +318,15 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
       if (ok != true || !mounted) return;
     }
 
+    // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+    // ถ้าเพิ่งกดยืนยันในป็อบอัพ "ปริมาณใกล้หมด" ด้านบนแล้ว ถือว่ายืนยันแล้ว ไม่ถามซ้ำ
+    if (!askThreshold && !await showEzConfirm(context, message: 'ตรวจสอบข้อมูลการนำเข้าอาหารก่อนบันทึก', details: [
+      'ประเภทอาหาร: ${_selectedFoodType ?? '-'}',
+      'ปริมาณ: ${_amountController.text.trim()} กก.',
+      'วันที่นำเข้า: ${ezConfirmDate(_selectedImportDate)}',
+      'วันหมดอายุ: ${ezConfirmDate(_selectedExpiryDate)}',
+    ])) return;
+    if (!mounted) return;
     try {
       final response = await ApiClient.post(
         url,
