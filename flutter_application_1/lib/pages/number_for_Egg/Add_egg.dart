@@ -223,6 +223,9 @@ class _AddEggState extends State<AddEgg> {
           'วันนี้บันทึกยอดเก็บไข่ของคอกนี้ไปแล้ว กรุณาแก้ไขยอดเดิมที่ "ประวัติการบันทึก" ด้านล่างแทน',
           type: EzBannerType.warning,
         );
+      } else if (response.statusCode == 422) {
+        // ไก่ในคอกยังอายุไม่ถึงเกณฑ์เก็บไข่ ณ วันที่เลือก — backend ส่งข้อความอธิบายมาให้แล้ว
+        _showBanner(utf8.decode(response.bodyBytes).trim());
       } else {
         _showBanner(
           'เกิดข้อผิดพลาดในการบันทึก: Error ${response.statusCode}',
