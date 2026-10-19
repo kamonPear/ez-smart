@@ -491,6 +491,9 @@ class _MainVaccineState extends State<MainVaccine> {
 
   /// คืนค่า true ถ้าบันทึกสำเร็จจริง - เดิมแค่ print เฉยๆ ไม่ได้บอกผู้เรียกว่าสำเร็จ
   /// ไหม ทำให้ UI โชว์สถานะ optimistic ไว้ค้างผิดได้เงียบๆ ถ้า backend ปฏิเสธ
+  // ข้อความจาก backend ของการบันทึกครั้งล่าสุดที่ไม่สำเร็จ (เช่น ยังไม่ได้ตรวจสุขภาพก่อนให้วัคซีน)
+  String? _lastUpdateError;
+
   Future<bool> updateCompletionStatus(
     Map<String, dynamic> alert,
     bool newValue,
@@ -512,9 +515,12 @@ class _MainVaccineState extends State<MainVaccine> {
 
       if (response.statusCode == 200) {
         print('✅ อัปเดตฐานข้อมูลสำเร็จ');
+        _lastUpdateError = null;
         return true;
       } else {
         print('❌ อัปเดตฐานข้อมูลไม่สำเร็จ: Status Code ${response.statusCode}');
+        final body = response.body.trim();
+        _lastUpdateError = body.isNotEmpty ? body : null;
         return false;
       }
     } catch (e) {
@@ -1398,7 +1404,7 @@ class _MainVaccineState extends State<MainVaccine> {
                 });
                 showEzTopBanner(
                   context,
-                  'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+                  _lastUpdateError ?? 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
                   type: EzBannerType.error,
                 );
               }
