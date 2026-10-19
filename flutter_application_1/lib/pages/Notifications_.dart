@@ -15,6 +15,7 @@ import '../widgets/ez_header.dart';
 import '../widgets/ez_top_banner.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../widgets/ez_confirm_dialog.dart';
+import 'Show_chart.dart';
 
 class Notifications extends StatefulWidget {
   const Notifications({super.key});
@@ -199,6 +200,12 @@ class _NotificationsState extends State<Notifications> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
+      );
+    } else if (index == 2) {
+      // เดิมไม่มีกรณีนี้ กด "สถิติไข่รวม" จากหน้าแจ้งเตือนแล้วไม่ไปไหน
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
       );
     } else if (index == 3) {
       Navigator.pushReplacement(
