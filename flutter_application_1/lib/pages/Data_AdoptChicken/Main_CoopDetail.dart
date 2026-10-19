@@ -80,7 +80,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
   }
 
   String get _motionSummaryText {
-    if (motionCount == 0) return 'ยังไม่พบความเคลื่อนไหวใน 24 ชม.ที่ผ่านมา';
+    if (motionCount == 0) return 'ยังไม่พบการเคลื่อนไหวหน้าคอก';
     final t = motionLastAt;
     final timeLabel = t == null
         ? '-'
