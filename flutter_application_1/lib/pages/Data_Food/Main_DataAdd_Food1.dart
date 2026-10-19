@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
 import 'package:flutter_application_1/pages/Show_chart.dart';
@@ -19,16 +20,34 @@ import '../../theme/app_theme.dart';
 const String kFoodTypeSmallPellet = 'เม็ดเล็ก';
 const String kFoodTypeLargePellet = 'เม็ดใหญ่';
 
-String foodTypeAgeHint(String? foodType) {
-  switch (foodType) {
-    case kFoodTypeSmallPellet:
-      return 'สำหรับไก่อายุ 0-14 สัปดาห์';
-    case kFoodTypeLargePellet:
-      return 'สำหรับไก่อายุตั้งแต่ 14 สัปดาห์ขึ้นไป';
-    default:
-      return 'เลือกประเภทอาหารให้ตรงกับช่วงอายุไก่';
+String _ageRangeText(int min, int max) =>
+    max == 0 ? 'ตั้งแต่ $min สัปดาห์ขึ้นไป' : '$min-$max สัปดาห์';
+
+/// ข้อความใต้ปุ่มเลือกประเภทอาหาร: สรุปช่วงอายุของประเภทนั้นจากตารางที่เจ้าของฟาร์ม
+/// ตั้งไว้ (/api/food-age-rules) เหมือนในเว็บ
+String foodTypeAgeHint(String? foodType, List<Map<String, dynamic>> rules) {
+  final mine = rules.where((r) => r['food_type'] == foodType).toList()
+    ..sort(
+      (a, b) => ((a['min_weeks'] as num?) ?? 0).compareTo(
+        (b['min_weeks'] as num?) ?? 0,
+      ),
+    );
+  if (foodType == null || mine.isEmpty) {
+    return 'ยังไม่ได้ตั้งช่วงอายุของประเภทนี้ (ตั้งได้ที่หน้าคลังอาหาร)';
   }
+  return 'สำหรับไก่อายุ ' +
+      mine
+          .map(
+            (r) => _ageRangeText(
+              ((r['min_weeks'] as num?) ?? 0).toInt(),
+              ((r['max_weeks'] as num?) ?? 0).toInt(),
+            ),
+          )
+          .join(', ');
 }
+
+String _thDate(DateTime d) =>
+    '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year + 543}';
 
 class MainaddDataFood extends StatefulWidget {
   const MainaddDataFood({super.key});
@@ -44,6 +63,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _expireDateController = TextEditingController();
   final TextEditingController _thresholdController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
 
   DateTime? _selectedImportDate;
   DateTime? _selectedExpiryDate;
@@ -54,19 +74,36 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
   // เดียวกับที่หน้าคลังอาหารใช้โชว์ตัวเลขต่อคอก ให้วันที่ใกล้หมดที่กะไว้ตรงกับยอด
   // ที่จะถูกตัดจริงทุกวันตอน 6 โมงเช้า ถ้าคอกยังไม่มี/ยังไม่รู้อายุ จะได้ 0 แล้วใช้ค่าเผื่อไว้แทน
   Map<String, double> _dailyConsumptionByType = {};
-  static const Map<String, double> _fallbackConsumePerDay = {
-    kFoodTypeSmallPellet: 20.0,
-    kFoodTypeLargePellet: 30.0,
-  };
+
+  // เงื่อนไขอายุไก่กับประเภทอาหารที่เจ้าของฟาร์มตั้งไว้ ใช้โชว์ช่วงอายุใต้การ์ดเลือกประเภท
+  List<Map<String, dynamic>> _ageRules = [];
 
   @override
   void initState() {
     super.initState();
-    // 🌟 ดักจับเหตุการณ์เมื่อผู้ใช้พิมพ์ปริมาณอาหารหรือปริมาณใกล้หมด ให้คำนวณวันอัตโนมัติ
+    // 🌟 ดักจับเหตุการณ์เมื่อผู้ใช้พิมพ์ปริมาณอาหาร ให้คำนวณวันที่อาหารจะหมดอัตโนมัติ
     _amountController.addListener(_calculateExpiryDate);
-    _thresholdController.addListener(_calculateExpiryDate);
     _fetchDailyConsumption();
     _fetchSavedThresholds();
+    _fetchAgeRules();
+  }
+
+  Future<void> _fetchAgeRules() async {
+    try {
+      final response = await ApiClient.get(
+        Uri.parse('$backendBaseUrl/api/food-age-rules'),
+      );
+      if (response.statusCode != 200) return;
+      final decoded = response.body.isNotEmpty && response.body != 'null'
+          ? json.decode(response.body)
+          : [];
+      if (decoded is! List || !mounted) return;
+      setState(() {
+        _ageRules = decoded.whereType<Map<String, dynamic>>().toList();
+      });
+    } catch (e) {
+      debugPrint("Connection error (age rules): $e");
+    }
   }
 
   // ปริมาณใกล้หมดตั้งได้ครั้งเดียวแล้วล็อก: true = เคยตั้งแล้ว ช่องนี้แก้ไขไม่ได้
@@ -131,6 +168,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     _amountController.dispose();
     _expireDateController.dispose();
     _thresholdController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -149,25 +187,17 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
       return;
     }
 
-    final threshold = double.tryParse(_thresholdController.text.trim()) ?? 0.0;
-
     // ถ้ายังไม่ได้เลือกวันนำเข้า ให้ใช้วันนี้เป็นฐานคำนวณไปก่อน
     DateTime startDate = _selectedImportDate ?? DateTime.now();
 
-    // อัตราการกิน/ตัดสต็อกต่อวันจริงของประเภทที่เลือกไว้ (รวมจากจำนวนไก่จริง) -
-    // ถ้ายังไม่ได้เลือกประเภท หรือยังไม่มีคอกกินอยู่เลย ใช้ค่าเผื่อไว้แทน
-    final consumePerDay = (_selectedFoodType != null
-            ? _dailyConsumptionByType[_selectedFoodType]
-            : null) ??
-        _fallbackConsumePerDay[_selectedFoodType] ??
-        20.0;
-
-    int daysLeft = 0;
-    // ถ้าปริมาณอาหาร มากกว่าปริมาณแจ้งเตือน ถึงจะคำนวณวันได้
-    if (amount > threshold) {
-      // หาว่าใช้เวลากี่วันถึงจะลดไปถึงจุด threshold
-      daysLeft = ((amount - threshold) / consumePerDay).ceil();
-    }
+    // อัตรากินจริงต่อวันของประเภทที่เลือก (รวมจากไก่ในทุกคอกที่กินอาหารประเภทนี้)
+    // วันที่อาหารจะหมด = วันนำเข้า + ปัดขึ้น(ปริมาณที่นำเข้า ÷ อัตรากินต่อวัน) เหมือนเว็บ
+    // ถ้ายังไม่มีคอกที่กินอาหารประเภทนี้ ประมาณไม่ได้ จึงใช้วันนำเข้าแทน
+    final consumePerDay = _selectedFoodType != null
+        ? (_dailyConsumptionByType[_selectedFoodType] ?? 0.0)
+        : 0.0;
+    final int daysLeft =
+        consumePerDay > 0 ? (amount / consumePerDay).ceil() : 0;
 
     setState(() {
       // เอาวันที่เริ่มต้น + จำนวนวันที่อยู่ได้
@@ -255,6 +285,35 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
         ),
       );
       if (confirmed != true || !mounted) return;
+    } else {
+      // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (เหมือนป็อบอัพยืนยันในเว็บ)
+      final note = _noteController.text.trim();
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('ตรวจสอบข้อมูลการนำเข้าอาหารก่อนบันทึก'),
+          content: Text(
+            [
+              'ประเภทอาหาร: $_selectedFoodType',
+              'ปริมาณ: ${enteredAmount.round()} กก.',
+              'วันที่นำเข้า: ${_thDate(_selectedImportDate!)}',
+              'วันที่อาหารจะหมด: ${_thDate(expiryDate)}',
+              if (note.isNotEmpty) 'หมายเหตุ: $note',
+            ].join('\n'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('ยกเลิก'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('ยืนยันและบันทึก'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
     }
 
     try {
@@ -266,6 +325,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
           // 🌟 import_volume เป็น int ฝั่ง backend (models.CreateImportFoodRequest)
           "import_volume": enteredAmount.round(),
           "expiry_date": expiryDate.toUtc().toIso8601String(),
+          "note": _noteController.text.trim(),
           // ปริมาณที่เจ้าของฟาร์มกำหนดให้แจ้งเตือน "ใกล้หมด" ของประเภทนี้
           if (enteredThreshold != null && enteredThreshold > 0)
             "min_quantity": enteredThreshold,
@@ -425,7 +485,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
             ),
             const SizedBox(height: 3),
             Text(
-              foodTypeAgeHint(value),
+              foodTypeAgeHint(value, _ageRules),
               style: GoogleFonts.kanit(fontSize: 10.5, color: ez.textSecondary),
             ),
           ],
@@ -565,6 +625,13 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
                       ),
                       hintText: 'เช่น 100',
                       suffixText: 'กก.',
+                    ),
+                    const SizedBox(height: 12),
+                    EzFormTextField(
+                      label: 'หมายเหตุ',
+                      controller: _noteController,
+                      hintText: 'หมายเหตุ (ไม่บังคับ)',
+                      inputFormatters: [LengthLimitingTextInputFormatter(255)],
                     ),
                     const SizedBox(height: 12),
                     EzFormTextField(
