@@ -528,7 +528,8 @@ class _MainDeviceSummaryState extends State<MainDeviceSummary> {
                           ),
                         ),
                     ],
-                    const SizedBox(height: 40),
+                    // เว้นที่ท้ายรายการให้พ้นแถบเมนูล่างที่ลอยทับเนื้อหา (extendBody) - ไม่งั้นการ์ดอันสุดท้ายโดนบัง
+                    const SizedBox(height: 120),
                   ],
                 ),
               ),

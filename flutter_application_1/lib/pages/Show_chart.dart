@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/pages/Data_AdoptChicken/Main_DataChicken_2.dart';
 import 'package:flutter_application_1/pages/Data_Food/Main_DataFood_ShowDataFood1.dart';
@@ -273,12 +274,6 @@ class _ShowChartState extends State<ShowChart> {
     return max < 1 ? 1 : max;
   }
 
-  double _farmBarHeightPercent(_EggChartBar bar) {
-    if (bar.value <= 0) return 0;
-    final pct = (bar.value / _farmChartMax) * 100;
-    return pct < 6 ? 6 : pct;
-  }
-
   _EggChartBar? get _selectedFarmBar {
     if (_selectedBarKey == null) return null;
     for (final b in _farmChartBars) {
@@ -511,7 +506,7 @@ class _ShowChartState extends State<ShowChart> {
     );
   }
 
-  /// กราฟรวมทั้งฟาร์ม (ทุกคอกบวกกันเป็นแท่งเดียว) พร้อมแท็บวัน/เดือน/ปี - กดแท่ง
+  /// กราฟเส้นรวมทั้งฟาร์ม (ทุกคอกบวกกันเป็นจุดเดียว) พร้อมแท็บวัน/เดือน/ปี - แตะจุด
   /// ไหนก็ได้เพื่อดูยอดแยกเป็นรายคอกของช่วงเวลานั้นด้านล่าง
   Widget _buildCombinedFarmChart() {
     final ez = ezColors(context);
@@ -547,73 +542,29 @@ class _ShowChartState extends State<ShowChart> {
             ],
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            height: 140,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: bars.map((bar) {
-                  final isSelected = _selectedBarKey == bar.key;
-                  return GestureDetector(
-                    onTap: () => _selectFarmBar(bar),
-                    // ค่าเริ่มต้นของ GestureDetector (deferToChild) จะรับแตะเฉพาะ
-                    // จุดที่มีอะไรวาดจริงเท่านั้น - วันที่ไม่มีไข่เลย แท่งกราฟจะสูง 0
-                    // (ดู _farmBarHeightPercent) เหลือแค่ตัวเลขวันที่ตัวเล็ก 10px
-                    // ให้แตะโดนจริงๆ ทำให้แตะยากมากโดยเฉพาะวันที่ไม่มีข้อมูล (ส่วน
-                    // ใหญ่ของปฏิทิน) - เปลี่ยนเป็น opaque ให้พื้นที่ทั้งกล่อง (รวม
-                    // ช่องว่างเหนือ/ใต้) แตะติดเสมอ ไม่ต้องเล็งตัวเลขเป๊ะๆ
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      width: 40,
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (bar.value > 0)
-                            Text(
-                              '${bar.value}',
-                              style: GoogleFonts.kanit(
-                                fontSize: 9,
-                                color: ez.textSecondary,
-                              ),
-                            ),
-                          const SizedBox(height: 3),
-                          Container(
-                            height: 90 * (_farmBarHeightPercent(bar) / 100),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? ez.gold
-                                  : (bar.isCurrent
-                                        ? ez.accentGreen
-                                        : ez.accentGreen.withValues(
-                                            alpha: 0.4,
-                                          )),
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(6),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            bar.label,
-                            style: GoogleFonts.kanit(
-                              fontSize: 10,
-                              fontWeight: bar.isCurrent || isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              color: isSelected
-                                  ? ez.gold
-                                  : ez.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
+          // กราฟเส้น: แตะจุดไหนก็ได้เพื่อดูยอดแยกรายคอกของช่วงนั้นด้านล่าง (แตะซ้ำ = ปิด)
+          // ถ้าจุดเยอะจนจอแคบ (รายวัน 14 จุด) จะเลื่อนซ้าย-ขวาได้
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth > bars.length * 34.0
+                  ? constraints.maxWidth
+                  : bars.length * 34.0;
+              final selectedIndex = bars.indexWhere(
+                (b) => b.key == _selectedBarKey,
+              );
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: true, // เริ่มที่ฝั่งขวา = ช่วงล่าสุด
+                child: SizedBox(
+                  width: width,
+                  height: 190,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 22, right: 10),
+                    child: _buildFarmLineChart(bars, selectedIndex),
+                  ),
+                ),
+              );
+            },
           ),
           if (selected != null) ...[
             const Divider(height: 28),
@@ -662,6 +613,184 @@ class _ShowChartState extends State<ShowChart> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildFarmLineChart(List<_EggChartBar> bars, int selectedIndex) {
+    final ez = ezColors(context);
+    final spots = [
+      for (var i = 0; i < bars.length; i++)
+        FlSpot(i.toDouble(), bars[i].value.toDouble()),
+    ];
+    final maxY = (_farmChartMax * 1.25).ceilToDouble();
+
+    return LineChart(
+      LineChartData(
+        minX: -0.3,
+        maxX: bars.length - 0.7,
+        minY: 0,
+        maxY: maxY,
+        borderData: FlBorderData(show: false),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: maxY / 4,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: ez.border.withValues(alpha: 0.6),
+            strokeWidth: 1,
+            dashArray: [4, 4],
+          ),
+        ),
+        titlesData: FlTitlesData(
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 26,
+              interval: 1,
+              getTitlesWidget: (value, meta) {
+                final i = value.round();
+                if (i < 0 || i >= bars.length || (value - i).abs() > 0.01) {
+                  return const SizedBox.shrink();
+                }
+                final bar = bars[i];
+                final isSelected = i == selectedIndex;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    bar.label,
+                    style: GoogleFonts.kanit(
+                      fontSize: 10,
+                      fontWeight: bar.isCurrent || isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: isSelected
+                          ? ez.gold
+                          : (bar.isCurrent
+                                ? ez.accentGreen
+                                : ez.textSecondary),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        // เส้นแนวตั้งเน้นจุดที่เลือกอยู่
+        extraLinesData: ExtraLinesData(
+          verticalLines: [
+            if (selectedIndex >= 0)
+              VerticalLine(
+                x: selectedIndex.toDouble(),
+                color: ez.gold.withValues(alpha: 0.5),
+                strokeWidth: 1.5,
+                dashArray: [4, 4],
+              ),
+          ],
+        ),
+        lineTouchData: LineTouchData(
+          handleBuiltInTouches: true,
+          touchSpotThreshold: 24,
+          touchCallback: (event, response) {
+            if (event is! FlTapUpEvent) return;
+            final spot = response?.lineBarSpots?.firstOrNull;
+            if (spot == null) return;
+            _selectFarmBar(bars[spot.spotIndex]);
+          },
+          getTouchedSpotIndicator: (barData, indexes) => indexes
+              .map(
+                (_) => TouchedSpotIndicatorData(
+                  FlLine(color: Colors.transparent),
+                  FlDotData(
+                    getDotPainter: (spot, percent, bar, index) =>
+                        FlDotCirclePainter(
+                          radius: 7,
+                          color: ez.gold,
+                          strokeWidth: 3,
+                          strokeColor: ezCardColor(context),
+                        ),
+                  ),
+                ),
+              )
+              .toList(),
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => ez.textPrimary,
+            tooltipRoundedRadius: 10,
+            tooltipPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 6,
+            ),
+            fitInsideHorizontally: true,
+            fitInsideVertically: true,
+            getTooltipItems: (touchedSpots) => touchedSpots
+                .map(
+                  (spot) => LineTooltipItem(
+                    '${bars[spot.spotIndex].label} · ${spot.y.toInt()} ฟอง',
+                    GoogleFonts.kanit(
+                      color: ezCardColor(context),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            curveSmoothness: 0.3,
+            preventCurveOverShooting: true, // ไม่ให้เส้นโค้งจมต่ำกว่า 0
+            color: ez.accentGreen,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            shadow: Shadow(
+              color: ez.accentGreen.withValues(alpha: 0.35),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  ez.accentGreen.withValues(alpha: 0.30),
+                  ez.accentGreen.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, bar, index) {
+                final isSelected = index == selectedIndex;
+                final isCurrent = bars[index].isCurrent;
+                return FlDotCirclePainter(
+                  radius: isSelected ? 6.5 : (isCurrent ? 5.5 : 4),
+                  color: isSelected
+                      ? ez.gold
+                      : (isCurrent ? ez.accentGreen : ezCardColor(context)),
+                  strokeWidth: isSelected ? 3 : 2.2,
+                  strokeColor: isSelected
+                      ? ezCardColor(context)
+                      : ez.accentGreen,
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
     );
   }
 
