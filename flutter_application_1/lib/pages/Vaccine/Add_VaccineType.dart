@@ -43,6 +43,375 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
   String? _selectedMethod;
   bool _isSaving = false;
 
+  // ยา/วัคซีนที่มีอยู่แล้ว (เหมือนคอลัมน์ซ้ายของหน้าเว็บ) - ดูกันกรอกซ้ำ และกด "แก้ไข" ได้
+  List<Map<String, dynamic>> _schedules = [];
+  bool _isLoadingSchedules = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchedules();
+  }
+
+  Future<void> _loadSchedules() async {
+    try {
+      final response = await ApiClient.get(
+        Uri.parse('$backendBaseUrl/api/vaccines/schedule'),
+      );
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final list =
+            (json.decode(response.body) as List)
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .toList()
+              ..sort(
+                (a, b) => (a['name'] ?? '').toString().compareTo(
+                  (b['name'] ?? '').toString(),
+                ),
+              );
+        setState(() => _schedules = list);
+      }
+    } catch (e) {
+      debugPrint('โหลดรายการยา/วัคซีนไม่สำเร็จ: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingSchedules = false);
+    }
+  }
+
+  void _resetForm() {
+    for (final c in [
+      _nameController,
+      _minAgeController,
+      _minAgeWeeksController,
+      _minAgeMonthsController,
+      _maxAgeController,
+      _maxAgeWeeksController,
+      _maxAgeMonthsController,
+      _descriptionController,
+    ]) {
+      c.clear();
+    }
+    setState(() => _selectedMethod = null);
+  }
+
+  /// ป็อบอัพแก้ไขยา/วัคซีน 1 ตัว (ช่วงอายุแก้เป็น "วัน") - บันทึกแล้วปิดป็อบอัพ อยู่หน้านี้ต่อ
+  /// ส่ง PUT /api/vaccines/schedule/update?old_name=ชื่อเดิม (เปลี่ยนชื่อแล้ว backend แก้ชื่อในประวัติให้ด้วย)
+  Future<void> _openEditDialog(Map<String, dynamic> s) async {
+    final oldName = s['name']?.toString() ?? '';
+    final oldMethod = s['method']?.toString() ?? '';
+    final oldMin = (s['min_age_days'] as num?)?.toInt() ?? 0;
+    final oldMax = (s['max_age_days'] as num?)?.toInt() ?? 0;
+    final oldDesc = s['description']?.toString() ?? '';
+
+    final nameCtrl = TextEditingController(text: oldName);
+    final minCtrl = TextEditingController(text: '$oldMin');
+    final maxCtrl = TextEditingController(text: '$oldMax');
+    final descCtrl = TextEditingController(text: oldDesc);
+    String? method = oldMethod.isEmpty ? null : oldMethod;
+    bool saving = false;
+    final methods = [
+      ...kVaccineMethodOptions,
+      if (oldMethod.isNotEmpty && !kVaccineMethodOptions.contains(oldMethod))
+        oldMethod,
+    ];
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        final ez = ezColors(dialogContext);
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> submit() async {
+              final name = nameCtrl.text.trim();
+              final minAge = int.tryParse(minCtrl.text.trim());
+              final maxAge = int.tryParse(maxCtrl.text.trim());
+              if (name.isEmpty ||
+                  method == null ||
+                  minAge == null ||
+                  maxAge == null) {
+                showEzTopBanner(
+                  context,
+                  'กรุณากรอกชื่อยา วิธีการให้ และช่วงอายุให้ครบถ้วน',
+                  type: EzBannerType.warning,
+                );
+                return;
+              }
+              if (minAge > maxAge) {
+                showEzTopBanner(
+                  context,
+                  'อายุต่ำสุดต้องไม่มากกว่าอายุสูงสุด',
+                  type: EzBannerType.warning,
+                );
+                return;
+              }
+              final duplicate = _schedules.any(
+                (o) =>
+                    o['name']?.toString() != oldName &&
+                    o['name']?.toString().trim().toLowerCase() ==
+                        name.toLowerCase(),
+              );
+              if (duplicate) {
+                showEzTopBanner(
+                  context,
+                  'มียา/วัคซีนชื่อนี้อยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น',
+                  type: EzBannerType.error,
+                );
+                return;
+              }
+              final changes = ezChangedLines([
+                ['ชื่อยา', oldName, name],
+                ['วิธีการให้', oldMethod, method],
+                ['อายุต่ำสุด', '$oldMin วัน', '$minAge วัน'],
+                ['อายุสูงสุด', '$oldMax วัน', '$maxAge วัน'],
+                ['คำอธิบาย', oldDesc, descCtrl.text.trim()],
+              ]);
+              if (changes.isEmpty) {
+                showEzTopBanner(
+                  context,
+                  'ยังไม่ได้แก้ไขข้อมูลใด ๆ',
+                  type: EzBannerType.warning,
+                );
+                return;
+              }
+              if (!await showEzConfirm(
+                dialogContext,
+                title: 'ยืนยันการแก้ไข',
+                message: 'แก้ไข "$oldName" ตามนี้ใช่ไหม?',
+                details: changes,
+              )) {
+                return;
+              }
+              setDialogState(() => saving = true);
+              try {
+                final response = await ApiClient.put(
+                  Uri.parse(
+                    '$backendBaseUrl/api/vaccines/schedule/update?old_name=${Uri.encodeComponent(oldName)}',
+                  ),
+                  headers: {'Content-Type': 'application/json; charset=utf-8'},
+                  body: jsonEncode({
+                    'name': name,
+                    'method': method,
+                    'min_age_days': minAge,
+                    'max_age_days': maxAge,
+                    'description': descCtrl.text.trim(),
+                  }),
+                );
+                if (!mounted) return;
+                if (response.statusCode == 200) {
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  showEzTopBanner(
+                    context,
+                    'แก้ไข "$name" สำเร็จ',
+                    type: EzBannerType.success,
+                  );
+                  _loadSchedules();
+                } else {
+                  setDialogState(() => saving = false);
+                  final body = response.body.trim();
+                  showEzTopBanner(
+                    context,
+                    body.isNotEmpty && !body.startsWith('{')
+                        ? body
+                        : 'แก้ไขไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+                    type: EzBannerType.error,
+                  );
+                }
+              } catch (e) {
+                setDialogState(() => saving = false);
+                if (mounted) {
+                  showEzTopBanner(
+                    context,
+                    'เชื่อมต่อ backend ไม่สำเร็จ',
+                    type: EzBannerType.error,
+                  );
+                }
+              }
+            }
+
+            return AlertDialog(
+              backgroundColor: ezCardColor(dialogContext),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: Text(
+                'แก้ไขยา/วัคซีน',
+                style: GoogleFonts.kanit(
+                  fontWeight: FontWeight.bold,
+                  color: ez.textPrimary,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    EzFormTextField(
+                      label: 'ชื่อยา',
+                      isRequired: true,
+                      controller: nameCtrl,
+                      inputFormatters: [
+                        NoEmojiFormatter(onRejected: _warnEmoji),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    EzFormDropdown<String>(
+                      label: 'วิธีการให้',
+                      isRequired: true,
+                      value: method,
+                      hint: 'เลือกวิธีการให้',
+                      items: methods
+                          .map(
+                            (m) => DropdownMenuItem(value: m, child: Text(m)),
+                          )
+                          .toList(),
+                      onChanged: (val) => setDialogState(() => method = val),
+                    ),
+                    const SizedBox(height: 12),
+                    EzFormTextField(
+                      label: 'อายุต่ำสุดที่ให้',
+                      isRequired: true,
+                      controller: minCtrl,
+                      keyboardType: TextInputType.number,
+                      suffixText: 'วัน',
+                    ),
+                    const SizedBox(height: 12),
+                    EzFormTextField(
+                      label: 'อายุสูงสุดที่ให้',
+                      isRequired: true,
+                      controller: maxCtrl,
+                      keyboardType: TextInputType.number,
+                      suffixText: 'วัน',
+                    ),
+                    const SizedBox(height: 12),
+                    EzFormTextField(
+                      label: 'คำอธิบาย',
+                      controller: descCtrl,
+                      hintText: 'ไม่บังคับ',
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving ? null : () => Navigator.pop(dialogContext),
+                  child: Text(
+                    'ยกเลิก',
+                    style: GoogleFonts.kanit(color: ez.textSecondary),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ez.accentGreen,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: saving ? null : submit,
+                  child: Text(
+                    saving ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข',
+                    style: GoogleFonts.kanit(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    nameCtrl.dispose();
+    minCtrl.dispose();
+    maxCtrl.dispose();
+    descCtrl.dispose();
+  }
+
+  Widget _buildExistingList() {
+    final ez = ezColors(context);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: ezCardDecoration(context, radius: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'ยา/วัคซีนที่มีอยู่แล้ว',
+            style: GoogleFonts.kanit(
+              color: ez.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (_isLoadingSchedules)
+            Text(
+              'กำลังโหลดรายการ...',
+              style: GoogleFonts.kanit(color: ez.textSecondary, fontSize: 13),
+            )
+          else if (_schedules.isEmpty)
+            Text(
+              'ยังไม่มียา/วัคซีนในระบบ',
+              style: GoogleFonts.kanit(color: ez.textSecondary, fontSize: 13),
+            )
+          else
+            for (final s in _schedules)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                decoration: BoxDecoration(
+                  color: ez.textPrimary.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: ez.border),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${s['name'] ?? ''}${(s['method'] ?? '').toString().isNotEmpty ? ' · ${s['method']}' : ''}',
+                            style: GoogleFonts.kanit(
+                              color: ez.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'อายุ ${s['min_age_days']}–${s['max_age_days']} วัน${(s['description'] ?? '').toString().isNotEmpty ? ' · ${s['description']}' : ''}',
+                            style: GoogleFonts.kanit(
+                              color: ez.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _openEditDialog(s),
+                      icon: Icon(
+                        Icons.edit_outlined,
+                        size: 16,
+                        color: ez.accentGreen,
+                      ),
+                      label: Text(
+                        'แก้ไข',
+                        style: GoogleFonts.kanit(
+                          color: ez.accentGreen,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -293,11 +662,16 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
     }
 
     // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
-    if (!await showEzConfirm(context, message: 'ตรวจสอบข้อมูลวัคซีน/ยาก่อนบันทึก', details: [
-      'ชื่อยา: ${_nameController.text.trim()}',
-      'วิธีการให้: ${_selectedMethod ?? '-'}',
-      'ช่วงอายุ: $minAge - $maxAge วัน',
-    ])) return;
+    if (!await showEzConfirm(
+      context,
+      message: 'ตรวจสอบข้อมูลวัคซีน/ยาก่อนบันทึก',
+      details: [
+        'ชื่อยา: ${_nameController.text.trim()}',
+        'วิธีการให้: ${_selectedMethod ?? '-'}',
+        'ช่วงอายุ: $minAge - $maxAge วัน',
+      ],
+    ))
+      return;
     if (!mounted) return;
     setState(() => _isSaving = true);
     try {
@@ -315,7 +689,14 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
 
       if (!mounted) return;
       if (response.statusCode == 200 || response.statusCode == 201) {
-        Navigator.pop(context, true);
+        // บันทึกแล้วอยู่หน้านี้ต่อ (ไม่เด้งออก) - ล้างฟอร์มและโหลดรายการใหม่ให้เห็นตัวที่เพิ่งเพิ่ม
+        showEzTopBanner(
+          context,
+          'บันทึก "$name" สำเร็จ',
+          type: EzBannerType.success,
+        );
+        _resetForm();
+        _loadSchedules();
       } else {
         // แสดงข้อความจริงจาก backend ถ้ามี (เช่น "มียา/วัคซีนชื่อนี้อยู่ในระบบแล้ว"
         // ตอนชื่อซ้ำ - สถานะ 409) แทนข้อความกลางๆ เดิมที่ไม่บอกสาเหตุจริง ทำให้
@@ -402,6 +783,8 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               EzHeader(pageTitle: 'เพิ่มประเภทวัคซีน/ยา'),
+              const SizedBox(height: 16),
+              _buildExistingList(),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(18),
