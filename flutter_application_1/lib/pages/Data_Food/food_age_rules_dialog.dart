@@ -8,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/ez_header.dart';
 import '../../widgets/ez_top_banner.dart';
 import 'Main_DataAdd_Food1.dart' show kFoodTypeSmallPellet, kFoodTypeLargePellet;
+import '../../widgets/ez_confirm_dialog.dart';
 
 /// เปิดป็อบอัพ "เงื่อนไขอายุไก่กับประเภทอาหาร" (เหมือนในเว็บ) - เจ้าของกรอกตารางว่าไก่อายุ
 /// กี่สัปดาห์ให้กินอาหารประเภทไหน และไก่ 1 ตัวกินกี่กรัมต่อวัน คืน true ถ้าบันทึกสำเร็จ
@@ -171,6 +172,12 @@ class _FoodAgeRulesDialogState extends State<_FoodAgeRulesDialog> {
       }
     }
 
+    // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+    if (!await showEzConfirm(context, message: 'บันทึกเงื่อนไขอายุไก่กับประเภทอาหารใช่ไหม? ระบบจะใช้ตารางนี้คำนวณการตัดสต็อกอัตโนมัติ', details: [
+      for (final r in rules)
+        '${r['food_type']}: อายุ ${r['min_weeks']} - ${r['max_weeks'] == 0 ? 'ไม่จำกัด' : r['max_weeks']} สัปดาห์, ตัวละ ${r['grams_per_bird']} กรัม/วัน',
+    ])) return;
+    if (!mounted) return;
     setState(() {
       _error = '';
       _saving = true;

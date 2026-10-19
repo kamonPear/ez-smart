@@ -13,6 +13,7 @@ import '../../widgets/ez_header.dart';
 import '../../widgets/ez_form_field.dart';
 import '../../widgets/ez_top_banner.dart';
 import '../calendar.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 class AddDataadopt extends StatefulWidget {
   const AddDataadopt({super.key});
@@ -143,6 +144,14 @@ class _AddDataadoptState extends State<AddDataadopt> {
       return;
     }
 
+    // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+    if (!await showEzConfirm(context, message: 'ตรวจสอบข้อมูลคอกไก่ก่อนบันทึก', details: [
+      'ชื่อคอก: ${nameController.text.trim()}',
+      'จำนวนไก่: $count ตัว',
+      'วันเกิดไก่: ${birthDateController.text}',
+      'วันที่รับเข้าเลี้ยง: ${importDateController.text}',
+    ])) return;
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,

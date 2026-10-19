@@ -18,6 +18,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/vaccine_methods.dart';
 import '../../services/backend_config.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 class MainVaccine extends StatefulWidget {
   final String? initialCoopId;
@@ -663,6 +664,13 @@ class _MainVaccineState extends State<MainVaccine> {
     required String type,
     required String note,
   }) async {
+    // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+    if (!await showEzConfirm(context, message: 'บันทึกการแก้ไขข้อมูลวัคซีนใช่ไหม?', details: [
+      'ชื่อวัคซีน: $newName',
+      'อายุไก่ที่ให้: $age วัน',
+      'วิธีการให้: $type',
+    ])) return;
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
@@ -1365,6 +1373,11 @@ class _MainVaccineState extends State<MainVaccine> {
                 }
               }
 
+              // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+              if (!await showEzConfirm(context,
+                  message: newValue ? 'บันทึกว่าให้วัคซีนนี้แล้วใช่ไหม?' : 'ยกเลิกสถานะให้วัคซีนนี้ใช่ไหม?',
+                  details: ['คอก: $coopId', 'วัคซีน: $vaccineName'])) return;
+              if (!mounted) return;
               setState(() {
                 alert['is_completed'] = newValue;
                 _updateDayMarkers();

@@ -14,6 +14,7 @@ import '../../services/backend_config.dart';
 import '../../widgets/ez_top_banner.dart';
 import '../../widgets/ez_date_picker.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 /// ประเภทอาหารที่รองรับ - ผูกกับช่วงอายุไก่ที่กินอาหารประเภทนั้น
 const String kFoodTypeSmallPellet = 'เม็ดเล็ก';
@@ -207,6 +208,14 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
       return;
     }
 
+    // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+    if (!await showEzConfirm(context, message: 'ตรวจสอบข้อมูลการนำเข้าอาหารก่อนบันทึก', details: [
+      'ประเภทอาหาร: ${_selectedFoodType ?? '-'}',
+      'ปริมาณ: ${_amountController.text.trim()} กก.',
+      'วันที่นำเข้า: ${ezConfirmDate(_selectedImportDate)}',
+      'วันหมดอายุ: ${ezConfirmDate(_selectedExpiryDate)}',
+    ])) return;
+    if (!mounted) return;
     try {
       final response = await ApiClient.post(
         url,
