@@ -13,6 +13,7 @@ import '../../widgets/ez_header.dart';
 import '../../widgets/ez_form_field.dart';
 import '../../widgets/ez_top_banner.dart';
 import '../calendar.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 class EditDataAdoptchicken extends StatefulWidget {
   final Map<String, String> initialData;
@@ -66,7 +67,17 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
       text: _isoToThaiInput(widget.initialData['birthDate']),
     );
     noteController = TextEditingController(text: widget.initialData['note']);
+    // ค่าเดิมตอนเปิดหน้า - ใช้เทียบว่าแก้ช่องไหนไป เพื่อโชว์ในป็อบอัพยืนยันก่อนบันทึก
+    _original = {
+      'name': nameController.text.trim(),
+      'count': countController.text.trim(),
+      'birth': birthDateController.text.trim(),
+      'import': importDateController.text.trim(),
+      'note': noteController.text.trim(),
+    };
   }
+
+  Map<String, String> _original = {};
 
   @override
   void dispose() {
@@ -201,6 +212,21 @@ class _EditDataAdoptchickenState extends State<EditDataAdoptchicken> {
       return;
     }
 
+    // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+    // โชว์เฉพาะช่องที่แก้ไขจริง (ค่าเดิม → ค่าใหม่) ให้เจ้าของฟาร์มเช็กอีกรอบ
+    final changes = ezChangedLines([
+      ['ชื่อคอก', _original['name'], nameRaw],
+      ['จำนวนไก่', '${_original['count']} ตัว', '$amount ตัว'],
+      ['วันเกิดไก่', _original['birth'], birthDateRaw],
+      ['วันที่รับเข้าเลี้ยง', _original['import'], importDateRaw],
+      ['หมายเหตุ', _original['note'], noteRaw],
+    ]);
+    if (changes.isEmpty) {
+      showEzTopBanner(context, 'ยังไม่ได้แก้ไขข้อมูลใด ๆ', type: EzBannerType.warning);
+      return;
+    }
+    if (!await showEzConfirm(context, message: 'ตรวจสอบรายการที่แก้ไข (${changes.length} รายการ) ก่อนบันทึก', details: changes)) return;
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,

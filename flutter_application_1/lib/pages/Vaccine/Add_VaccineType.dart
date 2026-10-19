@@ -13,6 +13,7 @@ import '../Data_AdoptChicken/Main_DataChicken_2.dart';
 import '../Data_Food/Main_DataFood_ShowDataFood1.dart';
 import '../Main_SenSor/Main_DeviceSummary.dart';
 import '../Show_chart.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 /// หน้าเพิ่ม "ประเภทวัคซีน/ยา" ใหม่เข้าไปในระบบ นอกเหนือจากที่ฟิกไว้เดิม
 /// เพื่อให้เจ้าของฟาร์มกรอกยาชนิดอื่นที่ยังไม่มีในระบบได้เอง
@@ -291,6 +292,13 @@ class _AddVaccineTypeState extends State<AddVaccineType> {
       return;
     }
 
+    // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+    if (!await showEzConfirm(context, message: 'ตรวจสอบข้อมูลวัคซีน/ยาก่อนบันทึก', details: [
+      'ชื่อยา: ${_nameController.text.trim()}',
+      'วิธีการให้: ${_selectedMethod ?? '-'}',
+      'ช่วงอายุ: $minAge - $maxAge วัน',
+    ])) return;
+    if (!mounted) return;
     setState(() => _isSaving = true);
     try {
       final response = await ApiClient.post(

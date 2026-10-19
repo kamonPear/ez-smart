@@ -14,6 +14,8 @@ import '../../services/notifications_service.dart';
 import '../widgets/ez_header.dart';
 import '../widgets/ez_top_banner.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import '../widgets/ez_confirm_dialog.dart';
+import 'Show_chart.dart';
 
 class Notifications extends StatefulWidget {
   const Notifications({super.key});
@@ -70,6 +72,9 @@ class _NotificationsState extends State<Notifications> {
         return;
       }
 
+      // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+      if (!await showEzConfirm(context, message: 'บันทึกว่าให้วัคซีนนี้เสร็จแล้วใช่ไหม?')) return;
+      if (!mounted) return;
       String id = data['id'].toString();
       try {
         final response = await ApiClient.put(
@@ -195,6 +200,12 @@ class _NotificationsState extends State<Notifications> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainDeviceSummary()),
+      );
+    } else if (index == 2) {
+      // เดิมไม่มีกรณีนี้ กด "สถิติไข่รวม" จากหน้าแจ้งเตือนแล้วไม่ไปไหน
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ShowChart()),
       );
     } else if (index == 3) {
       Navigator.pushReplacement(

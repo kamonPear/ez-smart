@@ -10,6 +10,7 @@ import '../../widgets/ez_header.dart';
 import '../../widgets/ez_gauge.dart';
 import '../../widgets/ez_top_banner.dart';
 import '../../theme/farm_settings.dart';
+import '../../widgets/ez_confirm_dialog.dart';
 
 /// หน้าตั้งค่าอุณหภูมิ/แอมโมเนียมาตรฐาน ที่ใช้ร่วมกันทุกคอกในฟาร์ม (ข้อ 1.3.2.2, 1.3.2.3)
 class MainFarmThresholds extends StatefulWidget {
@@ -48,6 +49,12 @@ class _MainFarmThresholdsState extends State<MainFarmThresholds> {
   }
 
   Future<void> _saveAndExit() async {
+    // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
+    if (!await showEzConfirm(context, message: 'บันทึกค่ามาตรฐานของฟาร์มใช่ไหม? (ใช้ร่วมกันทุกคอก)', details: [
+      'อุณหภูมิมาตรฐาน: ${_temp.toStringAsFixed(1)} °C',
+      'แอมโมเนียมาตรฐาน: ${_ammonia.toStringAsFixed(1)} ppm',
+    ])) return;
+    if (!mounted) return;
     try {
       await farmThresholdController.save(temperature: _temp, ammonia: _ammonia);
       if (!mounted) return;

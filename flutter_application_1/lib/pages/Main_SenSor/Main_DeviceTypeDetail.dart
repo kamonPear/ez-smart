@@ -117,7 +117,7 @@ class MainDeviceTypeDetail extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'ออนไลน์',
+                            _isActuator(devices) ? 'เปิดอยู่' : 'ทำงานอยู่',
                             style: GoogleFonts.kanit(
                               color: ez.textSecondary,
                               fontSize: 12,
@@ -189,6 +189,11 @@ class MainDeviceTypeDetail extends StatelessWidget {
     }
   }
 
+  // พัดลม/หลอดไฟ (Actuator): "ออนไลน์" ของมันแปลว่ากำลังเปิดอยู่ จึงแสดงเป็น เปิด/ปิด (เหมือนหน้าเว็บ)
+  bool _isActuator(List<Map<String, dynamic>> list) => list.any(
+    (d) => (d['device_type']?.toString() ?? '').toLowerCase() == 'actuator',
+  );
+
   Widget _buildDeviceRow(BuildContext context, Map<String, dynamic> d) {
     final ez = ezColors(context);
     final String status = d['current_status']?.toString() ?? 'Offline';
@@ -246,7 +251,9 @@ class MainDeviceTypeDetail extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              isOnline ? 'ทำงานอยู่' : 'ออฟไลน์',
+              _isActuator([d])
+                  ? (isOnline ? 'เปิดอยู่' : 'ปิดอยู่')
+                  : (isOnline ? 'ทำงานอยู่' : 'ออฟไลน์'),
               style: GoogleFonts.kanit(
                 color: statusColor,
                 fontSize: 12,
