@@ -254,6 +254,94 @@ class _FoodAgeRulesDialogState extends State<_FoodAgeRulesDialog> {
     style: GoogleFonts.kanit(fontSize: 13, color: ez.textSecondary),
   );
 
+  /// เปลี่ยนประเภทของแถว: ถ้าเลือก "เม็ดใหญ่" ในแถวที่ช่วงอายุยังว่างอยู่ ให้เริ่มต่อจากที่
+  /// "เม็ดเล็ก" จบ (เช่น เม็ดเล็ก 0-6 -> เม็ดใหญ่ เริ่ม 6) และใส่ "ถึง" = 0 (ไม่จำกัด)
+  /// ไม่ทับค่าที่กรอกไว้แล้ว และถ้าเม็ดเล็กไม่มีอายุสิ้นสุด (0 = ไม่จำกัด) ก็ไม่เติมให้
+  void _changeType(_RuleRow row, String foodType) {
+    setState(() {
+      row.foodType = foodType;
+      _error = '';
+      if (foodType != kFoodTypeLargePellet) return;
+      if (row.min.text.trim().isNotEmpty || row.max.text.trim().isNotEmpty) {
+        return;
+      }
+      var smallEnd = 0;
+      for (final r in _rows) {
+        if (r.foodType != kFoodTypeSmallPellet) continue;
+        final end = int.tryParse(r.max.text.trim()) ?? 0;
+        if (end > smallEnd) smallEnd = end;
+      }
+      if (smallEnd == 0) return;
+      row.min.text = smallEnd.toString();
+      row.max.text = '0';
+    });
+  }
+
+  /// เมนูเลือกประเภทอาหาร: ปุ่มมุมโค้งพร้อมลูกศร เปิดเป็นการ์ดที่ตัวที่เลือกไฮไลต์พร้อมเครื่องหมายถูก
+  Widget _buildTypeMenu(EzColors ez, _RuleRow row) {
+    return PopupMenuButton<String>(
+      tooltip: 'ประเภทอาหาร',
+      initialValue: row.foodType,
+      onSelected: (v) => _changeType(row, v),
+      color: ez.card,
+      elevation: 8,
+      offset: const Offset(0, 44),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: ez.border),
+      ),
+      itemBuilder: (_) => [
+        for (final t in const [kFoodTypeSmallPellet, kFoodTypeLargePellet])
+          PopupMenuItem<String>(
+            value: t,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    t,
+                    style: GoogleFonts.kanit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: t == row.foodType ? ez.gold : ez.textPrimary,
+                    ),
+                  ),
+                ),
+                if (t == row.foodType)
+                  Icon(Icons.check_rounded, size: 18, color: ez.gold),
+              ],
+            ),
+          ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
+        decoration: BoxDecoration(
+          color: ez.inputFill,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: ez.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              row.foodType,
+              style: GoogleFonts.kanit(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: ez.inputText,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 20,
+              color: ez.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildRow(EzColors ez, int i) {
     final row = _rows[i];
     return Container(
@@ -269,31 +357,7 @@ class _FoodAgeRulesDialogState extends State<_FoodAgeRulesDialog> {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: ez.inputFill,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: ez.border),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: row.foodType,
-                    dropdownColor: ez.card,
-                    style: GoogleFonts.kanit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: ez.inputText,
-                    ),
-                    items: const [kFoodTypeSmallPellet, kFoodTypeLargePellet]
-                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                        .toList(),
-                    onChanged: (v) {
-                      if (v != null) setState(() => row.foodType = v);
-                    },
-                  ),
-                ),
-              ),
+              _buildTypeMenu(ez, row),
               const Spacer(),
               IconButton(
                 tooltip: 'ลบแถวนี้',

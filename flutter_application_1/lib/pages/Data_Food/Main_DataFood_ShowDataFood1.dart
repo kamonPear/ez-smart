@@ -348,6 +348,110 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     }
   }
 
+  /// ปริมาณอาหารใกล้หมดเป็นค่าเดียวใช้ร่วมกันทุกประเภท (อ่านจากแถวที่ตั้งไว้) 0 = ยังไม่ตั้ง
+  double get _sharedMinQuantity {
+    final a = (_smallStock?['min_quantity'] as num?)?.toDouble() ?? 0.0;
+    final b = (_largeStock?['min_quantity'] as num?)?.toDouble() ?? 0.0;
+    return a > b ? a : b;
+  }
+
+  /// ให้เจ้าของฟาร์มกำหนดปริมาณ (กก.) ที่ต้องการให้แจ้งเตือน "ใกล้หมด" - ตั้งได้ครั้งเดียว
+  /// ใช้กับอาหารทุกประเภท แล้วล็อก (แก้ไขไม่ได้) จึงมีขั้นตอนยืนยันก่อนบันทึก
+  Future<void> _editMinQuantity(String foodType) async {
+    if (_sharedMinQuantity > 0) return; // ล็อกแล้ว
+    final controller = TextEditingController();
+    final value = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('ตั้งแจ้งเตือนอาหารใกล้หมด'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'แจ้งเตือนเมื่อเหลือไม่เกิน (กก.)',
+            helperText: 'ใช้กับอาหารทุกประเภท ตั้งได้ครั้งเดียว แก้ไขไม่ได้',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () {
+              final text = controller.text.trim().replaceAll(',', '');
+              final parsed = double.tryParse(text);
+              if (parsed == null || parsed <= 0) return;
+              Navigator.pop(ctx, parsed);
+            },
+            child: const Text('ถัดไป'),
+          ),
+        ],
+      ),
+    );
+    if (value == null || !mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('ยืนยันปริมาณอาหารใกล้หมด'),
+        content: Text(
+          'ต้องการตั้งแจ้งเตือนเมื่อเหลือไม่เกิน ${_formatKg(value)} กก. ใช่ไหม\n\n'
+          'ค่านี้ใช้กับอาหารทุกประเภท และเมื่อบันทึกแล้วจะแก้ไขไม่ได้',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('กลับไปแก้'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('ยืนยันและบันทึก'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final response = await ApiClient.put(
+        Uri.parse('$backendBaseUrl/api/foods/min-quantity'),
+        headers: {'Content-Type': 'application/json; charset=utf-8'},
+        body: json.encode({'min_quantity': value}),
+      );
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        showEzTopBanner(
+          context,
+          'ตั้งแจ้งเตือนอาหารใกล้หมดที่ ${_formatKg(value)} กก. แล้ว',
+          type: EzBannerType.success,
+        );
+        _fetchFoodData();
+      } else if (response.statusCode == 409) {
+        showEzTopBanner(
+          context,
+          'ตั้งไว้แล้ว แก้ไขไม่ได้',
+          type: EzBannerType.warning,
+        );
+        _fetchFoodData();
+      } else {
+        showEzTopBanner(
+          context,
+          'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+          type: EzBannerType.error,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showEzTopBanner(
+        context,
+        'เชื่อมต่อ backend ไม่สำเร็จ',
+        type: EzBannerType.error,
+      );
+    }
+  }
+
   /// กก. แสดงสูงสุด 3 ตำแหน่ง ตัดศูนย์ท้ายทิ้ง (ไม่ปัดเหลือ 0 เวลาไก่กินน้อย)
   String _formatKg(num kg) {
     final s = kg.toStringAsFixed(3);
@@ -479,6 +583,9 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     final double quantity =
         (data?['quantity_current'] as num?)?.toDouble() ?? 0.0;
     final String amount = _formatAmount(data?['quantity_current']);
+    // ค่าเดียวใช้ร่วมกันทุกประเภท: ถ้าตั้งแล้ว (> 0) ถือว่าล็อก
+    final double minQuantity = _sharedMinQuantity;
+    final bool minLocked = minQuantity > 0;
     final String lastUpdate = _formatDateTime(data?['date_up']);
     final bool isEmpty = data == null || quantity <= 0;
     final Color statusColor = isEmpty ? ez.danger : ez.accentGreen;
@@ -549,6 +656,42 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: (data == null || minLocked)
+                ? null
+                : () => _editMinQuantity(foodType),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.notifications_active_outlined,
+                    size: 12,
+                    color: ez.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      minLocked
+                          ? '🔒 เตือนเมื่อเหลือ ≤ ${_formatKg(minQuantity)} กก. (ล็อกแล้ว)'
+                          : data == null
+                          ? 'นำเข้าสต็อกก่อนจึงตั้งแจ้งเตือนได้'
+                          : 'ยังไม่ตั้งแจ้งเตือนใกล้หมด (ตั้งได้ครั้งเดียว)',
+                      maxLines: 2,
+                      style: GoogleFonts.kanit(
+                        fontSize: 10,
+                        color: ez.textSecondary,
+                      ),
+                    ),
+                  ),
+                  if (data != null && !minLocked)
+                    Icon(Icons.edit_outlined, size: 12, color: ez.gold),
+                ],
+              ),
             ),
           ),
           const Spacer(),
