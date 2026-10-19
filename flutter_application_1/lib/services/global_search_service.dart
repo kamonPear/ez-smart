@@ -318,7 +318,7 @@ class GlobalSearchService {
     _page('🎚️', 'ค่ามาตรฐานทุกคอก', 'ตั้งค่า อุณหภูมิ แอมโมเนีย threshold', (_) => const MainFarmThresholds()),
     _page('📅', 'นัดตรวจสุขภาพ', 'นัด ตรวจ สุขภาพ', (_) => const MainHealthAppointments()),
     _page('💉', 'เพิ่มยาวัคซีน', 'วัคซีน ยา', (_) => const AddVaccineType()),
-    _page('📟', 'เซนเซอร์รวม', 'เซนเซอร์ อุปกรณ์', (_) => const MainDeviceSummary()),
+    _page('📟', 'สถานะอุปกรณ์และเซนเซอร์', 'เซนเซอร์ อุปกรณ์ บอร์ด ESP32 เซนเซอร์รวม', (_) => const MainDeviceSummary()),
     _page('📊', 'สถิติไข่รวม', 'กราฟ สถิติ ไข่', (_) => const ShowChart()),
     _page('🗓️', 'ปฏิทินรวม', 'ปฏิทิน วัน นัด', (_) => const Mainchicken()),
     _page('🌾', 'สต็อกอาหาร', 'อาหาร สต็อก', (_) => const MainShowDataFood()),
