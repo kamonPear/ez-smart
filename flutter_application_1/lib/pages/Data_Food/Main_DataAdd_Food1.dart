@@ -69,35 +69,34 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     _fetchSavedThresholds();
   }
 
-  // ปริมาณใกล้หมดที่เจ้าของเคยตั้งไว้ของแต่ละประเภท (จาก /api/foods) ไว้เติมในช่องให้
-  // อัตโนมัติเวลานำเข้าอาหารรอบถัดไป จะได้ไม่ต้องกรอกซ้ำ (แก้ทับได้)
-  Map<String, double> _savedMinByType = {};
+  // ปริมาณใกล้หมดตั้งได้ครั้งเดียวแล้วล็อก: true = เคยตั้งแล้ว ช่องนี้แก้ไขไม่ได้
+  bool _minLocked = false;
 
+  // ปริมาณใกล้หมดที่เจ้าของเคยตั้งไว้ (จาก /api/foods) ใช้ค่าเดียวร่วมกันทุกประเภทอาหาร
+  // เติมในช่องให้อัตโนมัติและล็อกไว้ จะได้ไม่ต้องกรอกซ้ำ
   Future<void> _fetchSavedThresholds() async {
     try {
       final response = await ApiClient.get(Uri.parse('$backendBaseUrl/api/foods'));
       if (response.statusCode != 200) return;
       final decoded = json.decode(response.body);
       if (decoded is! List) return;
-      final saved = <String, double>{};
+      double saved = 0.0;
       for (final row in decoded) {
-        final type = row['food_type'] as String?;
         final min = (row['min_quantity'] as num?)?.toDouble() ?? 0.0;
-        if (type != null && min > 0) saved[type] = min;
+        if (min > 0) {
+          saved = min;
+          break;
+        }
       }
-      if (!mounted) return;
-      _savedMinByType = saved;
-      if (_selectedFoodType != null) _prefillThreshold(_selectedFoodType!);
+      if (!mounted || saved <= 0) return;
+      // เคยตั้งแล้ว -> ล็อก แก้ไขไม่ได้ (ตั้งได้ครั้งเดียว) ใช้ค่าเดิมกับทุกประเภท
+      _thresholdController.text = saved == saved.roundToDouble()
+          ? saved.toInt().toString()
+          : saved.toString();
+      setState(() => _minLocked = true);
     } catch (e) {
       debugPrint("Connection error (saved thresholds): $e");
     }
-  }
-
-  void _prefillThreshold(String foodType) {
-    final min = _savedMinByType[foodType];
-    _thresholdController.text = min == null
-        ? ''
-        : (min == min.roundToDouble() ? min.toInt().toString() : min.toString());
   }
 
   Future<void> _fetchDailyConsumption() async {
@@ -228,9 +227,35 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     if (_selectedExpiryDate == null) _calculateExpiryDate();
     final expiryDate = _selectedExpiryDate ?? _selectedImportDate!;
 
-    final double? enteredThreshold = double.tryParse(
-      _thresholdController.text.trim(),
-    );
+    // ตั้งครั้งแรกเท่านั้น (ถ้าล็อกแล้วไม่ส่ง) และต้องมากกว่า 0
+    final double? enteredThreshold = _minLocked
+        ? null
+        : double.tryParse(_thresholdController.text.trim());
+
+    // กรอกปริมาณใกล้หมดเป็นครั้งแรก -> ถามยืนยันก่อน เพราะบันทึกแล้วแก้ไขไม่ได้
+    if (enteredThreshold != null && enteredThreshold > 0) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('ยืนยันปริมาณอาหารใกล้หมด'),
+          content: Text(
+            'ต้องการตั้งแจ้งเตือนเมื่อเหลือไม่เกิน ${_thresholdController.text.trim()} กก. ใช่ไหม\n\n'
+            'ค่านี้ใช้กับอาหารทุกประเภท และเมื่อบันทึกแล้วจะแก้ไขไม่ได้',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('กลับไปแก้'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('ยืนยันและบันทึก'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
 
     try {
       final response = await ApiClient.post(
@@ -242,7 +267,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
           "import_volume": enteredAmount.round(),
           "expiry_date": expiryDate.toUtc().toIso8601String(),
           // ปริมาณที่เจ้าของฟาร์มกำหนดให้แจ้งเตือน "ใกล้หมด" ของประเภทนี้
-          if (enteredThreshold != null && enteredThreshold >= 0)
+          if (enteredThreshold != null && enteredThreshold > 0)
             "min_quantity": enteredThreshold,
         }),
       );
@@ -353,9 +378,7 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     return InkWell(
       onTap: () {
         setState(() => _selectedFoodType = value);
-        _prefillThreshold(value);
-        // โหลดซ้ำทุกครั้งที่เลือกประเภท (ถ้าโหลดตอนเปิดหน้าไม่สำเร็จ/ยังไม่เสร็จ
-        // ก็ยังได้ค่าล่าสุดจากเซิร์ฟเวอร์) - ตัวนี้เติมช่องให้เองเมื่อโหลดเสร็จ
+        // โหลดซ้ำตอนเลือกประเภท เผื่อโหลดตอนเปิดหน้าไม่สำเร็จ/ยังไม่เสร็จ (เติมเมื่อช่องว่างเท่านั้น)
         _fetchSavedThresholds();
         _calculateExpiryDate();
       },
@@ -545,13 +568,28 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
                     ),
                     const SizedBox(height: 12),
                     EzFormTextField(
-                      label: 'กำหนดปริมาณอาหารใกล้หมด',
+                      label: _minLocked
+                          ? 'ปริมาณอาหารใกล้หมด 🔒'
+                          : 'กำหนดปริมาณอาหารใกล้หมด',
                       controller: _thresholdController,
+                      readOnly: _minLocked,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      hintText: 'เช่น 20 (เว้นว่าง = ใช้ค่าเดิม)',
+                      hintText: 'เช่น 20 (ตั้งได้ครั้งเดียว)',
                       suffixText: 'กก.',
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, left: 4),
+                      child: Text(
+                        _minLocked
+                            ? 'ตั้งไว้แล้วและล็อกไว้ แก้ไขไม่ได้ ใช้ค่านี้กับอาหารทุกประเภท'
+                            : 'ใช้ร่วมกันทุกประเภท ตั้งได้ครั้งเดียว บันทึกแล้วแก้ไขไม่ได้',
+                        style: GoogleFonts.kanit(
+                          fontSize: 11,
+                          color: ez.textSecondary,
+                        ),
+                      ),
                     ),
                   ],
                 ),

@@ -154,6 +154,9 @@ class EzFormTextField extends StatefulWidget {
   /// หน่วยที่แสดงชิดขวาในช่อง เช่น "วัน", "กก." (ไม่ใช่ค่าที่ผู้ใช้กรอก)
   final String? suffixText;
 
+  /// true = แสดงค่าได้แต่แก้ไม่ได้ (เช่น ค่าที่ล็อกแล้ว)
+  final bool readOnly;
+
   const EzFormTextField({
     super.key,
     required this.label,
@@ -163,6 +166,7 @@ class EzFormTextField extends StatefulWidget {
     this.hintText,
     this.isRequired = false,
     this.suffixText,
+    this.readOnly = false,
   });
 
   @override
@@ -201,6 +205,7 @@ class _EzFormTextFieldState extends State<EzFormTextField> {
             child: TextField(
               controller: widget.controller,
               focusNode: _focusNode,
+              readOnly: widget.readOnly,
               keyboardType: widget.keyboardType,
               inputFormatters: widget.inputFormatters,
               cursorColor: ez.gold,
