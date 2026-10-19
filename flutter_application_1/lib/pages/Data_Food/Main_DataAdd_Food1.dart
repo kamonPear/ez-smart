@@ -234,7 +234,8 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
         : double.tryParse(_thresholdController.text.trim());
 
     // กรอกปริมาณใกล้หมดเป็นครั้งแรก -> ถามยืนยันก่อน เพราะบันทึกแล้วแก้ไขไม่ได้
-    if (enteredThreshold != null && enteredThreshold > 0) {
+    final bool askThreshold = enteredThreshold != null && enteredThreshold > 0;
+    if (askThreshold) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -259,7 +260,8 @@ class _MainaddDataFoodState extends State<MainaddDataFood> {
     }
 
     // ให้เจ้าของฟาร์มทวนข้อมูลอีกรอบก่อนบันทึกจริง (ป็อบอัพกลาง widgets/ez_confirm_dialog.dart)
-    if (!await showEzConfirm(context, message: 'ตรวจสอบข้อมูลการนำเข้าอาหารก่อนบันทึก', details: [
+    // ถ้าเพิ่งกดยืนยันในป็อบอัพ "ปริมาณใกล้หมด" ด้านบนแล้ว ถือว่ายืนยันแล้ว ไม่ถามซ้ำ
+    if (!askThreshold && !await showEzConfirm(context, message: 'ตรวจสอบข้อมูลการนำเข้าอาหารก่อนบันทึก', details: [
       'ประเภทอาหาร: ${_selectedFoodType ?? '-'}',
       'ปริมาณ: ${_amountController.text.trim()} กก.',
       'วันที่นำเข้า: ${ezConfirmDate(_selectedImportDate)}',
