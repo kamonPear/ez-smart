@@ -583,6 +583,7 @@ class _MainShowDataFoodState extends State<MainShowDataFood> {
     final double quantity =
         (data?['quantity_current'] as num?)?.toDouble() ?? 0.0;
     final String amount = _formatAmount(data?['quantity_current']);
+    //final String amount = _formatAmount(data?['quantity_current']/1000*100);   
     // ค่าเดียวใช้ร่วมกันทุกประเภท: ถ้าตั้งแล้ว (> 0) ถือว่าล็อก
     final double minQuantity = _sharedMinQuantity;
     final bool minLocked = minQuantity > 0;
