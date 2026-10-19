@@ -740,26 +740,19 @@ class _AdoptchickenState extends State<Adoptchicken> {
     return Scaffold(
       extendBody: true,
       backgroundColor: ezBackgroundColor(context),
-      body: Stack(
+      // ส่วนหัวสูงไม่แน่นอน (ขึ้นกับแถบสถานะ/ช่องค้นหา) จึงเรียงต่อกันด้วย Column
+      // แทนการกำหนดตำแหน่งรายการตายตัว ไม่งั้นแถบสรุปจะถูกช่องค้นหาทับ
+      body: Column(
         children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: EzHeader(pageTitle: 'ข้อมูลคอกไก่'),
-              ),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: EzHeader(pageTitle: 'ข้อมูลคอกไก่'),
             ),
           ),
 
-          Positioned(
-            top: 180,
-            left: 0,
-            right: 0,
-            bottom: 80,
+          Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
