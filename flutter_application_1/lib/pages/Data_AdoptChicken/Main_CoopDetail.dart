@@ -362,7 +362,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                                           Text(
                                             cleanAmount,
                                             style: GoogleFonts.kanit(
-                                              color: const Color(0xFFFCA5A5),
+                                              color: ezColors(context).danger,
                                               fontSize: 36,
                                               fontWeight: FontWeight.bold,
                                               height: 1,
@@ -659,7 +659,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                         style: GoogleFonts.kanit(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFFE5BA93),
+                          color: ezColors(context).gold,
                         ),
                       ),
                     ),
@@ -862,7 +862,7 @@ class _CoopDetailPageState extends State<CoopDetailPage> {
                   style: GoogleFonts.kanit(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: pending ? ez.danger : const Color(0xFFE5BA93),
+                    color: pending ? ez.danger : ez.gold,
                   ),
                 ),
                 Text(
